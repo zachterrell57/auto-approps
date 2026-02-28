@@ -78,7 +78,7 @@ export function AnswerSheetStep({
 }: AnswerSheetStepProps) {
   const [copiedFieldId, setCopiedFieldId] = useState<string | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
-  const activeCount = mappings.filter((m) => !m.skip && m.proposed_answer.trim()).length;
+  const activeCount = mappings.filter((m) => m.proposed_answer.trim()).length;
 
   const groupedRows = useMemo(() => {
     const mappingById = new Map<string, { mapping: FieldMapping; index: number }>();
@@ -119,7 +119,7 @@ export function AnswerSheetStep({
             <div>
               <CardTitle className="text-2xl">Review + Answer Sheet</CardTitle>
               <CardDescription>
-                Edit mappings, mark skips, then copy each response into the form manually.
+                Edit mappings, then copy each response into the form manually.
                 Click a field to see its source in the document.
               </CardDescription>
               <p className="mt-2 text-sm text-gray-600">{activeCount} fields are ready to copy.</p>
@@ -157,7 +157,6 @@ export function AnswerSheetStep({
               <div className="space-y-4">
                 {rows.map(({ field, mapping, mappingIndex }) => {
                   const answer = mapping?.proposed_answer ?? "";
-                  const skipped = Boolean(mapping?.skip);
                   const editable = mappingIndex !== null;
                   const useTextarea = shouldUseTextarea(field.field_type, answer);
                   const isSelected = selectedFieldId === field.field_id;
@@ -169,9 +168,7 @@ export function AnswerSheetStep({
                       className={`rounded-md border p-3 space-y-2 cursor-pointer transition-colors ${
                         isSelected
                           ? "ring-2 ring-amber-400 border-amber-300 bg-amber-50/30"
-                          : skipped
-                            ? "bg-gray-50 opacity-70"
-                            : "bg-white hover:border-gray-300"
+                          : "bg-white hover:border-gray-300"
                       }`}
                       onClick={() => setSelectedFieldId(isSelected ? null : field.field_id)}
                     >
@@ -195,30 +192,15 @@ export function AnswerSheetStep({
                                 {mapping!.source_chunks.length} source{mapping!.source_chunks.length !== 1 ? "s" : ""}
                               </Badge>
                             )}
-                            {skipped && <Badge variant="secondary">Skipped</Badge>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                          {editable && (
-                            <label className="flex items-center gap-2 text-sm text-gray-700">
-                              <input
-                                type="checkbox"
-                                checked={skipped}
-                                onChange={(event) =>
-                                  mappingIndex !== null &&
-                                  onUpdate(mappingIndex, { skip: event.target.checked })
-                                }
-                                className="h-4 w-4"
-                              />
-                              Skip
-                            </label>
-                          )}
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={() => handleCopy(field.field_id, answer)}
-                            disabled={!answer.trim() || skipped}
+                            disabled={!answer.trim()}
                           >
                             {copiedFieldId === field.field_id ? (
                               <>
@@ -236,7 +218,7 @@ export function AnswerSheetStep({
                       </div>
 
                       <p className="text-xs text-gray-500">
-                        {skipped ? "Skipped during review." : actionHint(field.field_type, answer)}
+                        {actionHint(field.field_type, answer)}
                       </p>
                       {mapping?.source_citation && (
                         <p className="text-xs text-gray-600">Source: {mapping.source_citation}</p>
