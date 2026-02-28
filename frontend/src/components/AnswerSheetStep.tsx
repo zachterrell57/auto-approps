@@ -138,15 +138,6 @@ export function AnswerSheetStep({
         </CardHeader>
       </Card>
 
-      {/* Warnings */}
-      {formSchema.scrape_warnings.length > 0 && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 space-y-1">
-          {formSchema.scrape_warnings.map((warning, index) => (
-            <p key={index}>{warning}</p>
-          ))}
-        </div>
-      )}
-
       {/* Side-by-side layout */}
       <div className="flex gap-4 items-start">
         {/* Left panel: Answer cards */}
