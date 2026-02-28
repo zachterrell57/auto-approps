@@ -33,6 +33,7 @@ export default function App() {
           formSchema={formSchema}
           mappings={mappings}
           unmappedFields={mappingResult?.unmapped_fields ?? []}
+          docChunks={mappingResult?.doc_chunks ?? []}
           loading={loading}
           onUpdate={updateMapping}
           onRemap={remap}
