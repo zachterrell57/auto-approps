@@ -5,6 +5,7 @@ from datetime import date
 
 from playwright.async_api import Locator, Page, async_playwright
 
+from .config import settings
 from .models import FieldType, FormField, FormSchema
 from .nav_engine import navigate_to_next_page, new_navigation_context
 from .page_model import get_page_snapshot
@@ -21,7 +22,7 @@ _UNLOCK_MAX_ROUNDS = 3
 async def scrape_ms_form(url: str) -> FormSchema:
     """Scrape a Microsoft Form URL and return its schema."""
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=settings.ms_playwright_headless)
         page = await browser.new_page()
 
         await page.goto(url, wait_until="domcontentloaded")
