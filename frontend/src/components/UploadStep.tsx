@@ -12,18 +12,12 @@ import {
 
 interface UploadStepProps {
   loading: boolean;
-  useProfileContext: boolean;
-  hasProfileContent: boolean;
   onProcess: (file: File, formUrl: string) => void;
-  onUseProfileContextChange: (useProfileContext: boolean) => void;
 }
 
 export function UploadStep({
   loading,
-  useProfileContext,
-  hasProfileContent,
   onProcess,
-  onUseProfileContextChange,
 }: UploadStepProps) {
   const [file, setFile] = useState<File | null>(null);
   const [formUrl, setFormUrl] = useState("");
@@ -114,20 +108,6 @@ export function UploadStep({
             onChange={(e) => setFormUrl(e.target.value)}
           />
         </div>
-
-        {/* Profile context toggle */}
-        <label className="flex items-start gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={useProfileContext}
-            onChange={(event) => onUseProfileContextChange(event.target.checked)}
-            className="h-4 w-4 mt-0.5"
-          />
-          <span>
-            Use saved profile for mapping
-            {!hasProfileContent && " (currently empty)"}
-          </span>
-        </label>
 
         {/* Process Button */}
         <Button

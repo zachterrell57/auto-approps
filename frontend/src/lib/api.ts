@@ -3,7 +3,6 @@ import type {
   FormSchema,
   KnowledgeProfile,
   KnowledgeProfileUpdate,
-  MapRequest,
   MappingResult,
   SettingsUpdate,
   UploadResponse,
@@ -71,11 +70,9 @@ export async function saveSettings(payload: SettingsUpdate): Promise<AppSettings
   return handleResponse(res);
 }
 
-export async function mapFields(payload?: MapRequest): Promise<MappingResult> {
+export async function mapFields(): Promise<MappingResult> {
   const res = await fetch(`${BASE}/api/map`, {
     method: "POST",
-    headers: payload ? { "Content-Type": "application/json" } : undefined,
-    body: payload ? JSON.stringify(payload) : undefined,
   });
   return handleResponse(res);
 }

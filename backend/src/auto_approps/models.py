@@ -81,6 +81,3 @@ class KnowledgeProfile(KnowledgeProfileBase):
     def has_content(self) -> bool:
         return bool(self.user_context.strip() or self.firm_context.strip())
 
-
-class MapRequest(BaseModel):
-    use_profile_context: bool = True

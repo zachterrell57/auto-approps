@@ -14,7 +14,7 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function useFormFiller(useProfileContext: boolean) {
+export function useFormFiller() {
   const [step, setStep] = useState<Step>("upload");
   const [loading, setLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -54,7 +54,7 @@ export function useFormFiller(useProfileContext: boolean) {
       const schema = await api.scrapeForm(formUrl);
       setFormSchema(schema);
 
-      const result = await api.mapFields({ use_profile_context: useProfileContext });
+      const result = await api.mapFields();
       setMappingResult(result);
       setMappings(
         result.mappings.map((m) => ({ ...m, skip: false }))
@@ -65,13 +65,13 @@ export function useFormFiller(useProfileContext: boolean) {
     } finally {
       setLoading(false);
     }
-  }, [useProfileContext]);
+  }, []);
 
   const remap = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.mapFields({ use_profile_context: useProfileContext });
+      const result = await api.mapFields();
       setMappingResult(result);
       setMappings(
         result.mappings.map((m) => ({ ...m, skip: false }))
@@ -81,7 +81,7 @@ export function useFormFiller(useProfileContext: boolean) {
     } finally {
       setLoading(false);
     }
-  }, [useProfileContext]);
+  }, []);
 
   const saveAppSettings = useCallback(async (apiKey: string) => {
     setSettingsSaving(true);
