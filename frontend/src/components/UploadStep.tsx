@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import { FileText, Link, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -10,31 +9,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { KnowledgeProfile } from "@/lib/types";
 
 interface UploadStepProps {
   loading: boolean;
-  profileSaving: boolean;
-  profileDirty: boolean;
-  knowledgeProfile: KnowledgeProfile;
   useProfileContext: boolean;
+  hasProfileContent: boolean;
   onProcess: (file: File, formUrl: string) => void;
-  onProfileChange: (
-    updates: Partial<Pick<KnowledgeProfile, "user_context" | "firm_context">>
-  ) => void;
-  onSaveProfile: () => void;
   onUseProfileContextChange: (useProfileContext: boolean) => void;
 }
 
 export function UploadStep({
   loading,
-  profileSaving,
-  profileDirty,
-  knowledgeProfile,
   useProfileContext,
+  hasProfileContent,
   onProcess,
-  onProfileChange,
-  onSaveProfile,
   onUseProfileContextChange,
 }: UploadStepProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -65,17 +53,10 @@ export function UploadStep({
       formUrl.includes("forms.office.com") ||
       formUrl.includes("forms.microsoft.com"));
 
-  const hasProfileContent =
-    knowledgeProfile.user_context.trim().length > 0 ||
-    knowledgeProfile.firm_context.trim().length > 0;
-  const profileUpdatedAt = knowledgeProfile.updated_at
-    ? new Date(knowledgeProfile.updated_at).toLocaleString()
-    : "Not saved yet";
-
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="text-2xl">AutoApprops</CardTitle>
+        <CardTitle className="text-2xl">Upload & Map</CardTitle>
         <CardDescription>
           Upload a Word document and paste a Google Forms or Microsoft Forms URL
           to generate copy-ready answers for manual form entry.
@@ -134,61 +115,19 @@ export function UploadStep({
           />
         </div>
 
-        <section className="space-y-4 border rounded-lg p-4 bg-gray-50/60">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Knowledge Profile</h3>
-              <p className="text-xs text-gray-600 mt-1">
-                Do not include client-specific details; this profile is reusable context.
-              </p>
-              <p className="text-xs text-gray-500 mt-1">Last saved: {profileUpdatedAt}</p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onSaveProfile}
-              disabled={loading || profileSaving || !profileDirty}
-            >
-              {profileSaving ? "Saving..." : "Save Profile"}
-            </Button>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">User Knowledge</label>
-            <Textarea
-              value={knowledgeProfile.user_context}
-              onChange={(e) => onProfileChange({ user_context: e.target.value })}
-              placeholder="Reusable context about the user completing forms."
-              className="min-h-24"
-              maxLength={20000}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Firm Knowledge</label>
-            <Textarea
-              value={knowledgeProfile.firm_context}
-              onChange={(e) => onProfileChange({ firm_context: e.target.value })}
-              placeholder="Reusable context about the lobbying firm."
-              className="min-h-24"
-              maxLength={20000}
-            />
-          </div>
-
-          <label className="flex items-start gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={useProfileContext}
-              onChange={(event) => onUseProfileContextChange(event.target.checked)}
-              className="h-4 w-4 mt-0.5"
-            />
-            <span>
-              Use saved profile for mapping
-              {!hasProfileContent && " (currently empty)"}
-            </span>
-          </label>
-        </section>
+        {/* Profile context toggle */}
+        <label className="flex items-start gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={useProfileContext}
+            onChange={(event) => onUseProfileContextChange(event.target.checked)}
+            className="h-4 w-4 mt-0.5"
+          />
+          <span>
+            Use saved profile for mapping
+            {!hasProfileContent && " (currently empty)"}
+          </span>
+        </label>
 
         {/* Process Button */}
         <Button
