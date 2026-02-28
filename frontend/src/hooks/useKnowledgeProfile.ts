@@ -2,10 +2,6 @@ import { useState, useCallback, useEffect } from "react";
 import * as api from "@/lib/api";
 import type { KnowledgeProfile } from "@/lib/types";
 
-function hasContent(profile: Pick<KnowledgeProfile, "user_context" | "firm_context">): boolean {
-  return Boolean(profile.user_context.trim() || profile.firm_context.trim());
-}
-
 interface UseKnowledgeProfileOptions {
   onLoaded?: (profile: KnowledgeProfile) => void;
   onSaved?: (profile: KnowledgeProfile) => void;
@@ -72,7 +68,6 @@ export function useKnowledgeProfile({ onLoaded, onSaved }: UseKnowledgeProfileOp
     profileDirty,
     profileSaving,
     profileError,
-    hasProfileContent: hasContent(knowledgeProfile),
     updateKnowledgeProfile,
     saveKnowledgeProfile,
   };
