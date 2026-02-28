@@ -1,33 +1,5 @@
 {
   "permissions": {
-    "allow": [
-      "WebSearch",
-      "WebFetch(domain:github.com)",
-      "WebFetch(domain:onlyoneaman.medium.com)",
-      "WebFetch(domain:medium.com)",
-      "WebFetch(domain:gist.github.com)",
-      "WebFetch(domain:theconfuzedsourcecode.wordpress.com)",
-      "Bash(cd /Users/zachterrell/Developer/form-filler/backend && pip install -e . 2>&1 | tail -5)",
-      "Bash(pip install python-docx 2>&1 | tail -3)",
-      "Bash(cd /Users/zachterrell/Developer/form-filler && npm create vite@latest frontend -- --template react-ts 2>&1)",
-      "Bash(cd /Users/zachterrell/Developer/form-filler/frontend && npm install 2>&1)",
-      "Bash(cd /Users/zachterrell/Developer/form-filler/frontend && npm install tailwindcss @tailwindcss/vite 2>&1)",
-      "Bash(cd /Users/zachterrell/Developer/form-filler/frontend && npx shadcn@latest init --defaults 2>&1)",
-      "Bash(cd /Users/zachterrell/Developer/form-filler/frontend && npx shadcn@latest add table button input badge card progress textarea --yes 2>&1)",
-      "Bash(cd /Users/zachterrell/Developer/form-filler/frontend && npm run build 2>&1)",
-      "Bash(python -c \"from auto_approps.models import *; from auto_approps.config import settings; print\\('Backend imports OK'\\)\")",
-      "Bash(timeout 5 python -c \"from auto_approps.app import app; print\\('FastAPI app created:', app.title\\)\" 2>&1)",
-      "WebFetch(domain:community.appinventor.mit.edu)",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:plumsail.com)",
-      "Bash(git init)",
-      "Bash(cd /Users/zachterrell/Developer/form-filler/backend && python -c \"from auto_approps.app import app; print\\('Import OK'\\)\" 2>&1)",
-      "Bash(python -c \"\nfrom auto_approps.app import app\nfrom auto_approps.doc_parser import parse_docx\nprint\\('All imports OK'\\)\n\" 2>&1)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST http://localhost:8000/api/upload -F \"file=@/dev/null;filename=test.docx\" 2>&1)",
-      "Bash(curl -v -X POST http://localhost:8000/api/upload -F \"file=@/dev/null;filename=test.docx\" 2>&1 | tail -20)",
-      "Bash(curl -s http://localhost:8000/docs 2>&1 | head -5)",
-      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" http://127.0.0.1:8000/docs 2>&1 | head -3)",
-      "Bash(python -c \"import anthropic; print\\(anthropic.__version__\\)\" 2>&1)"
-    ]
+    "allow": []
   }
 }

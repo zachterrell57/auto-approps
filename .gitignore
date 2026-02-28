@@ -1,3 +1,11 @@
-.env
+# Generated per-worktree by scripts/setup-dev.sh
+.claude/launch.json
+.backend-port
+
+# Python
 __pycache__/
+*.pyc
+
+# Secrets & data
+.env
 backend/data/

@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
@@ -21,7 +18,7 @@ app = FastAPI(title="AutoApprops", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -155,15 +152,11 @@ async def map_endpoint(req: MapRequest | None = None):
     return result.model_dump()
 
 
-# Serve frontend build in production
-_frontend_dist = Path(__file__).resolve().parent.parent.parent.parent / "frontend" / "dist"
-if _frontend_dist.is_dir():
-    app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
-
-
 def main():
+    import os
     import uvicorn
-    uvicorn.run("auto_approps.app:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", "8000"))
+    uvicorn.run("auto_approps.app:app", host="0.0.0.0", port=port, reload=True)
 
 
 if __name__ == "__main__":
