@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useKnowledgeProfile } from "@/hooks/useKnowledgeProfile";
 import { useFormFiller } from "@/hooks/useFormFiller";
 import { UploadStep } from "@/components/UploadStep";
@@ -6,25 +6,15 @@ import { AnswerSheetStep } from "@/components/AnswerSheetStep";
 import { SettingsPage } from "@/components/SettingsPage";
 import { ProfilePage } from "@/components/ProfilePage";
 import { cn } from "@/lib/utils";
-import type { KnowledgeProfile } from "@/lib/types";
 
 type Page = "main" | "profile" | "settings";
 
 export default function App() {
   const [page, setPage] = useState<Page>("main");
-  const [useProfileContext, setUseProfileContext] = useState(false);
 
-  const syncProfileContext = useCallback((profile: KnowledgeProfile) => {
-    const has = Boolean(profile.user_context.trim() || profile.firm_context.trim());
-    setUseProfileContext(has);
-  }, []);
+  const profile = useKnowledgeProfile();
 
-  const profile = useKnowledgeProfile({
-    onLoaded: syncProfileContext,
-    onSaved: syncProfileContext,
-  });
-
-  const formFiller = useFormFiller(useProfileContext);
+  const formFiller = useFormFiller();
 
   const error = formFiller.error || profile.profileError;
 
@@ -97,10 +87,7 @@ export default function App() {
         {page === "main" && formFiller.step === "upload" && (
           <UploadStep
             loading={formFiller.loading}
-            useProfileContext={useProfileContext}
-            hasProfileContent={profile.hasProfileContent}
             onProcess={formFiller.process}
-            onUseProfileContextChange={setUseProfileContext}
           />
         )}
 
@@ -111,9 +98,7 @@ export default function App() {
             unmappedFields={formFiller.mappingResult?.unmapped_fields ?? []}
             docChunks={formFiller.mappingResult?.doc_chunks ?? []}
             loading={formFiller.loading}
-            useProfileContext={useProfileContext}
             onUpdate={formFiller.updateMapping}
-            onUseProfileContextChange={setUseProfileContext}
             onRemap={formFiller.remap}
             onReset={formFiller.reset}
           />

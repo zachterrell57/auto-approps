@@ -20,9 +20,7 @@ interface AnswerSheetStepProps {
   unmappedFields: string[];
   docChunks: DocChunk[];
   loading: boolean;
-  useProfileContext: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
-  onUseProfileContextChange: (useProfileContext: boolean) => void;
   onRemap: () => void;
   onReset: () => void;
 }
@@ -76,9 +74,7 @@ export function AnswerSheetStep({
   unmappedFields,
   docChunks,
   loading,
-  useProfileContext,
   onUpdate,
-  onUseProfileContextChange,
   onRemap,
   onReset,
 }: AnswerSheetStepProps) {
@@ -138,15 +134,6 @@ export function AnswerSheetStep({
               <p className="mt-2 text-sm text-gray-600">{activeCount} fields are ready to copy.</p>
             </div>
             <div className="flex gap-2">
-              <label className="flex items-center gap-2 text-sm text-gray-700 mr-2">
-                <input
-                  type="checkbox"
-                  checked={useProfileContext}
-                  onChange={(event) => onUseProfileContextChange(event.target.checked)}
-                  className="h-4 w-4"
-                />
-                Use saved profile for re-map
-              </label>
               <Button variant="outline" onClick={onRemap} disabled={loading}>
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Re-map
