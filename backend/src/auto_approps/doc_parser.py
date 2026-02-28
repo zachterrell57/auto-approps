@@ -37,6 +37,12 @@ def parse_docx(file_bytes: bytes, filename: str) -> ParsedDocument:
                 current_heading = text
                 source = f"Heading: '{text}'"
                 chunk_type = "heading"
+                # Extract heading level: "heading 1" -> 1, "heading 2" -> 2, default 2
+                heading_level = 2
+                for part in style_name.split():
+                    if part.isdigit():
+                        heading_level = int(part)
+                        break
                 full_text_parts.append(f"\n## {text}\n")
             else:
                 source = f"Section '{current_heading}' > Paragraph {chunk_index + 1}" if current_heading else f"Paragraph {chunk_index + 1}"
@@ -48,6 +54,7 @@ def parse_docx(file_bytes: bytes, filename: str) -> ParsedDocument:
                 source_location=source,
                 chunk_type=chunk_type,
                 heading_context=current_heading,
+                heading_level=heading_level if chunk_type == "heading" else 0,
                 index=chunk_index,
             ))
             chunk_index += 1

@@ -12,13 +12,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DocumentViewer } from "@/components/DocumentViewer";
-import type { DocChunk, FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types";
+import type { FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types";
 
 interface AnswerSheetStepProps {
   formSchema: FormSchema;
   mappings: FieldMapping[];
   unmappedFields: string[];
-  docChunks: DocChunk[];
   loading: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
   onRemap: () => void;
@@ -72,7 +71,6 @@ export function AnswerSheetStep({
   formSchema,
   mappings,
   unmappedFields,
-  docChunks,
   loading,
   onUpdate,
   onRemap,
@@ -103,13 +101,6 @@ export function AnswerSheetStep({
 
     return [...byPage.entries()].sort(([a], [b]) => a - b);
   }, [formSchema.fields, mappings]);
-
-  const highlightedIndices = useMemo(() => {
-    if (!selectedFieldId) return new Set<number>();
-    const mapping = mappings.find((m) => m.field_id === selectedFieldId);
-    if (!mapping?.source_chunks?.length) return new Set<number>();
-    return new Set(mapping.source_chunks.map((c) => c.index));
-  }, [selectedFieldId, mappings]);
 
   const handleCopy = async (fieldId: string, value: string) => {
     if (!value.trim()) return;
@@ -292,18 +283,12 @@ export function AnswerSheetStep({
           <Card className="h-full flex flex-col">
             <CardHeader className="pb-2 shrink-0">
               <CardTitle className="text-lg">Document Source</CardTitle>
-              {selectedFieldId ? (
-                <CardDescription>
-                  Showing sources for the selected field. Highlighted sections were referenced.
-                </CardDescription>
-              ) : (
-                <CardDescription>
-                  Click a field on the left to highlight its source sections.
-                </CardDescription>
-              )}
+              <CardDescription>
+                The uploaded source document.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="overflow-y-auto flex-1 min-h-0">
-              <DocumentViewer chunks={docChunks} highlightedIndices={highlightedIndices} />
+            <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
+              <DocumentViewer />
             </CardContent>
           </Card>
         </div>

@@ -70,6 +70,14 @@ export async function saveSettings(payload: SettingsUpdate): Promise<AppSettings
   return handleResponse(res);
 }
 
+export async function fetchDocumentBlob(): Promise<ArrayBuffer> {
+  const res = await fetch(`${BASE}/api/document`);
+  if (!res.ok) {
+    throw new Error("Failed to fetch document");
+  }
+  return res.arrayBuffer();
+}
+
 export async function mapFields(): Promise<MappingResult> {
   const res = await fetch(`${BASE}/api/map`, {
     method: "POST",

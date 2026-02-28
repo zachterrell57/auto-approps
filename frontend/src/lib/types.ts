@@ -3,6 +3,7 @@ export interface DocChunk {
   source_location: string;
   chunk_type: string;
   heading_context: string;
+  heading_level: number;
   index: number;
 }
 

@@ -10,6 +10,7 @@ class DocChunk(BaseModel):
     source_location: str
     chunk_type: str  # "paragraph", "table_row", "heading"
     heading_context: str = ""
+    heading_level: int = 0  # 1-6 for headings, 0 for non-headings
     index: int = 0
 
 
