@@ -281,7 +281,7 @@ export function AnswerSheetStep({
         </div>
 
         {/* Right panel: Document viewer */}
-        <div className="w-[45%] shrink-0 sticky top-4 max-h-[calc(100vh-2rem)]">
+        <div className="w-[45%] shrink-0 sticky top-4 h-[calc(100vh-2rem)]">
           <Card className="h-full flex flex-col">
             <CardHeader className="pb-2 shrink-0">
               <CardTitle className="text-lg">Document Source</CardTitle>
