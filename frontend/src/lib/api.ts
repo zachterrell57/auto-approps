@@ -1,9 +1,11 @@
 import type {
+  AppSettings,
   FormSchema,
   KnowledgeProfile,
   KnowledgeProfileUpdate,
   MapRequest,
   MappingResult,
+  SettingsUpdate,
   UploadResponse,
 } from "./types";
 
@@ -48,6 +50,20 @@ export async function saveKnowledgeProfile(
   payload: KnowledgeProfileUpdate
 ): Promise<KnowledgeProfile> {
   const res = await fetch(`${BASE}/api/knowledge-profile`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function getSettings(): Promise<AppSettings> {
+  const res = await fetch(`${BASE}/api/settings`);
+  return handleResponse(res);
+}
+
+export async function saveSettings(payload: SettingsUpdate): Promise<AppSettings> {
+  const res = await fetch(`${BASE}/api/settings`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

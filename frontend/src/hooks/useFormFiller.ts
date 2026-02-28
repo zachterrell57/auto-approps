@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import * as api from "@/lib/api";
 import type {
+  AppSettings,
   FieldMapping,
   FormSchema,
   MappingResult,
@@ -16,11 +17,32 @@ function errorMessage(error: unknown, fallback: string): string {
 export function useFormFiller(useProfileContext: boolean) {
   const [step, setStep] = useState<Step>("upload");
   const [loading, setLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appSettings, setAppSettings] = useState<AppSettings>({
+    anthropic_api_key_set: false,
+    anthropic_api_key_preview: "",
+  });
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [mappingResult, setMappingResult] = useState<MappingResult | null>(null);
   const [mappings, setMappings] = useState<FieldMapping[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSettings() {
+      try {
+        const loaded = await api.getSettings();
+        if (cancelled) return;
+        setAppSettings(loaded);
+      } catch (error: unknown) {
+        if (cancelled) return;
+        setError(errorMessage(error, "Failed to load settings"));
+      }
+    }
+    loadSettings();
+    return () => { cancelled = true; };
+  }, []);
 
   const process = useCallback(async (file: File, formUrl: string) => {
     setLoading(true);
@@ -61,6 +83,19 @@ export function useFormFiller(useProfileContext: boolean) {
     }
   }, [useProfileContext]);
 
+  const saveAppSettings = useCallback(async (apiKey: string) => {
+    setSettingsSaving(true);
+    setError(null);
+    try {
+      const saved = await api.saveSettings({ anthropic_api_key: apiKey });
+      setAppSettings(saved);
+    } catch (error: unknown) {
+      setError(errorMessage(error, "Failed to save settings"));
+    } finally {
+      setSettingsSaving(false);
+    }
+  }, []);
+
   const updateMapping = useCallback(
     (index: number, updates: Partial<FieldMapping>) => {
       setMappings((prev) =>
@@ -83,14 +118,17 @@ export function useFormFiller(useProfileContext: boolean) {
   return {
     step,
     loading,
+    settingsSaving,
     error,
     uploadResult,
     formSchema,
     mappingResult,
     mappings,
+    appSettings,
     process,
     remap,
     updateMapping,
+    saveAppSettings,
     reset,
   };
 }
