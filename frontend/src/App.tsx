@@ -89,6 +89,7 @@ export default function App() {
             formSchema={formFiller.formSchema}
             mappings={formFiller.mappings}
             unmappedFields={formFiller.mappingResult?.unmapped_fields ?? []}
+            docChunks={formFiller.mappingResult?.doc_chunks ?? []}
             loading={formFiller.loading}
             useProfileContext={useProfileContext}
             onUpdate={formFiller.updateMapping}

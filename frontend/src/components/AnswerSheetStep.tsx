@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, RotateCcw } from "lucide-react";
+import { Check, Copy, FileText, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,12 +11,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types";
+import { DocumentViewer } from "@/components/DocumentViewer";
+import type { DocChunk, FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types";
 
 interface AnswerSheetStepProps {
   formSchema: FormSchema;
   mappings: FieldMapping[];
   unmappedFields: string[];
+  docChunks: DocChunk[];
   loading: boolean;
   useProfileContext: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
@@ -72,6 +74,7 @@ export function AnswerSheetStep({
   formSchema,
   mappings,
   unmappedFields,
+  docChunks,
   loading,
   useProfileContext,
   onUpdate,
@@ -80,6 +83,7 @@ export function AnswerSheetStep({
   onReset,
 }: AnswerSheetStepProps) {
   const [copiedFieldId, setCopiedFieldId] = useState<string | null>(null);
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const activeCount = mappings.filter((m) => !m.skip && m.proposed_answer.trim()).length;
 
   const groupedRows = useMemo(() => {
@@ -104,6 +108,13 @@ export function AnswerSheetStep({
     return [...byPage.entries()].sort(([a], [b]) => a - b);
   }, [formSchema.fields, mappings]);
 
+  const highlightedIndices = useMemo(() => {
+    if (!selectedFieldId) return new Set<number>();
+    const mapping = mappings.find((m) => m.field_id === selectedFieldId);
+    if (!mapping?.source_chunks?.length) return new Set<number>();
+    return new Set(mapping.source_chunks.map((c) => c.index));
+  }, [selectedFieldId, mappings]);
+
   const handleCopy = async (fieldId: string, value: string) => {
     if (!value.trim()) return;
     const copied = await copyToClipboard(value);
@@ -113,158 +124,203 @@ export function AnswerSheetStep({
   };
 
   return (
-    <Card className="w-full max-w-5xl mx-auto">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-2xl">Review + Answer Sheet</CardTitle>
-            <CardDescription>
-              Edit mappings, mark skips, then copy each response into the form manually.
-            </CardDescription>
-            <p className="mt-2 text-sm text-gray-600">{activeCount} fields are ready to copy.</p>
+    <div className="w-full max-w-[1600px] mx-auto">
+      {/* Header */}
+      <Card className="mb-4">
+        <CardHeader>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-2xl">Review + Answer Sheet</CardTitle>
+              <CardDescription>
+                Edit mappings, mark skips, then copy each response into the form manually.
+                Click a field to see its source in the document.
+              </CardDescription>
+              <p className="mt-2 text-sm text-gray-600">{activeCount} fields are ready to copy.</p>
+            </div>
+            <div className="flex gap-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700 mr-2">
+                <input
+                  type="checkbox"
+                  checked={useProfileContext}
+                  onChange={(event) => onUseProfileContextChange(event.target.checked)}
+                  className="h-4 w-4"
+                />
+                Use saved profile for re-map
+              </label>
+              <Button variant="outline" onClick={onRemap} disabled={loading}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Re-map
+              </Button>
+              <Button variant="outline" onClick={onReset} disabled={loading}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Start Over
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <label className="flex items-center gap-2 text-sm text-gray-700 mr-2">
-              <input
-                type="checkbox"
-                checked={useProfileContext}
-                onChange={(event) => onUseProfileContextChange(event.target.checked)}
-                className="h-4 w-4"
-              />
-              Use saved profile for re-map
-            </label>
-            <Button variant="outline" onClick={onRemap} disabled={loading}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Re-map
-            </Button>
-            <Button variant="outline" onClick={onReset} disabled={loading}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Start Over
-            </Button>
-          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Warnings */}
+      {unmappedFields.length > 0 && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+          <strong>Unmapped fields:</strong> {unmappedFields.join(", ")}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {unmappedFields.length > 0 && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-            <strong>Unmapped fields:</strong> {unmappedFields.join(", ")}
-          </div>
-        )}
+      )}
+      {formSchema.scrape_warnings.length > 0 && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 space-y-1">
+          {formSchema.scrape_warnings.map((warning, index) => (
+            <p key={index}>{warning}</p>
+          ))}
+        </div>
+      )}
 
-        {formSchema.scrape_warnings.length > 0 && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 space-y-1">
-            {formSchema.scrape_warnings.map((warning, index) => (
-              <p key={index}>{warning}</p>
-            ))}
-          </div>
-        )}
+      {/* Side-by-side layout */}
+      <div className="flex gap-4 items-start">
+        {/* Left panel: Answer cards */}
+        <div className="flex-1 min-w-0 space-y-6">
+          {groupedRows.map(([pageIndex, rows]) => (
+            <section key={pageIndex} className="border rounded-lg p-4 space-y-4 bg-white">
+              <h3 className="text-sm font-semibold text-gray-700">Page {pageIndex + 1}</h3>
+              <div className="space-y-4">
+                {rows.map(({ field, mapping, mappingIndex }) => {
+                  const answer = mapping?.proposed_answer ?? "";
+                  const skipped = Boolean(mapping?.skip);
+                  const editable = mappingIndex !== null;
+                  const useTextarea = shouldUseTextarea(field.field_type, answer);
+                  const isSelected = selectedFieldId === field.field_id;
+                  const hasSource = (mapping?.source_chunks?.length ?? 0) > 0;
 
-        {groupedRows.map(([pageIndex, rows]) => (
-          <section key={pageIndex} className="border rounded-lg p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700">Page {pageIndex + 1}</h3>
-            <div className="space-y-4">
-              {rows.map(({ field, mapping, mappingIndex }) => {
-                const answer = mapping?.proposed_answer ?? "";
-                const skipped = Boolean(mapping?.skip);
-                const editable = mappingIndex !== null;
-                const useTextarea = shouldUseTextarea(field.field_type, answer);
-
-                return (
-                  <div
-                    key={field.field_id}
-                    className={`rounded-md border p-3 space-y-2 ${
-                      skipped ? "bg-gray-50 opacity-70" : "bg-white"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">{field.label || field.field_id}</p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline">{copyFieldType(field.field_type)}</Badge>
-                          {field.required && <Badge variant="secondary">Required</Badge>}
-                          {mapping?.confidence && (
-                            <Badge
-                              variant="secondary"
-                              className={confidenceColors[mapping.confidence] || ""}
-                            >
-                              {mapping.confidence}
-                            </Badge>
+                  return (
+                    <div
+                      key={field.field_id}
+                      className={`rounded-md border p-3 space-y-2 cursor-pointer transition-colors ${
+                        isSelected
+                          ? "ring-2 ring-amber-400 border-amber-300 bg-amber-50/30"
+                          : skipped
+                            ? "bg-gray-50 opacity-70"
+                            : "bg-white hover:border-gray-300"
+                      }`}
+                      onClick={() => setSelectedFieldId(isSelected ? null : field.field_id)}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">{field.label || field.field_id}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline">{copyFieldType(field.field_type)}</Badge>
+                            {field.required && <Badge variant="secondary">Required</Badge>}
+                            {mapping?.confidence && (
+                              <Badge
+                                variant="secondary"
+                                className={confidenceColors[mapping.confidence] || ""}
+                              >
+                                {mapping.confidence}
+                              </Badge>
+                            )}
+                            {hasSource && (
+                              <Badge variant="outline" className="text-amber-700 border-amber-300">
+                                <FileText className="h-3 w-3 mr-1" />
+                                {mapping!.source_chunks.length} source{mapping!.source_chunks.length !== 1 ? "s" : ""}
+                              </Badge>
+                            )}
+                            {skipped && <Badge variant="secondary">Skipped</Badge>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          {editable && (
+                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={skipped}
+                                onChange={(event) =>
+                                  mappingIndex !== null &&
+                                  onUpdate(mappingIndex, { skip: event.target.checked })
+                                }
+                                className="h-4 w-4"
+                              />
+                              Skip
+                            </label>
                           )}
-                          {skipped && <Badge variant="secondary">Skipped</Badge>}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCopy(field.field_id, answer)}
+                            disabled={!answer.trim() || skipped}
+                          >
+                            {copiedFieldId === field.field_id ? (
+                              <>
+                                <Check className="h-4 w-4 mr-2" />
+                                Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy
+                              </>
+                            )}
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {editable && (
-                          <label className="flex items-center gap-2 text-sm text-gray-700">
-                            <input
-                              type="checkbox"
-                              checked={skipped}
-                              onChange={(event) =>
-                                mappingIndex !== null &&
-                                onUpdate(mappingIndex, { skip: event.target.checked })
-                              }
-                              className="h-4 w-4"
-                            />
-                            Skip
-                          </label>
+
+                      <p className="text-xs text-gray-500">
+                        {skipped ? "Skipped during review." : actionHint(field.field_type, answer)}
+                      </p>
+                      {mapping?.source_citation && (
+                        <p className="text-xs text-gray-600">Source: {mapping.source_citation}</p>
+                      )}
+
+                      <div onClick={(e) => e.stopPropagation()}>
+                        {useTextarea ? (
+                          <Textarea
+                            value={answer}
+                            disabled={!editable}
+                            onChange={(event) =>
+                              mappingIndex !== null &&
+                              onUpdate(mappingIndex, { proposed_answer: event.target.value })
+                            }
+                            className="text-sm min-h-[88px]"
+                          />
+                        ) : (
+                          <Input
+                            value={answer}
+                            disabled={!editable}
+                            onChange={(event) =>
+                              mappingIndex !== null &&
+                              onUpdate(mappingIndex, { proposed_answer: event.target.value })
+                            }
+                            className="text-sm"
+                          />
                         )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCopy(field.field_id, answer)}
-                          disabled={!answer.trim() || skipped}
-                        >
-                          {copiedFieldId === field.field_id ? (
-                            <>
-                              <Check className="h-4 w-4 mr-2" />
-                              Copied
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-4 w-4 mr-2" />
-                              Copy
-                            </>
-                          )}
-                        </Button>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
 
-                    <p className="text-xs text-gray-500">
-                      {skipped ? "Skipped during review." : actionHint(field.field_type, answer)}
-                    </p>
-                    {mapping?.source_citation && (
-                      <p className="text-xs text-gray-600">Source: {mapping.source_citation}</p>
-                    )}
-
-                    {useTextarea ? (
-                      <Textarea
-                        value={answer}
-                        disabled={!editable}
-                        onChange={(event) =>
-                          mappingIndex !== null &&
-                          onUpdate(mappingIndex, { proposed_answer: event.target.value })
-                        }
-                        className="text-sm min-h-[88px]"
-                      />
-                    ) : (
-                      <Input
-                        value={answer}
-                        disabled={!editable}
-                        onChange={(event) =>
-                          mappingIndex !== null &&
-                          onUpdate(mappingIndex, { proposed_answer: event.target.value })
-                        }
-                        className="text-sm"
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-      </CardContent>
-    </Card>
+        {/* Right panel: Document viewer */}
+        <div className="w-[45%] shrink-0 sticky top-4 max-h-[calc(100vh-2rem)]">
+          <Card className="h-full flex flex-col">
+            <CardHeader className="pb-2 shrink-0">
+              <CardTitle className="text-lg">Document Source</CardTitle>
+              {selectedFieldId ? (
+                <CardDescription>
+                  Showing sources for the selected field. Highlighted sections were referenced.
+                </CardDescription>
+              ) : (
+                <CardDescription>
+                  Click a field on the left to highlight its source sections.
+                </CardDescription>
+              )}
+            </CardHeader>
+            <CardContent className="overflow-y-auto flex-1 min-h-0">
+              <DocumentViewer chunks={docChunks} highlightedIndices={highlightedIndices} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }
