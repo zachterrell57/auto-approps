@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import * as api from "@/lib/api";
 import type {
+  AppSettings,
   FieldMapping,
   FormSchema,
   KnowledgeProfile,
@@ -22,7 +23,12 @@ export function useFormFiller() {
   const [step, setStep] = useState<Step>("upload");
   const [loading, setLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appSettings, setAppSettings] = useState<AppSettings>({
+    anthropic_api_key_set: false,
+    anthropic_api_key_preview: "",
+  });
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [mappingResult, setMappingResult] = useState<MappingResult | null>(null);
@@ -37,20 +43,24 @@ export function useFormFiller() {
 
   useEffect(() => {
     let cancelled = false;
-    async function loadKnowledgeProfile() {
+    async function loadInitialData() {
       try {
-        const loaded = await api.getKnowledgeProfile();
+        const [loadedProfile, loadedSettings] = await Promise.all([
+          api.getKnowledgeProfile(),
+          api.getSettings(),
+        ]);
         if (cancelled) return;
-        setKnowledgeProfile(loaded);
+        setKnowledgeProfile(loadedProfile);
         setProfileDirty(false);
-        setUseProfileContext(hasProfileContent(loaded));
+        setUseProfileContext(hasProfileContent(loadedProfile));
+        setAppSettings(loadedSettings);
       } catch (error: unknown) {
         if (cancelled) return;
-        setError(errorMessage(error, "Failed to load knowledge profile"));
+        setError(errorMessage(error, "Failed to load initial data"));
       }
     }
 
-    loadKnowledgeProfile();
+    loadInitialData();
     return () => {
       cancelled = true;
     };
@@ -121,6 +131,19 @@ export function useFormFiller() {
     }
   }, [knowledgeProfile.firm_context, knowledgeProfile.user_context]);
 
+  const saveAppSettings = useCallback(async (apiKey: string) => {
+    setSettingsSaving(true);
+    setError(null);
+    try {
+      const saved = await api.saveSettings({ anthropic_api_key: apiKey });
+      setAppSettings(saved);
+    } catch (error: unknown) {
+      setError(errorMessage(error, "Failed to save settings"));
+    } finally {
+      setSettingsSaving(false);
+    }
+  }, []);
+
   const updateMapping = useCallback(
     (index: number, updates: Partial<FieldMapping>) => {
       setMappings((prev) =>
@@ -144,6 +167,7 @@ export function useFormFiller() {
     step,
     loading,
     profileSaving,
+    settingsSaving,
     error,
     uploadResult,
     formSchema,
@@ -152,11 +176,13 @@ export function useFormFiller() {
     knowledgeProfile,
     profileDirty,
     useProfileContext,
+    appSettings,
     process,
     remap,
     updateMapping,
     updateKnowledgeProfile,
     saveKnowledgeProfile,
+    saveAppSettings,
     setUseProfileContext,
     reset,
   };
