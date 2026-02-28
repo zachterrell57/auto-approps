@@ -64,9 +64,7 @@ export function useFormFiller() {
 
       const result = await api.mapFields();
       setMappingResult(result);
-      setMappings(
-        result.mappings.map((m) => ({ ...m, skip: false }))
-      );
+      setMappings(result.mappings);
       setStep("answers");
     } catch (error: unknown) {
       setError(errorMessage(error, "An error occurred"));
@@ -81,9 +79,7 @@ export function useFormFiller() {
     try {
       const result = await api.mapFields();
       setMappingResult(result);
-      setMappings(
-        result.mappings.map((m) => ({ ...m, skip: false }))
-      );
+      setMappings(result.mappings);
     } catch (error: unknown) {
       setError(errorMessage(error, "Re-mapping failed"));
     } finally {
@@ -129,9 +125,7 @@ export function useFormFiller() {
     setUploadResult(DEBUG_UPLOAD_RESPONSE);
     setFormSchema(DEBUG_FORM_SCHEMA);
     setMappingResult(DEBUG_MAPPING_RESULT);
-    setMappings(
-      DEBUG_MAPPING_RESULT.mappings.map((m) => ({ ...m, skip: false }))
-    );
+    setMappings(DEBUG_MAPPING_RESULT.mappings);
     setDebugDocBlobUrl(DEBUG_DOC_BLOB_URL);
     setStep("answers");
   }, []);
