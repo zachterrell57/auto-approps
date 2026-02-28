@@ -57,11 +57,13 @@ class FieldMapping(BaseModel):
     confidence: str = "medium"  # "high", "medium", "low"
     reasoning: str = ""
     skip: bool = False
+    source_chunks: list[DocChunk] = []
 
 
 class MappingResult(BaseModel):
     mappings: list[FieldMapping]
     unmapped_fields: list[str] = []
+    doc_chunks: list[DocChunk] = []
 
 
 class KnowledgeProfileBase(BaseModel):
