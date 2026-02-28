@@ -94,7 +94,6 @@ export default function App() {
           <AnswerSheetStep
             formSchema={formFiller.formSchema}
             mappings={formFiller.mappings}
-            unmappedFields={formFiller.mappingResult?.unmapped_fields ?? []}
             loading={formFiller.loading}
             debugDocBlobUrl={formFiller.debugDocBlobUrl}
             onUpdate={formFiller.updateMapping}

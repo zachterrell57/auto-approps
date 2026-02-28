@@ -17,7 +17,6 @@ import type { FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types
 interface AnswerSheetStepProps {
   formSchema: FormSchema;
   mappings: FieldMapping[];
-  unmappedFields: string[];
   loading: boolean;
   debugDocBlobUrl?: string | null;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
@@ -71,7 +70,6 @@ async function copyToClipboard(value: string): Promise<boolean> {
 export function AnswerSheetStep({
   formSchema,
   mappings,
-  unmappedFields,
   loading,
   debugDocBlobUrl,
   onUpdate,
@@ -141,11 +139,6 @@ export function AnswerSheetStep({
       </Card>
 
       {/* Warnings */}
-      {unmappedFields.length > 0 && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-          <strong>Unmapped fields:</strong> {unmappedFields.join(", ")}
-        </div>
-      )}
       {formSchema.scrape_warnings.length > 0 && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 space-y-1">
           {formSchema.scrape_warnings.map((warning, index) => (
