@@ -6,13 +6,20 @@ export default function App() {
   const {
     step,
     loading,
+    profileSaving,
     error,
     formSchema,
     mappings,
     mappingResult,
+    knowledgeProfile,
+    profileDirty,
+    useProfileContext,
     process,
     remap,
     updateMapping,
+    updateKnowledgeProfile,
+    saveKnowledgeProfile,
+    setUseProfileContext,
     reset,
   } = useFormFiller();
 
@@ -25,7 +32,17 @@ export default function App() {
       )}
 
       {step === "upload" && (
-        <UploadStep loading={loading} onProcess={process} />
+        <UploadStep
+          loading={loading}
+          profileSaving={profileSaving}
+          profileDirty={profileDirty}
+          knowledgeProfile={knowledgeProfile}
+          useProfileContext={useProfileContext}
+          onProcess={process}
+          onProfileChange={updateKnowledgeProfile}
+          onSaveProfile={saveKnowledgeProfile}
+          onUseProfileContextChange={setUseProfileContext}
+        />
       )}
 
       {step === "answers" && formSchema && (
@@ -34,7 +51,9 @@ export default function App() {
           mappings={mappings}
           unmappedFields={mappingResult?.unmapped_fields ?? []}
           loading={loading}
+          useProfileContext={useProfileContext}
           onUpdate={updateMapping}
+          onUseProfileContextChange={setUseProfileContext}
           onRemap={remap}
           onReset={reset}
         />

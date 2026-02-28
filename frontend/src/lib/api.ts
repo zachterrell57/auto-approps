@@ -1,4 +1,11 @@
-import type { FormSchema, MappingResult, UploadResponse } from "./types";
+import type {
+  FormSchema,
+  KnowledgeProfile,
+  KnowledgeProfileUpdate,
+  MapRequest,
+  MappingResult,
+  UploadResponse,
+} from "./types";
 
 const BASE = "";
 
@@ -32,7 +39,27 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
   return handleResponse(res);
 }
 
-export async function mapFields(): Promise<MappingResult> {
-  const res = await fetch(`${BASE}/api/map`, { method: "POST" });
+export async function getKnowledgeProfile(): Promise<KnowledgeProfile> {
+  const res = await fetch(`${BASE}/api/knowledge-profile`);
+  return handleResponse(res);
+}
+
+export async function saveKnowledgeProfile(
+  payload: KnowledgeProfileUpdate
+): Promise<KnowledgeProfile> {
+  const res = await fetch(`${BASE}/api/knowledge-profile`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function mapFields(payload?: MapRequest): Promise<MappingResult> {
+  const res = await fetch(`${BASE}/api/map`, {
+    method: "POST",
+    headers: payload ? { "Content-Type": "application/json" } : undefined,
+    body: payload ? JSON.stringify(payload) : undefined,
+  });
   return handleResponse(res);
 }
