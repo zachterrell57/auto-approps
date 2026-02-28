@@ -91,7 +91,7 @@ def test_knowledge_profile_put_persists_and_returns_saved_profile(tmp_path, monk
     assert get_body["updated_at"] == put_body["updated_at"]
 
 
-def test_map_endpoint_supports_empty_body_and_use_profile_context_toggle(tmp_path, monkeypatch):
+def test_map_endpoint_always_uses_profile_context_when_profile_present(tmp_path, monkeypatch):
     path = tmp_path / "knowledge_profile.json"
     monkeypatch.setattr(app_module, "load_knowledge_profile", lambda: load_knowledge_profile(path))
     monkeypatch.setattr(
@@ -139,4 +139,4 @@ def test_map_endpoint_supports_empty_body_and_use_profile_context_toggle(tmp_pat
     assert profile_response.status_code == 200
     assert map_response_default.status_code == 200
     assert map_response_opt_out.status_code == 200
-    assert seen_profile_flags == [True, False]
+    assert seen_profile_flags == [True, True]

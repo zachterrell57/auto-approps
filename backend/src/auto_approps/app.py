@@ -9,7 +9,7 @@ from .doc_parser import parse_docx
 from .form_scraper import scrape_form
 from .knowledge_profile_store import load_knowledge_profile, save_knowledge_profile
 from .mapper import map_fields
-from .models import FormSchema, KnowledgeProfileUpdate, MapRequest, ParsedDocument
+from .models import FormSchema, KnowledgeProfileUpdate, ParsedDocument
 from .ms_form_scraper import scrape_ms_form
 from .provider import FormProvider, detect_provider
 from .settings_store import read_api_key, write_api_key
@@ -127,7 +127,7 @@ async def scrape_form_endpoint(req: ScrapeRequest):
 
 
 @app.post("/api/map")
-async def map_endpoint(req: MapRequest | None = None):
+async def map_endpoint():
     parsed_doc: ParsedDocument | None = _state.get("parsed_doc")
     form_schema: FormSchema | None = _state.get("form_schema")
 
@@ -136,12 +136,10 @@ async def map_endpoint(req: MapRequest | None = None):
     if not form_schema:
         raise HTTPException(400, "No form scraped. Scrape a form first.")
 
-    use_profile_context = True if req is None else req.use_profile_context
     knowledge_profile = None
-    if use_profile_context:
-        loaded_profile = load_knowledge_profile()
-        if loaded_profile.has_content():
-            knowledge_profile = loaded_profile
+    loaded_profile = load_knowledge_profile()
+    if loaded_profile.has_content():
+        knowledge_profile = loaded_profile
 
     try:
         result = await map_fields(parsed_doc, form_schema, knowledge_profile=knowledge_profile)
