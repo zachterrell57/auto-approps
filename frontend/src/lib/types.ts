@@ -49,7 +49,6 @@ export interface FieldMapping {
   source_citation: string;
   confidence: "high" | "medium" | "low";
   reasoning: string;
-  skip: boolean;
   source_chunks: DocChunk[];
 }
 
