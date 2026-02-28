@@ -7,7 +7,15 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from .config import settings
-from .models import DocChunk, FieldMapping, FormField, FormSchema, MappingResult, ParsedDocument
+from .models import (
+    DocChunk,
+    FieldMapping,
+    FormField,
+    FormSchema,
+    KnowledgeProfile,
+    MappingResult,
+    ParsedDocument,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +33,10 @@ Rules:
 7. Include brief reasoning for each mapping.
 8. You MUST call the provided tool exactly once.
 9. For source_chunk_indices, include the integer index of every document chunk you used to derive the answer (from the [Chunk N] markers). Use an empty array if no chunks were referenced.
+10. A reusable User/Firm context block may be provided. Treat it as secondary evidence.
+11. If reusable profile context conflicts with the uploaded document, prefer the uploaded document.
+12. Do not invent client-specific details.
+13. If an answer is derived mainly from reusable profile context, set source_citation to "User/Firm Profile".
 """
 
 _TOOL_NAME = "submit_field_mappings"
@@ -52,10 +64,22 @@ def build_user_message(
     doc: ParsedDocument,
     form: FormSchema,
     field_id_to_alias: dict[str, str],
+    knowledge_profile: KnowledgeProfile | None = None,
 ) -> str:
     parts = ["## Document Content\n"]
     for chunk in doc.chunks:
         parts.append(f"[Chunk {chunk.index}, Source: {chunk.source_location}]\n{chunk.text}\n")
+
+    if knowledge_profile and knowledge_profile.has_content():
+        parts.append("\n## Reusable User/Firm Context\n")
+        parts.append(
+            "Use this context only to fill gaps not covered by the uploaded document. "
+            "Do not invent client-specific details."
+        )
+        if knowledge_profile.user_context.strip():
+            parts.append(f"\n[User Knowledge]\n{knowledge_profile.user_context.strip()}\n")
+        if knowledge_profile.firm_context.strip():
+            parts.append(f"\n[Firm Knowledge]\n{knowledge_profile.firm_context.strip()}\n")
 
     parts.append("\n## Form Fields\n")
     for field in form.fields:
@@ -225,13 +249,22 @@ def _resolve_field_id(
     return None
 
 
-async def map_fields(doc: ParsedDocument, form: FormSchema) -> MappingResult:
+async def map_fields(
+    doc: ParsedDocument,
+    form: FormSchema,
+    knowledge_profile: KnowledgeProfile | None = None,
+) -> MappingResult:
     if not settings.anthropic_api_key:
         raise ValueError("ANTHROPIC_API_KEY is not configured")
 
     client = AsyncAnthropic(api_key=settings.anthropic_api_key)
     alias_to_field_id, field_id_to_alias = _build_alias_maps(form.fields)
-    user_message = build_user_message(doc, form, field_id_to_alias)
+    user_message = build_user_message(
+        doc,
+        form,
+        field_id_to_alias,
+        knowledge_profile=knowledge_profile,
+    )
 
     retries = max(1, settings.mapping_ai_retries + 1)
     result_data: dict | None = None

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DocChunk(BaseModel):
@@ -64,3 +64,23 @@ class MappingResult(BaseModel):
     mappings: list[FieldMapping]
     unmapped_fields: list[str] = []
     doc_chunks: list[DocChunk] = []
+
+
+class KnowledgeProfileBase(BaseModel):
+    user_context: str = Field(default="", max_length=20000)
+    firm_context: str = Field(default="", max_length=20000)
+
+
+class KnowledgeProfileUpdate(KnowledgeProfileBase):
+    pass
+
+
+class KnowledgeProfile(KnowledgeProfileBase):
+    updated_at: str | None = None
+
+    def has_content(self) -> bool:
+        return bool(self.user_context.strip() or self.firm_context.strip())
+
+
+class MapRequest(BaseModel):
+    use_profile_context: bool = True
