@@ -23,7 +23,6 @@ import type { FieldMapping } from "@/lib/types";
 
 interface ReviewTableProps {
   mappings: FieldMapping[];
-  unmappedFields: string[];
   loading: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
   onRemap: () => void;
@@ -38,7 +37,6 @@ const confidenceColors: Record<string, string> = {
 
 export function ReviewTable({
   mappings,
-  unmappedFields,
   loading,
   onUpdate,
   onRemap,
@@ -85,12 +83,6 @@ export function ReviewTable({
         </div>
       </CardHeader>
       <CardContent>
-        {unmappedFields.length > 0 && (
-          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-            <strong>Unmapped fields:</strong> {unmappedFields.join(", ")}
-          </div>
-        )}
-
         <div className="border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
