@@ -86,6 +86,7 @@ export default function App() {
           <UploadStep
             loading={formFiller.loading}
             onProcess={formFiller.process}
+            onLoadDebug={formFiller.loadDebugData}
           />
         )}
 
@@ -95,6 +96,7 @@ export default function App() {
             mappings={formFiller.mappings}
             unmappedFields={formFiller.mappingResult?.unmapped_fields ?? []}
             loading={formFiller.loading}
+            debugDocBlobUrl={formFiller.debugDocBlobUrl}
             onUpdate={formFiller.updateMapping}
             onRemap={formFiller.remap}
             onReset={formFiller.reset}

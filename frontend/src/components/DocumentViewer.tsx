@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { renderAsync } from "docx-preview";
 import { fetchDocumentBlob } from "@/lib/api";
 
-export function DocumentViewer() {
+interface DocumentViewerProps {
+  /** When set, fetch the .docx from this URL instead of the backend API. */
+  blobUrl?: string | null;
+}
+
+export function DocumentViewer({ blobUrl }: DocumentViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -14,7 +19,9 @@ export function DocumentViewer() {
       try {
         setLoading(true);
         setError(null);
-        const buffer = await fetchDocumentBlob();
+        const buffer = blobUrl
+          ? await fetch(blobUrl).then((r) => r.arrayBuffer())
+          : await fetchDocumentBlob();
         if (cancelled || !containerRef.current) return;
         await renderAsync(buffer, containerRef.current, undefined, {
           className: "docx-viewer",
@@ -33,7 +40,7 @@ export function DocumentViewer() {
 
     render();
     return () => { cancelled = true; };
-  }, []);
+  }, [blobUrl]);
 
   if (error) {
     return (

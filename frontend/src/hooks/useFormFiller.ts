@@ -1,5 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import * as api from "@/lib/api";
+import {
+  DEBUG_DOC_BLOB_URL,
+  DEBUG_FORM_SCHEMA,
+  DEBUG_MAPPING_RESULT,
+  DEBUG_UPLOAD_RESPONSE,
+} from "@/lib/debug-fixtures";
 import type {
   AppSettings,
   FieldMapping,
@@ -27,6 +33,7 @@ export function useFormFiller() {
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [mappingResult, setMappingResult] = useState<MappingResult | null>(null);
   const [mappings, setMappings] = useState<FieldMapping[]>([]);
+  const [debugDocBlobUrl, setDebugDocBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +54,7 @@ export function useFormFiller() {
   const process = useCallback(async (file: File, formUrl: string) => {
     setLoading(true);
     setError(null);
+    setDebugDocBlobUrl(null);
     try {
       const uploaded = await api.uploadDocument(file);
       setUploadResult(uploaded);
@@ -113,6 +121,19 @@ export function useFormFiller() {
     setFormSchema(null);
     setMappingResult(null);
     setMappings([]);
+    setDebugDocBlobUrl(null);
+  }, []);
+
+  const loadDebugData = useCallback(() => {
+    setError(null);
+    setUploadResult(DEBUG_UPLOAD_RESPONSE);
+    setFormSchema(DEBUG_FORM_SCHEMA);
+    setMappingResult(DEBUG_MAPPING_RESULT);
+    setMappings(
+      DEBUG_MAPPING_RESULT.mappings.map((m) => ({ ...m, skip: false }))
+    );
+    setDebugDocBlobUrl(DEBUG_DOC_BLOB_URL);
+    setStep("answers");
   }, []);
 
   return {
@@ -125,10 +146,12 @@ export function useFormFiller() {
     mappingResult,
     mappings,
     appSettings,
+    debugDocBlobUrl,
     process,
     remap,
     updateMapping,
     saveAppSettings,
     reset,
+    loadDebugData,
   };
 }

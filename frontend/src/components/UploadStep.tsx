@@ -13,11 +13,13 @@ import {
 interface UploadStepProps {
   loading: boolean;
   onProcess: (file: File, formUrl: string) => void;
+  onLoadDebug?: () => void;
 }
 
 export function UploadStep({
   loading,
   onProcess,
+  onLoadDebug,
 }: UploadStepProps) {
   const [file, setFile] = useState<File | null>(null);
   const [formUrl, setFormUrl] = useState("");
@@ -125,6 +127,16 @@ export function UploadStep({
             "Process Document & Form"
           )}
         </Button>
+
+        {import.meta.env.DEV && onLoadDebug && (
+          <Button
+            variant="outline"
+            className="w-full border-dashed border-orange-300 text-orange-600 hover:bg-orange-50"
+            onClick={onLoadDebug}
+          >
+            Load Debug Data (dev only)
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
