@@ -76,3 +76,12 @@ export interface KnowledgeProfileUpdate {
 export interface MapRequest {
   use_profile_context: boolean;
 }
+
+export interface AppSettings {
+  anthropic_api_key_set: boolean;
+  anthropic_api_key_preview: string;
+}
+
+export interface SettingsUpdate {
+  anthropic_api_key: string;
+}
