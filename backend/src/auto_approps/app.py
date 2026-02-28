@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from .doc_parser import parse_docx
+from .form_scraper import scrape_form
+from .mapper import map_fields
+from .models import FormSchema, ParsedDocument
+from .ms_form_scraper import scrape_ms_form
+from .provider import FormProvider, detect_provider
+
+app = FastAPI(title="AutoApprops", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# In-memory state for the current session
+_state: dict = {}
+
+
+@app.post("/api/upload")
+async def upload_document(file: UploadFile = File(...)):
+    if not file.filename or not file.filename.endswith(".docx"):
+        raise HTTPException(400, "Only .docx files are supported")
+
+    content = await file.read()
+    parsed = parse_docx(content, file.filename)
+    _state["parsed_doc"] = parsed
+    return {
+        "filename": parsed.filename,
+        "chunk_count": len(parsed.chunks),
+        "preview": parsed.full_text[:500],
+    }
+
+
+class ScrapeRequest(BaseModel):
+    url: str
+
+
+@app.post("/api/scrape")
+async def scrape_form_endpoint(req: ScrapeRequest):
+    try:
+        provider = detect_provider(req.url)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    try:
+        if provider == FormProvider.microsoft:
+            schema = await scrape_ms_form(req.url)
+        else:
+            schema = await scrape_form(req.url)
+            schema.provider = "google"
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Failed to scrape form: {e}")
+
+    _state["form_schema"] = schema
+    return schema.model_dump()
+
+
+@app.post("/api/map")
+async def map_endpoint():
+    parsed_doc: ParsedDocument | None = _state.get("parsed_doc")
+    form_schema: FormSchema | None = _state.get("form_schema")
+
+    if not parsed_doc:
+        raise HTTPException(400, "No document uploaded. Upload a .docx first.")
+    if not form_schema:
+        raise HTTPException(400, "No form scraped. Scrape a form first.")
+
+    try:
+        result = await map_fields(parsed_doc, form_schema)
+    except Exception as e:
+        raise HTTPException(500, f"Mapping failed: {e}")
+
+    _state["mapping_result"] = result
+    return result.model_dump()
+
+
+# Serve frontend build in production
+_frontend_dist = Path(__file__).resolve().parent.parent.parent.parent / "frontend" / "dist"
+if _frontend_dist.is_dir():
+    app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
+
+
+def main():
+    import uvicorn
+    uvicorn.run("auto_approps.app:app", host="0.0.0.0", port=8000, reload=True)
+
+
+if __name__ == "__main__":
+    main()
