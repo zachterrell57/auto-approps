@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from .config import settings
@@ -36,11 +37,26 @@ async def upload_document(file: UploadFile = File(...)):
     content = await file.read()
     parsed = parse_docx(content, file.filename)
     _state["parsed_doc"] = parsed
+    _state["raw_docx_bytes"] = content
     return {
         "filename": parsed.filename,
         "chunk_count": len(parsed.chunks),
         "preview": parsed.full_text[:500],
     }
+
+
+@app.get("/api/document")
+async def get_document():
+    raw = _state.get("raw_docx_bytes")
+    if not raw:
+        raise HTTPException(400, "No document uploaded")
+    parsed_doc: ParsedDocument | None = _state.get("parsed_doc")
+    filename = parsed_doc.filename if parsed_doc else "document.docx"
+    return Response(
+        content=raw,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 class ScrapeRequest(BaseModel):
