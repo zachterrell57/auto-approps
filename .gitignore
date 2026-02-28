@@ -5,3 +5,7 @@
 # Python
 __pycache__/
 *.pyc
+
+# Secrets & data
+.env
+backend/data/

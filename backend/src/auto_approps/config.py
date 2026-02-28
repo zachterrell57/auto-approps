@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
@@ -11,7 +15,7 @@ class Settings(BaseSettings):
     ms_nav_transition_timeout_ms: int = 8000
     ms_nav_max_pages: int = 40
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
 
 
 settings = Settings()

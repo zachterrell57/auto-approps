@@ -4,6 +4,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from .config import settings
 from .doc_parser import parse_docx
 from .form_scraper import scrape_form
 from .knowledge_profile_store import load_knowledge_profile, save_knowledge_profile
@@ -11,6 +12,7 @@ from .mapper import map_fields
 from .models import FormSchema, KnowledgeProfileUpdate, MapRequest, ParsedDocument
 from .ms_form_scraper import scrape_ms_form
 from .provider import FormProvider, detect_provider
+from .settings_store import read_api_key, write_api_key
 
 app = FastAPI(title="AutoApprops", version="0.1.0")
 
@@ -61,6 +63,45 @@ async def put_knowledge_profile(req: KnowledgeProfileUpdate):
     except Exception as e:
         raise HTTPException(500, f"Failed to save knowledge profile: {e}")
     return profile.model_dump()
+
+
+class SettingsResponse(BaseModel):
+    anthropic_api_key_set: bool
+    anthropic_api_key_preview: str
+
+
+class SettingsUpdate(BaseModel):
+    anthropic_api_key: str
+
+
+def _mask_key(key: str) -> str:
+    if len(key) <= 8:
+        return "*" * len(key) if key else ""
+    return key[:7] + "..." + key[-4:]
+
+
+@app.get("/api/settings")
+async def get_settings() -> SettingsResponse:
+    key = read_api_key()
+    return SettingsResponse(
+        anthropic_api_key_set=bool(key),
+        anthropic_api_key_preview=_mask_key(key),
+    )
+
+
+@app.put("/api/settings")
+async def put_settings(req: SettingsUpdate) -> SettingsResponse:
+    key = req.anthropic_api_key.strip()
+    try:
+        write_api_key(key)
+    except Exception as e:
+        raise HTTPException(500, f"Failed to save settings: {e}")
+    # Update the in-memory config so subsequent requests use the new key
+    settings.anthropic_api_key = key
+    return SettingsResponse(
+        anthropic_api_key_set=bool(key),
+        anthropic_api_key_preview=_mask_key(key),
+    )
 
 
 @app.post("/api/scrape")
