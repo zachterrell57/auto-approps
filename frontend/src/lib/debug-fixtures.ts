@@ -583,7 +583,7 @@ const mappings: FieldMapping[] = [
     source_citation: "Section 'Applicant Information' > Paragraph 1",
     confidence: "high",
     reasoning: "Explicit mention of full name in applicant section.",
-    skip: false,
+
     source_chunks: [chunks[1]],
   },
   {
@@ -593,7 +593,7 @@ const mappings: FieldMapping[] = [
     source_citation: "Section 'Applicant Information' > Paragraph 2",
     confidence: "high",
     reasoning: "Email address listed directly in applicant info.",
-    skip: false,
+
     source_chunks: [chunks[2]],
   },
   {
@@ -603,7 +603,7 @@ const mappings: FieldMapping[] = [
     source_citation: "Section 'Applicant Information' > Paragraph 3",
     confidence: "high",
     reasoning: "Organization explicitly stated in applicant section.",
-    skip: false,
+
     source_chunks: [chunks[3]],
   },
   {
@@ -613,7 +613,7 @@ const mappings: FieldMapping[] = [
     source_citation: "Section 'Applicant Information' > Paragraph 4",
     confidence: "high",
     reasoning: "Phone number directly listed.",
-    skip: false,
+
     source_chunks: [chunks[4]],
   },
   {
@@ -624,7 +624,7 @@ const mappings: FieldMapping[] = [
     confidence: "high",
     reasoning:
       "Document states Acme Corporation has 140 full-time employees, which falls in the 51-200 range.",
-    skip: false,
+
     source_chunks: [chunks[28], chunks[30]],
   },
   {
@@ -634,7 +634,7 @@ const mappings: FieldMapping[] = [
     source_citation: "Section 'Project Details' > Paragraph 1",
     confidence: "high",
     reasoning: "Project name derived from the project description heading and opening paragraph.",
-    skip: false,
+
     source_chunks: [chunks[12]],
   },
   {
@@ -645,7 +645,7 @@ const mappings: FieldMapping[] = [
     source_citation: "Section 'Executive Summary' > Paragraph 2, Section 'Project Details' > Paragraph 3",
     confidence: "high",
     reasoning: "Comprehensive project description synthesized from Executive Summary and Project Details sections.",
-    skip: false,
+
     source_chunks: [chunks[9], chunks[12], chunks[14]],
   },
   {
@@ -655,7 +655,7 @@ const mappings: FieldMapping[] = [
     source_citation: "Section 'Budget and Timeline' > Paragraph 1",
     confidence: "high",
     reasoning: "Total estimated budget is $250,000 which falls in this range.",
-    skip: false,
+
     source_chunks: [chunks[22], chunks[23]],
   },
   {
@@ -665,7 +665,7 @@ const mappings: FieldMapping[] = [
     source_citation: "Section 'Project Details' > Paragraph 1",
     confidence: "high",
     reasoning: "Document states the project will run for 12 months.",
-    skip: false,
+
     source_chunks: [chunks[12], chunks[22]],
   },
   {
@@ -676,7 +676,7 @@ const mappings: FieldMapping[] = [
     confidence: "medium",
     reasoning:
       "Project involves cloud-based infrastructure (AWS GovCloud hosting) and document management based on description. Data Analytics could also apply given the reporting dashboard, but it is not the primary focus.",
-    skip: false,
+
     source_chunks: [chunks[15], chunks[17], chunks[14]],
   },
   {
@@ -686,7 +686,7 @@ const mappings: FieldMapping[] = [
     source_citation: "Section 'Executive Summary' > Paragraph 3",
     confidence: "medium",
     reasoning: "Document mentions Q3 2026 start; July 1 is the beginning of Q3.",
-    skip: false,
+
     source_chunks: [chunks[10], chunks[12]],
   },
   {
@@ -696,7 +696,7 @@ const mappings: FieldMapping[] = [
     source_citation: "",
     confidence: "low",
     reasoning: "No information about referral source found in the document.",
-    skip: false,
+
     source_chunks: [],
   },
   {
@@ -706,7 +706,7 @@ const mappings: FieldMapping[] = [
     source_citation: "",
     confidence: "low",
     reasoning: "No additional comments found in the source document.",
-    skip: false,
+
     source_chunks: [],
   },
 ];

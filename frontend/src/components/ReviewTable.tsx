@@ -61,7 +61,7 @@ export function ReviewTable({
     setEditingIndex(null);
   };
 
-  const activeCount = mappings.filter((m) => !m.skip && m.proposed_answer).length;
+  const activeCount = mappings.filter((m) => m.proposed_answer).length;
 
   return (
     <Card className="w-full max-w-5xl mx-auto">
@@ -95,7 +95,6 @@ export function ReviewTable({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-8">Skip</TableHead>
                 <TableHead className="w-1/4">Form Field</TableHead>
                 <TableHead className="w-1/3">Proposed Answer</TableHead>
                 <TableHead className="w-1/4">Source Citation</TableHead>
@@ -106,18 +105,7 @@ export function ReviewTable({
               {mappings.map((m, i) => (
                 <TableRow
                   key={m.field_id}
-                  className={m.skip ? "opacity-50" : ""}
                 >
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      checked={m.skip}
-                      onChange={(e) =>
-                        onUpdate(i, { skip: e.target.checked })
-                      }
-                      className="h-4 w-4"
-                    />
-                  </TableCell>
                   <TableCell className="font-medium text-sm">
                     {m.field_label}
                   </TableCell>

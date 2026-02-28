@@ -57,7 +57,6 @@ class FieldMapping(BaseModel):
     source_citation: str = ""
     confidence: str = "medium"  # "high", "medium", "low"
     reasoning: str = ""
-    skip: bool = False
     source_chunks: list[DocChunk] = []
 
 
