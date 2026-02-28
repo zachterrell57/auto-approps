@@ -7,7 +7,7 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from .config import settings
-from .models import FieldMapping, FormField, FormSchema, MappingResult, ParsedDocument
+from .models import DocChunk, FieldMapping, FormField, FormSchema, MappingResult, ParsedDocument
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ Rules:
 6. If no relevant content exists for a field, leave proposed_answer empty and set confidence to "low".
 7. Include brief reasoning for each mapping.
 8. You MUST call the provided tool exactly once.
+9. For source_chunk_indices, include the integer index of every document chunk you used to derive the answer (from the [Chunk N] markers). Use an empty array if no chunks were referenced.
 """
 
 _TOOL_NAME = "submit_field_mappings"
@@ -54,7 +55,7 @@ def build_user_message(
 ) -> str:
     parts = ["## Document Content\n"]
     for chunk in doc.chunks:
-        parts.append(f"[Source: {chunk.source_location}]\n{chunk.text}\n")
+        parts.append(f"[Chunk {chunk.index}, Source: {chunk.source_location}]\n{chunk.text}\n")
 
     parts.append("\n## Form Fields\n")
     for field in form.fields:
@@ -96,6 +97,11 @@ MAPPING_SCHEMA = {
                     "source_citation": {"type": "string"},
                     "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
                     "reasoning": {"type": "string"},
+                    "source_chunk_indices": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "Indices of the document chunks referenced (from [Chunk N] markers).",
+                    },
                 },
                 "required": [
                     "field_id",
@@ -104,6 +110,7 @@ MAPPING_SCHEMA = {
                     "source_citation",
                     "confidence",
                     "reasoning",
+                    "source_chunk_indices",
                 ],
                 "additionalProperties": False,
             },
@@ -267,6 +274,8 @@ async def map_fields(doc: ParsedDocument, form: FormSchema) -> MappingResult:
         if _normalize_label(field.label)
     }
 
+    chunk_by_index: dict[int, DocChunk] = {c.index: c for c in doc.chunks}
+
     mapping_by_field_id: dict[str, FieldMapping] = {}
     dropped_unknown: list[str] = []
     for raw_mapping in result_data.get("mappings", []):
@@ -288,8 +297,17 @@ async def map_fields(doc: ParsedDocument, form: FormSchema) -> MappingResult:
             dropped_unknown.append(f"id='{raw_field_id}' label='{raw_field_label}'")
             continue
 
+        # Resolve source_chunk_indices to actual DocChunk objects
+        raw_indices = raw_mapping.pop("source_chunk_indices", [])
+        source_chunks: list[DocChunk] = []
+        if isinstance(raw_indices, list):
+            for idx in raw_indices:
+                if isinstance(idx, int) and idx in chunk_by_index:
+                    source_chunks.append(chunk_by_index[idx])
+
         normalized_payload = dict(raw_mapping)
         normalized_payload["field_id"] = resolved_field_id
+        normalized_payload["source_chunks"] = source_chunks
         if not normalized_payload.get("field_label"):
             normalized_payload["field_label"] = field_lookup[resolved_field_id].label
 
@@ -376,6 +394,7 @@ async def map_fields(doc: ParsedDocument, form: FormSchema) -> MappingResult:
     return MappingResult(
         mappings=mappings,
         unmapped_fields=unmapped_fields,
+        doc_chunks=list(doc.chunks),
     )
 
 
