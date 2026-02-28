@@ -9,8 +9,9 @@ from pydantic import BaseModel
 
 from .doc_parser import parse_docx
 from .form_scraper import scrape_form
+from .knowledge_profile_store import load_knowledge_profile, save_knowledge_profile
 from .mapper import map_fields
-from .models import FormSchema, ParsedDocument
+from .models import FormSchema, KnowledgeProfileUpdate, MapRequest, ParsedDocument
 from .ms_form_scraper import scrape_ms_form
 from .provider import FormProvider, detect_provider
 
@@ -47,6 +48,24 @@ class ScrapeRequest(BaseModel):
     url: str
 
 
+@app.get("/api/knowledge-profile")
+async def get_knowledge_profile():
+    try:
+        profile = load_knowledge_profile()
+    except Exception as e:
+        raise HTTPException(500, f"Failed to load knowledge profile: {e}")
+    return profile.model_dump()
+
+
+@app.put("/api/knowledge-profile")
+async def put_knowledge_profile(req: KnowledgeProfileUpdate):
+    try:
+        profile = save_knowledge_profile(req)
+    except Exception as e:
+        raise HTTPException(500, f"Failed to save knowledge profile: {e}")
+    return profile.model_dump()
+
+
 @app.post("/api/scrape")
 async def scrape_form_endpoint(req: ScrapeRequest):
     try:
@@ -70,7 +89,7 @@ async def scrape_form_endpoint(req: ScrapeRequest):
 
 
 @app.post("/api/map")
-async def map_endpoint():
+async def map_endpoint(req: MapRequest | None = None):
     parsed_doc: ParsedDocument | None = _state.get("parsed_doc")
     form_schema: FormSchema | None = _state.get("form_schema")
 
@@ -79,8 +98,15 @@ async def map_endpoint():
     if not form_schema:
         raise HTTPException(400, "No form scraped. Scrape a form first.")
 
+    use_profile_context = True if req is None else req.use_profile_context
+    knowledge_profile = None
+    if use_profile_context:
+        loaded_profile = load_knowledge_profile()
+        if loaded_profile.has_content():
+            knowledge_profile = loaded_profile
+
     try:
-        result = await map_fields(parsed_doc, form_schema)
+        result = await map_fields(parsed_doc, form_schema, knowledge_profile=knowledge_profile)
     except Exception as e:
         raise HTTPException(500, f"Mapping failed: {e}")
 

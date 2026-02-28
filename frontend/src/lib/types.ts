@@ -61,3 +61,18 @@ export interface UploadResponse {
   chunk_count: number;
   preview: string;
 }
+
+export interface KnowledgeProfile {
+  user_context: string;
+  firm_context: string;
+  updated_at: string | null;
+}
+
+export interface KnowledgeProfileUpdate {
+  user_context: string;
+  firm_context: string;
+}
+
+export interface MapRequest {
+  use_profile_context: boolean;
+}
