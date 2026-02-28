@@ -49,11 +49,13 @@ export interface FieldMapping {
   confidence: "high" | "medium" | "low";
   reasoning: string;
   skip: boolean;
+  source_chunks: DocChunk[];
 }
 
 export interface MappingResult {
   mappings: FieldMapping[];
   unmapped_fields: string[];
+  doc_chunks: DocChunk[];
 }
 
 export interface UploadResponse {
