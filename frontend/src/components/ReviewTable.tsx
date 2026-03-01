@@ -1,24 +1,5 @@
 import { useState } from "react";
 import { Check, X, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { FieldMapping } from "@/lib/types";
 
 interface ReviewTableProps {
@@ -30,9 +11,9 @@ interface ReviewTableProps {
 }
 
 const confidenceColors: Record<string, string> = {
-  high: "bg-green-100 text-green-800 hover:bg-green-100",
-  medium: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100",
-  low: "bg-red-100 text-red-800 hover:bg-red-100",
+  high: "bg-emerald-50 text-emerald-600",
+  medium: "bg-amber-50 text-amber-600",
+  low: "bg-rose-50 text-rose-600",
 };
 
 export function ReviewTable({
@@ -62,115 +43,132 @@ export function ReviewTable({
   const activeCount = mappings.filter((m) => m.proposed_answer).length;
 
   return (
-    <Card className="w-full max-w-5xl mx-auto">
-      <CardHeader>
-        <div className="flex items-center justify-between">
+    <div className="w-full max-w-5xl mx-auto pt-6">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-2xl">Review Mappings</CardTitle>
-            <CardDescription>
+            <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground leading-none">
+              Review Mappings
+            </h1>
+            <p className="mt-3 text-[15px] text-muted-foreground leading-relaxed">
               {activeCount} fields have answers. Click any answer to edit it.
-            </CardDescription>
+            </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onRemap} disabled={loading}>
-              <RotateCcw className="h-4 w-4 mr-2" />
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={onRemap}
+              disabled={loading}
+              className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
               Re-map
-            </Button>
-            <Button onClick={onGenerateAnswers} disabled={loading || activeCount === 0}>
+            </button>
+            <button
+              onClick={onGenerateAnswers}
+              disabled={loading || activeCount === 0}
+              className="h-10 px-5 rounded-xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none"
+            >
               Generate Answer Sheet ({activeCount})
-            </Button>
+            </button>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-1/4">Form Field</TableHead>
-                <TableHead className="w-1/3">Proposed Answer</TableHead>
-                <TableHead className="w-1/4">Source Citation</TableHead>
-                <TableHead className="w-20">Confidence</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mappings.map((m, i) => (
-                <TableRow
-                  key={m.field_id}
-                >
-                  <TableCell className="font-medium text-sm">
-                    {m.field_label}
-                  </TableCell>
-                  <TableCell>
-                    {editingIndex === i ? (
-                      <div className="flex items-start gap-1">
-                        {m.proposed_answer.length > 80 ? (
-                          <Textarea
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="text-sm min-h-[60px]"
-                            autoFocus
-                          />
-                        ) : (
-                          <Input
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="text-sm"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") saveEdit(i);
-                              if (e.key === "Escape") cancelEdit();
-                            }}
-                          />
-                        )}
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 shrink-0"
-                          onClick={() => saveEdit(i)}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 shrink-0"
-                          onClick={cancelEdit}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div
-                        className="text-sm cursor-pointer hover:bg-gray-50 rounded p-1 -m-1"
-                        onClick={() => startEdit(i)}
-                        title="Click to edit"
+      </div>
+
+      {/* Table */}
+      <div className="rounded-2xl border border-foreground/10 overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-foreground/8 bg-foreground/[0.02]">
+              <th className="px-4 py-3 text-left text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/35 w-1/4">
+                Form Field
+              </th>
+              <th className="px-4 py-3 text-left text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/35 w-1/3">
+                Proposed Answer
+              </th>
+              <th className="px-4 py-3 text-left text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/35 w-1/4">
+                Source Citation
+              </th>
+              <th className="px-4 py-3 text-left text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/35 w-20">
+                Confidence
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {mappings.map((m, i) => (
+              <tr
+                key={m.field_id}
+                className="border-b border-foreground/5 last:border-0 hover:bg-foreground/[0.01] transition-colors"
+              >
+                <td className="px-4 py-3 text-sm font-medium text-foreground">
+                  {m.field_label}
+                </td>
+                <td className="px-4 py-3">
+                  {editingIndex === i ? (
+                    <div className="flex items-start gap-1.5">
+                      {m.proposed_answer.length > 80 ? (
+                        <textarea
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="flex-1 min-h-[60px] p-2 rounded-lg border border-foreground/10 bg-transparent text-sm text-foreground focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200 resize-y"
+                          autoFocus
+                        />
+                      ) : (
+                        <input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="flex-1 h-9 px-2 rounded-lg border border-foreground/10 bg-transparent text-sm text-foreground focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveEdit(i);
+                            if (e.key === "Escape") cancelEdit();
+                          }}
+                        />
+                      )}
+                      <button
+                        className="p-1.5 rounded-lg text-foreground/30 hover:text-emerald-500 hover:bg-emerald-50 transition-colors shrink-0"
+                        onClick={() => saveEdit(i)}
                       >
-                        {m.proposed_answer || (
-                          <span className="text-gray-400 italic">
-                            No answer — click to add
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-gray-600">
-                    {m.source_citation}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={confidenceColors[m.confidence] || ""}
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        className="p-1.5 rounded-lg text-foreground/30 hover:text-rose-500 hover:bg-rose-50 transition-colors shrink-0"
+                        onClick={cancelEdit}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      className="text-sm cursor-pointer hover:bg-foreground/[0.03] rounded-lg p-1.5 -m-1.5 transition-colors"
+                      onClick={() => startEdit(i)}
+                      title="Click to edit"
                     >
-                      {m.confidence}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+                      {m.proposed_answer || (
+                        <span className="text-foreground/25 italic">
+                          No answer — click to add
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-xs text-foreground/40">
+                  {m.source_citation}
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                      confidenceColors[m.confidence] || ""
+                    }`}
+                  >
+                    {m.confidence}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
