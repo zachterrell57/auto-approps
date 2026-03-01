@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc --noEmit)",
-      "Bash(npm install docx-preview)"
+      "Bash(npm install docx-preview)",
+      "Bash(cd /Users/zachterrell/Developer/form-filler/frontend && npx shadcn@latest add sidebar --yes 2>&1)",
+      "Bash(npm install date-fns 2>&1)",
+      "Bash(npx vite build 2>&1)"
     ]
   }
 }

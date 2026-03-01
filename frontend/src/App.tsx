@@ -84,12 +84,12 @@ export default function App() {
         activePage={page}
       />
       <SidebarInset>
-        <header className="flex items-center gap-2 border-b px-4 h-12">
+        <header className="flex items-center gap-2 border-b border-foreground/8 px-5 h-12">
           <SidebarTrigger />
         </header>
-        <div className="py-8 px-4">
+        <div className="py-8 px-6">
           {error && (
-            <div className="max-w-2xl mx-auto mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+            <div className="max-w-xl mx-auto mb-6 px-4 py-3 rounded-xl border border-rose-200/60 bg-rose-50/50 text-sm text-rose-700">
               {error}
             </div>
           )}
