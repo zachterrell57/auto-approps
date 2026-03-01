@@ -87,13 +87,25 @@ export default function App() {
         <header className="flex items-center gap-2 border-b border-foreground/8 px-5 h-12">
           <SidebarTrigger />
         </header>
-        <div className="py-8 px-6">
-          {error && (
-            <div className="max-w-xl mx-auto mb-6 px-4 py-3 rounded-xl border border-rose-200/60 bg-rose-50/50 text-sm text-rose-700">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="max-w-xl mx-auto mb-6 mt-4 px-4 py-3 rounded-xl border border-rose-200/60 bg-rose-50/50 text-sm text-rose-700">
+            {error}
+          </div>
+        )}
 
+        {page === "main" && formFiller.step === "answers" && formFiller.formSchema && (
+          <AnswerSheetStep
+            formSchema={formFiller.formSchema}
+            mappings={formFiller.mappings}
+            loading={formFiller.loading}
+            debugDocBlobUrl={formFiller.debugDocBlobUrl}
+            isHistorical={formFiller.isHistorical}
+            onUpdate={formFiller.updateMapping}
+            onRemap={formFiller.remap}
+          />
+        )}
+
+        <div className="py-8 px-6">
           {page === "settings" && (
             <SettingsPage
               settings={formFiller.appSettings}
@@ -117,19 +129,6 @@ export default function App() {
               loading={formFiller.loading}
               onProcess={formFiller.process}
               onLoadDebug={formFiller.loadDebugData}
-            />
-          )}
-
-          {page === "main" && formFiller.step === "answers" && formFiller.formSchema && (
-            <AnswerSheetStep
-              formSchema={formFiller.formSchema}
-              mappings={formFiller.mappings}
-              loading={formFiller.loading}
-              debugDocBlobUrl={formFiller.debugDocBlobUrl}
-              isHistorical={formFiller.isHistorical}
-              onUpdate={formFiller.updateMapping}
-              onRemap={formFiller.remap}
-              onReset={formFiller.reset}
             />
           )}
         </div>

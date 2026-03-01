@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, FileText, RotateCcw, ArrowRight } from "lucide-react";
+import { Check, Copy, FileText, RotateCcw } from "lucide-react";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import type { FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types";
 
@@ -11,7 +11,6 @@ interface AnswerSheetStepProps {
   isHistorical?: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
   onRemap: () => void;
-  onReset: () => void;
 }
 
 interface AnswerRow {
@@ -65,7 +64,6 @@ export function AnswerSheetStep({
   isHistorical,
   onUpdate,
   onRemap,
-  onReset,
 }: AnswerSheetStepProps) {
   const [copiedFieldId, setCopiedFieldId] = useState<string | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
@@ -111,48 +109,36 @@ export function AnswerSheetStep({
   };
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground leading-none">
-              Review + Answer Sheet
-            </h1>
-            <p className="mt-3 text-[15px] text-muted-foreground leading-relaxed max-w-lg">
-              Edit mappings, then copy each response into the form manually.
-              Click a field to see its source in the document.
-            </p>
-            <p className="mt-2 text-sm text-foreground/35">
-              {activeCount} field{activeCount !== 1 ? "s" : ""} ready to copy.
-            </p>
-          </div>
-          <div className="flex gap-2 shrink-0">
+    <div className="flex h-[calc(100vh-3rem)] overflow-hidden">
+      {/* Left panel: Answer cards */}
+      <div className="flex-1 min-w-0 overflow-y-auto">
+        <div className="p-6 space-y-8">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground leading-none">
+                Review + Answer Sheet
+              </h1>
+              <p className="mt-3 text-[15px] text-muted-foreground leading-relaxed max-w-lg">
+                Edit mappings, then copy each response into the form manually.
+                Click a field to see its source in the document.
+              </p>
+              <p className="mt-2 text-sm text-foreground/35">
+                {activeCount} field{activeCount !== 1 ? "s" : ""} ready to copy.
+              </p>
+            </div>
             <button
               onClick={onRemap}
               disabled={loading || isHistorical}
               title={isHistorical ? "Only available for current session" : undefined}
-              className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed"
+              className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 shrink-0 disabled:opacity-20 disabled:cursor-not-allowed"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Re-map
             </button>
-            <button
-              onClick={onReset}
-              disabled={loading}
-              className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed"
-            >
-              <ArrowRight className="h-3.5 w-3.5" />
-              Start Over
-            </button>
           </div>
-        </div>
-      </div>
 
-      {/* Side-by-side layout */}
-      <div className="flex gap-6 items-start">
-        {/* Left panel: Answer cards */}
-        <div className="flex-1 min-w-0 space-y-8">
+          {/* Answer cards by page */}
           {groupedRows.map(([pageIndex, rows]) => (
             <section key={pageIndex} className="space-y-4">
               <div className="flex items-center gap-3">
@@ -290,25 +276,20 @@ export function AnswerSheetStep({
             </section>
           ))}
         </div>
+      </div>
 
-        {/* Right panel: Document viewer */}
-        <div className="w-[45%] shrink-0 sticky top-4 h-[calc(100vh-2rem)]">
-          <div className="h-full flex flex-col rounded-2xl border border-foreground/10 overflow-hidden">
-            <div className="px-5 py-4 border-b border-foreground/8 shrink-0">
-              <h2 className="font-heading text-lg text-foreground leading-tight">
-                Document Source
-              </h2>
-              <p className="text-xs text-foreground/35 mt-1">
-                The uploaded source document.
-              </p>
-            </div>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <DocumentViewer
-                blobUrl={debugDocBlobUrl}
-                sourceChunks={selectedSourceChunks}
-              />
-            </div>
-          </div>
+      {/* Right panel: Document viewer — full height */}
+      <div className="w-1/2 shrink-0 border-l border-foreground/8 flex flex-col">
+        <div className="px-5 py-4 border-b border-foreground/8 shrink-0">
+          <h2 className="font-heading text-lg text-foreground leading-tight">
+            Document Source
+          </h2>
+          <p className="text-xs text-foreground/35 mt-1">
+            The uploaded source document.
+          </p>
+        </div>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <DocumentViewer blobUrl={debugDocBlobUrl} sourceChunks={selectedSourceChunks} />
         </div>
       </div>
     </div>
