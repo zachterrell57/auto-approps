@@ -1,16 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, FileText, RotateCcw } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Check, Copy, FileText, RotateCcw, ArrowRight } from "lucide-react";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import type { FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types";
 
@@ -32,9 +21,9 @@ interface AnswerRow {
 }
 
 const confidenceColors: Record<string, string> = {
-  high: "bg-green-100 text-green-800 hover:bg-green-100",
-  medium: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100",
-  low: "bg-red-100 text-red-800 hover:bg-red-100",
+  high: "bg-emerald-50 text-emerald-600",
+  medium: "bg-amber-50 text-amber-600",
+  low: "bg-rose-50 text-rose-600",
 };
 
 function actionHint(type: FieldType, answer: string): string {
@@ -115,43 +104,67 @@ export function AnswerSheetStep({
     const copied = await copyToClipboard(value);
     if (!copied) return;
     setCopiedFieldId(fieldId);
-    setTimeout(() => setCopiedFieldId((current) => (current === fieldId ? null : current)), 1200);
+    setTimeout(
+      () => setCopiedFieldId((current) => (current === fieldId ? null : current)),
+      1200
+    );
   };
 
   return (
     <div className="w-full max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">Review + Answer Sheet</h2>
-          <span className="text-sm text-gray-500">{activeCount} fields ready to copy</span>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRemap}
-            disabled={loading || isHistorical}
-            title={isHistorical ? "Only available for current session" : undefined}
-          >
-            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-            Re-map
-          </Button>
-          <Button variant="outline" size="sm" onClick={onReset} disabled={loading}>
-            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-            Start Over
-          </Button>
+      <div className="mb-8">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground leading-none">
+              Review + Answer Sheet
+            </h1>
+            <p className="mt-3 text-[15px] text-muted-foreground leading-relaxed max-w-lg">
+              Edit mappings, then copy each response into the form manually.
+              Click a field to see its source in the document.
+            </p>
+            <p className="mt-2 text-sm text-foreground/35">
+              {activeCount} field{activeCount !== 1 ? "s" : ""} ready to copy.
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={onRemap}
+              disabled={loading || isHistorical}
+              title={isHistorical ? "Only available for current session" : undefined}
+              className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Re-map
+            </button>
+            <button
+              onClick={onReset}
+              disabled={loading}
+              className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed"
+            >
+              <ArrowRight className="h-3.5 w-3.5" />
+              Start Over
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Side-by-side layout */}
-      <div className="flex gap-4 items-start">
+      <div className="flex gap-6 items-start">
         {/* Left panel: Answer cards */}
-        <div className="flex-1 min-w-0 space-y-6">
+        <div className="flex-1 min-w-0 space-y-8">
           {groupedRows.map(([pageIndex, rows]) => (
-            <section key={pageIndex} className="border rounded-lg p-4 space-y-4 bg-white">
-              <h3 className="text-sm font-semibold text-gray-700">Page {pageIndex + 1}</h3>
-              <div className="space-y-4">
+            <section key={pageIndex} className="space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold bg-foreground/[0.06] text-foreground/40">
+                  {pageIndex + 1}
+                </span>
+                <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/40">
+                  Page {pageIndex + 1}
+                </span>
+              </div>
+
+              <div className="space-y-3">
                 {rows.map(({ field, mapping, mappingIndex }) => {
                   const answer = mapping?.proposed_answer ?? "";
                   const editable = mappingIndex !== null;
@@ -162,85 +175,111 @@ export function AnswerSheetStep({
                   return (
                     <div
                       key={field.field_id}
-                      className={`rounded-md border p-3 space-y-2 cursor-pointer transition-colors ${
+                      className={`rounded-xl border p-4 space-y-3 cursor-pointer transition-all duration-200 ${
                         isSelected
-                          ? "ring-2 ring-amber-400 border-amber-300 bg-amber-50/30"
-                          : "bg-white hover:border-gray-300"
+                          ? "ring-2 ring-amber-400/60 border-amber-300/40 bg-amber-50/20"
+                          : "border-foreground/8 hover:border-foreground/15"
                       }`}
-                      onClick={() => setSelectedFieldId(isSelected ? null : field.field_id)}
+                      onClick={() =>
+                        setSelectedFieldId(isSelected ? null : field.field_id)
+                      }
                     >
+                      {/* Field header */}
                       <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">{field.label || field.field_id}</p>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline">{copyFieldType(field.field_type)}</Badge>
-                            {field.required && <Badge variant="secondary">Required</Badge>}
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-foreground leading-tight">
+                            {field.label || field.field_id}
+                          </p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-foreground/8 text-[11px] font-medium text-foreground/35">
+                              {copyFieldType(field.field_type)}
+                            </span>
+                            {field.required && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-foreground/[0.04] text-[11px] font-medium text-foreground/35">
+                                Required
+                              </span>
+                            )}
                             {mapping?.confidence && (
-                              <Badge
-                                variant="secondary"
-                                className={confidenceColors[mapping.confidence] || ""}
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                                  confidenceColors[mapping.confidence] || ""
+                                }`}
                               >
                                 {mapping.confidence}
-                              </Badge>
+                              </span>
                             )}
                             {hasSource && (
-                              <Badge variant="outline" className="text-amber-700 border-amber-300">
-                                <FileText className="h-3 w-3 mr-1" />
-                                {mapping!.source_chunks.length} source{mapping!.source_chunks.length !== 1 ? "s" : ""}
-                              </Badge>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-amber-300/50 text-[11px] font-medium text-amber-600">
+                                <FileText className="h-3 w-3" />
+                                {mapping!.source_chunks.length} source
+                                {mapping!.source_chunks.length !== 1 ? "s" : ""}
+                              </span>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                          <Button
+
+                        {/* Copy button */}
+                        <div
+                          className="flex items-center gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
                             type="button"
-                            variant="outline"
-                            size="sm"
                             onClick={() => handleCopy(field.field_id, answer)}
                             disabled={!answer.trim()}
+                            className="h-8 px-3 rounded-lg border border-foreground/8 text-xs font-medium text-foreground/40 hover:text-foreground hover:border-foreground/15 transition-all duration-200 flex items-center gap-1.5 disabled:opacity-20 disabled:cursor-not-allowed"
                           >
                             {copiedFieldId === field.field_id ? (
                               <>
-                                <Check className="h-4 w-4 mr-2" />
-                                Copied
+                                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                <span className="text-emerald-600">Copied</span>
                               </>
                             ) : (
                               <>
-                                <Copy className="h-4 w-4 mr-2" />
+                                <Copy className="h-3.5 w-3.5" />
                                 Copy
                               </>
                             )}
-                          </Button>
+                          </button>
                         </div>
                       </div>
 
-                      <p className="text-xs text-gray-500">
+                      {/* Action hint */}
+                      <p className="text-[12px] text-foreground/30">
                         {actionHint(field.field_type, answer)}
                       </p>
+
                       {mapping?.source_citation && (
-                        <p className="text-xs text-gray-600">Source: {mapping.source_citation}</p>
+                        <p className="text-[12px] text-foreground/40">
+                          Source: {mapping.source_citation}
+                        </p>
                       )}
 
+                      {/* Editable answer */}
                       <div onClick={(e) => e.stopPropagation()}>
                         {useTextarea ? (
-                          <Textarea
+                          <textarea
                             value={answer}
                             disabled={!editable}
                             onChange={(event) =>
                               mappingIndex !== null &&
-                              onUpdate(mappingIndex, { proposed_answer: event.target.value })
+                              onUpdate(mappingIndex, {
+                                proposed_answer: event.target.value,
+                              })
                             }
-                            className="text-sm min-h-[88px]"
+                            className="w-full min-h-[88px] p-3 rounded-xl border border-foreground/8 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200 resize-y disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         ) : (
-                          <Input
+                          <input
                             value={answer}
                             disabled={!editable}
                             onChange={(event) =>
                               mappingIndex !== null &&
-                              onUpdate(mappingIndex, { proposed_answer: event.target.value })
+                              onUpdate(mappingIndex, {
+                                proposed_answer: event.target.value,
+                              })
                             }
-                            className="text-sm"
+                            className="w-full h-10 px-3 rounded-xl border border-foreground/8 bg-transparent text-sm text-foreground focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         )}
                       </div>
@@ -254,17 +293,22 @@ export function AnswerSheetStep({
 
         {/* Right panel: Document viewer */}
         <div className="w-[45%] shrink-0 sticky top-4 h-[calc(100vh-2rem)]">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="pb-2 shrink-0">
-              <CardTitle className="text-lg">Document Source</CardTitle>
-              <CardDescription>
+          <div className="h-full flex flex-col rounded-2xl border border-foreground/10 overflow-hidden">
+            <div className="px-5 py-4 border-b border-foreground/8 shrink-0">
+              <h2 className="font-heading text-lg text-foreground leading-tight">
+                Document Source
+              </h2>
+              <p className="text-xs text-foreground/35 mt-1">
                 The uploaded source document.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
-              <DocumentViewer blobUrl={debugDocBlobUrl} sourceChunks={selectedSourceChunks} />
-            </CardContent>
-          </Card>
+              </p>
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <DocumentViewer
+                blobUrl={debugDocBlobUrl}
+                sourceChunks={selectedSourceChunks}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

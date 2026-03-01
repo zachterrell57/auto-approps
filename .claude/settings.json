@@ -12,5 +12,8 @@
       "Bash(pip install -e . 2>&1 | tail -5)",
       "Bash(git init)"
     ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
   }
 }

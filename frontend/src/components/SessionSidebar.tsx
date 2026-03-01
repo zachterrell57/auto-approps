@@ -1,6 +1,5 @@
 import { formatDistanceToNow } from "date-fns";
 import { Plus, Settings, Trash2, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -43,27 +42,30 @@ export function SessionSidebar({
 }: SessionSidebarProps) {
   return (
     <Sidebar>
-      <SidebarHeader className="border-b px-4 py-3">
-        <span className="font-semibold text-lg">AutoApprops</span>
+      <SidebarHeader className="!p-0 !pl-5 !flex-row !gap-0 items-center h-12 border-b border-foreground/8">
+        <span className="text-[15px] font-semibold tracking-tight text-foreground">
+          AutoApprops
+        </span>
       </SidebarHeader>
 
       <SidebarContent>
         <div className="px-3 pt-3">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2"
+          <button
             onClick={onNewSession}
+            className="w-full flex items-center justify-center gap-2 h-9 rounded-lg border border-dashed border-foreground/12 text-sm font-medium text-foreground/50 hover:text-foreground/70 hover:border-foreground/20 hover:bg-foreground/[0.02] transition-all duration-200"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             New Session
-          </Button>
+          </button>
         </div>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Session History</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/30">
+            Session History
+          </SidebarGroupLabel>
           <SidebarMenu>
             {sessions.length === 0 && (
-              <p className="px-3 py-4 text-sm text-muted-foreground">
+              <p className="px-3 py-4 text-xs text-foreground/30 leading-relaxed">
                 No sessions yet. Process a form to get started.
               </p>
             )}
@@ -72,14 +74,14 @@ export function SessionSidebar({
                 <SidebarMenuButton
                   isActive={currentSessionId === session.id}
                   onClick={() => onSelectSession(session.id)}
-                  className="h-auto py-2 items-start"
+                  className="h-auto py-2.5 items-start"
                 >
-                  <div className="flex-1 min-w-0 space-y-0.5">
-                    <p className="text-sm font-medium truncate">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="text-sm font-medium truncate leading-tight">
                       {session.form_title || "Untitled Form"}
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[11px] text-foreground/30">
                         {timeAgo(session.created_at)}
                       </span>
                       <button
@@ -87,7 +89,7 @@ export function SessionSidebar({
                           e.stopPropagation();
                           onDeleteSession(session.id);
                         }}
-                        className="text-muted-foreground hover:text-destructive transition-colors p-0.5"
+                        className="text-foreground/15 hover:text-rose-500 transition-colors p-0.5"
                         title="Delete session"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -101,7 +103,7 @@ export function SessionSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t">
+      <SidebarFooter className="border-t border-foreground/8">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton

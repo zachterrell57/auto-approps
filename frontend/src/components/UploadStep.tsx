@@ -1,14 +1,5 @@
 import { useState, useCallback } from "react";
-import { FileText, Link, Upload } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { FileText, Link, Upload, ArrowRight, Check, X } from "lucide-react";
 
 interface UploadStepProps {
   loading: boolean;
@@ -50,94 +41,177 @@ export function UploadStep({
       formUrl.includes("forms.microsoft.com"));
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl">Upload & Map</CardTitle>
-        <CardDescription>
+    <div className="w-full max-w-xl mx-auto pt-6">
+      {/* Header */}
+      <div className="mb-12">
+        <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground leading-none">
+          Upload & Map
+        </h1>
+        <p className="mt-4 text-[15px] text-muted-foreground leading-relaxed max-w-md">
           Upload a Word document and paste a Google Forms or Microsoft Forms URL
           to generate copy-ready answers for manual form entry.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* File Upload Zone */}
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => document.getElementById("file-input")?.click()}
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-            dragOver
-              ? "border-blue-500 bg-blue-50"
-              : file
-              ? "border-green-500 bg-green-50"
-              : "border-gray-300 hover:border-gray-400"
-          }`}
-        >
-          <input
-            id="file-input"
-            type="file"
-            accept=".docx"
-            onChange={handleFileInput}
-            className="hidden"
-          />
-          {file ? (
-            <div className="flex items-center justify-center gap-2 text-green-700">
-              <FileText className="h-6 w-6" />
-              <span className="font-medium">{file.name}</span>
-            </div>
-          ) : (
-            <div className="text-gray-500">
-              <Upload className="h-8 w-8 mx-auto mb-2" />
-              <p className="font-medium">
-                Drop a .docx file here or click to browse
-              </p>
-            </div>
-          )}
-        </div>
+        </p>
+      </div>
 
-        {/* Form URL Input */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium flex items-center gap-2">
-            <Link className="h-4 w-4" />
-            Form URL
-          </label>
-          <Input
-            placeholder="https://docs.google.com/forms/d/e/... or https://forms.office.com/..."
-            value={formUrl}
-            onChange={(e) => setFormUrl(e.target.value)}
-          />
-        </div>
-
-        {/* Process Button */}
-        <Button
-          className="w-full"
-          size="lg"
-          disabled={!isValid || loading}
-          onClick={() => file && onProcess(file, formUrl)}
-        >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-              Processing...
+      <div className="space-y-10">
+        {/* Step 1 — Document */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <span
+              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold transition-all duration-300 ${
+                file
+                  ? "bg-emerald-500 text-white"
+                  : "bg-amber-600/10 text-amber-700"
+              }`}
+            >
+              {file ? <Check className="w-3 h-3" strokeWidth={3} /> : "1"}
             </span>
-          ) : (
-            "Process Document & Form"
-          )}
-        </Button>
+            <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
+              Document
+            </span>
+          </div>
 
-        {import.meta.env.DEV && onLoadDebug && (
-          <Button
-            variant="outline"
-            className="w-full border-dashed border-orange-300 text-orange-600 hover:bg-orange-50"
-            onClick={onLoadDebug}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => document.getElementById("file-input")?.click()}
+            className={`relative rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-300 ease-out ${
+              dragOver
+                ? "border-amber-400 bg-amber-50 shadow-[0_0_0_4px_rgba(217,119,6,0.08)] scale-[1.005]"
+                : file
+                ? "border-emerald-300/80 bg-emerald-50/40"
+                : "border-foreground/10 hover:border-foreground/20 hover:shadow-sm dot-grid"
+            } ${file ? "py-5 px-6" : "py-14 px-8"}`}
           >
-            Load Debug Data (dev only)
-          </Button>
+            <input
+              id="file-input"
+              type="file"
+              accept=".docx"
+              onChange={handleFileInput}
+              className="hidden"
+            />
+
+            {file ? (
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                  <FileText className="w-[18px] h-[18px] text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {file.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {(file.size / 1024).toFixed(0)} KB
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFile(null);
+                  }}
+                  className="flex-shrink-0 p-1.5 rounded-lg text-foreground/30 hover:text-foreground/60 hover:bg-foreground/5 transition-colors"
+                  aria-label="Remove file"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="text-center">
+                <div
+                  className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 transition-all duration-300 ${
+                    dragOver
+                      ? "bg-amber-200/60 scale-110"
+                      : "bg-foreground/[0.04]"
+                  }`}
+                >
+                  <Upload
+                    className={`w-6 h-6 transition-all duration-300 ${
+                      dragOver
+                        ? "text-amber-600 -translate-y-1"
+                        : "text-foreground/25"
+                    }`}
+                    strokeWidth={1.5}
+                  />
+                </div>
+                <p className="text-sm text-foreground/60">
+                  Drop a{" "}
+                  <span className="inline-block font-mono text-[12px] px-1.5 py-[2px] rounded-md bg-foreground/[0.05] text-foreground/40">
+                    .docx
+                  </span>{" "}
+                  file here or{" "}
+                  <span className="text-amber-600 font-medium">browse</span>
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Step 2 — Form URL */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <span
+              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold transition-all duration-300 ${
+                isValid
+                  ? "bg-emerald-500 text-white"
+                  : "bg-amber-600/10 text-amber-700"
+              }`}
+            >
+              {isValid ? <Check className="w-3 h-3" strokeWidth={3} /> : "2"}
+            </span>
+            <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
+              Form URL
+            </span>
+          </div>
+
+          <div className="relative group">
+            <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-foreground/20 transition-colors group-focus-within:text-amber-500">
+              <Link className="w-4 h-4" />
+            </div>
+            <input
+              type="url"
+              placeholder="Paste a Google Forms or Microsoft Forms URL..."
+              value={formUrl}
+              onChange={(e) => setFormUrl(e.target.value)}
+              className="w-full h-12 pl-11 pr-4 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"
+            />
+          </div>
+        </section>
+
+        {/* Action */}
+        <div className="pt-2">
+          <button
+            disabled={!isValid || loading}
+            onClick={() => file && onProcess(file, formUrl)}
+            className="group w-full h-[52px] rounded-2xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 flex items-center justify-center gap-2.5"
+          >
+            {loading ? (
+              <>
+                <span className="h-4 w-4 border-2 border-background/20 border-t-background rounded-full animate-spin" />
+                <span>Processing...</span>
+              </>
+            ) : (
+              <>
+                <span>Process Document & Form</span>
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Debug (dev only) */}
+        {import.meta.env.DEV && onLoadDebug && (
+          <button
+            onClick={onLoadDebug}
+            className="w-full py-2.5 rounded-xl border border-dashed border-orange-300/50 text-orange-500/70 text-xs font-medium tracking-wide hover:bg-orange-50/40 transition-colors"
+          >
+            Load Debug Data
+          </button>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
