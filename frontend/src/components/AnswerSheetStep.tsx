@@ -19,6 +19,7 @@ interface AnswerSheetStepProps {
   mappings: FieldMapping[];
   loading: boolean;
   debugDocBlobUrl?: string | null;
+  isHistorical?: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
   onRemap: () => void;
   onReset: () => void;
@@ -72,6 +73,7 @@ export function AnswerSheetStep({
   mappings,
   loading,
   debugDocBlobUrl,
+  isHistorical,
   onUpdate,
   onRemap,
   onReset,
@@ -125,7 +127,13 @@ export function AnswerSheetStep({
           <span className="text-sm text-gray-500">{activeCount} fields ready to copy</span>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onRemap} disabled={loading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRemap}
+            disabled={loading || isHistorical}
+            title={isHistorical ? "Only available for current session" : undefined}
+          >
             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
             Re-map
           </Button>
