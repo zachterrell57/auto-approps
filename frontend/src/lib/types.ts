@@ -75,6 +75,21 @@ export interface KnowledgeProfileUpdate {
   firm_context: string;
 }
 
+export interface SessionMeta {
+  id: string;
+  created_at: string;
+  document_filename: string;
+  form_url: string;
+  form_title: string;
+  form_provider: string;
+}
+
+export interface SessionFull extends SessionMeta {
+  form_schema: FormSchema;
+  mapping_result: MappingResult;
+  edited_mappings: FieldMapping[] | null;
+}
+
 export interface AppSettings {
   anthropic_api_key_set: boolean;
   anthropic_api_key_preview: string;

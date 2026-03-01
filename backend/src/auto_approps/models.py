@@ -66,6 +66,34 @@ class MappingResult(BaseModel):
     doc_chunks: list[DocChunk] = []
 
 
+class SessionMeta(BaseModel):
+    id: str
+    created_at: str
+    document_filename: str
+    form_url: str = ""
+    form_title: str = ""
+    form_provider: str = ""
+
+
+class SessionFull(SessionMeta):
+    form_schema: dict
+    mapping_result: dict
+    edited_mappings: list[dict] | None = None
+
+
+class SessionCreate(BaseModel):
+    document_filename: str
+    form_url: str = ""
+    form_title: str = ""
+    form_provider: str = ""
+    form_schema: dict
+    mapping_result: dict
+
+
+class SessionUpdateMappings(BaseModel):
+    mappings: list[dict]
+
+
 class KnowledgeProfileBase(BaseModel):
     user_context: str = Field(default="", max_length=20000)
     firm_context: str = Field(default="", max_length=20000)
