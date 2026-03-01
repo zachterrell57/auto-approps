@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import * as api from "@/lib/api";
 import {
   DEBUG_DOC_BLOB_URL,
@@ -11,16 +11,31 @@ import type {
   FieldMapping,
   FormSchema,
   MappingResult,
+  SessionFull,
   UploadResponse,
 } from "@/lib/types";
 
 export type Step = "upload" | "answers";
 
+export interface MappingCompleteData {
+  document_filename: string;
+  form_url: string;
+  form_title: string;
+  form_provider: string;
+  form_schema: FormSchema;
+  mapping_result: MappingResult;
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function useFormFiller() {
+export function useFormFiller(options?: {
+  onMappingComplete?: (data: MappingCompleteData) => void;
+}) {
+  const onMappingCompleteRef = useRef(options?.onMappingComplete);
+  onMappingCompleteRef.current = options?.onMappingComplete;
+
   const [step, setStep] = useState<Step>("upload");
   const [loading, setLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -34,6 +49,7 @@ export function useFormFiller() {
   const [mappingResult, setMappingResult] = useState<MappingResult | null>(null);
   const [mappings, setMappings] = useState<FieldMapping[]>([]);
   const [debugDocBlobUrl, setDebugDocBlobUrl] = useState<string | null>(null);
+  const [isHistorical, setIsHistorical] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +71,7 @@ export function useFormFiller() {
     setLoading(true);
     setError(null);
     setDebugDocBlobUrl(null);
+    setIsHistorical(false);
     try {
       const uploaded = await api.uploadDocument(file);
       setUploadResult(uploaded);
@@ -66,6 +83,15 @@ export function useFormFiller() {
       setMappingResult(result);
       setMappings(result.mappings);
       setStep("answers");
+
+      onMappingCompleteRef.current?.({
+        document_filename: uploaded.filename,
+        form_url: schema.url || formUrl,
+        form_title: schema.title,
+        form_provider: schema.provider,
+        form_schema: schema,
+        mapping_result: result,
+      });
     } catch (error: unknown) {
       setError(errorMessage(error, "An error occurred"));
     } finally {
@@ -118,6 +144,19 @@ export function useFormFiller() {
     setMappingResult(null);
     setMappings([]);
     setDebugDocBlobUrl(null);
+    setIsHistorical(false);
+  }, []);
+
+  const hydrateSession = useCallback((session: SessionFull) => {
+    setError(null);
+    setFormSchema(session.form_schema);
+    setMappingResult(session.mapping_result);
+    setMappings(
+      session.edited_mappings ?? session.mapping_result.mappings
+    );
+    setDebugDocBlobUrl(`/api/sessions/${session.id}/document`);
+    setIsHistorical(true);
+    setStep("answers");
   }, []);
 
   const loadDebugData = useCallback(() => {
@@ -127,6 +166,7 @@ export function useFormFiller() {
     setMappingResult(DEBUG_MAPPING_RESULT);
     setMappings(DEBUG_MAPPING_RESULT.mappings);
     setDebugDocBlobUrl(DEBUG_DOC_BLOB_URL);
+    setIsHistorical(false);
     setStep("answers");
   }, []);
 
@@ -141,11 +181,13 @@ export function useFormFiller() {
     mappings,
     appSettings,
     debugDocBlobUrl,
+    isHistorical,
     process,
     remap,
     updateMapping,
     saveAppSettings,
     reset,
+    hydrateSession,
     loadDebugData,
   };
 }

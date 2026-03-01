@@ -1,9 +1,12 @@
 import type {
   AppSettings,
+  FieldMapping,
   FormSchema,
   KnowledgeProfile,
   KnowledgeProfileUpdate,
   MappingResult,
+  SessionFull,
+  SessionMeta,
   SettingsUpdate,
   UploadResponse,
 } from "./types";
@@ -83,4 +86,49 @@ export async function mapFields(): Promise<MappingResult> {
     method: "POST",
   });
   return handleResponse(res);
+}
+
+export async function listSessions(): Promise<SessionMeta[]> {
+  const res = await fetch(`${BASE}/api/sessions`);
+  return handleResponse(res);
+}
+
+export async function getSession(id: string): Promise<SessionFull> {
+  const res = await fetch(`${BASE}/api/sessions/${id}`);
+  return handleResponse(res);
+}
+
+export async function createSession(data: {
+  document_filename: string;
+  form_url: string;
+  form_title: string;
+  form_provider: string;
+  form_schema: FormSchema;
+  mapping_result: MappingResult;
+}): Promise<SessionMeta> {
+  const res = await fetch(`${BASE}/api/sessions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function updateSessionMappings(
+  id: string,
+  mappings: FieldMapping[]
+): Promise<void> {
+  const res = await fetch(`${BASE}/api/sessions/${id}/mappings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mappings }),
+  });
+  await handleResponse(res);
+}
+
+export async function deleteSession(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/sessions/${id}`, {
+    method: "DELETE",
+  });
+  await handleResponse(res);
 }

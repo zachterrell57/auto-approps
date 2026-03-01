@@ -10,9 +10,23 @@ from .doc_parser import parse_docx
 from .form_scraper import scrape_form
 from .knowledge_profile_store import load_knowledge_profile, save_knowledge_profile
 from .mapper import map_fields
-from .models import FormSchema, KnowledgeProfileUpdate, ParsedDocument
+from .models import (
+    FormSchema,
+    KnowledgeProfileUpdate,
+    ParsedDocument,
+    SessionCreate,
+    SessionUpdateMappings,
+)
 from .ms_form_scraper import scrape_ms_form
 from .provider import FormProvider, detect_provider
+from .session_store import (
+    create_session,
+    delete_session,
+    get_session,
+    get_session_document,
+    list_sessions,
+    update_session_mappings,
+)
 from .settings_store import read_api_key, write_api_key
 
 app = FastAPI(title="AutoApprops", version="0.1.0")
@@ -164,6 +178,68 @@ async def map_endpoint():
 
     _state["mapping_result"] = result
     return result.model_dump()
+
+
+@app.get("/api/sessions")
+async def list_sessions_endpoint():
+    return list_sessions()
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session_endpoint(session_id: str):
+    session = get_session(session_id)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+    return session
+
+
+@app.get("/api/sessions/{session_id}/document")
+async def get_session_document_endpoint(session_id: str):
+    result = get_session_document(session_id)
+    if result is None:
+        raise HTTPException(404, "Session not found")
+    doc_bytes, filename = result
+    return Response(
+        content=doc_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@app.post("/api/sessions")
+async def create_session_endpoint(req: SessionCreate):
+    raw_bytes = _state.get("raw_docx_bytes")
+    if not raw_bytes:
+        raise HTTPException(400, "No document in memory. Upload a document first.")
+    try:
+        meta = create_session(
+            document_filename=req.document_filename,
+            document_bytes=raw_bytes,
+            form_url=req.form_url,
+            form_title=req.form_title,
+            form_provider=req.form_provider,
+            form_schema=req.form_schema,
+            mapping_result=req.mapping_result,
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Failed to create session: {e}")
+    return meta
+
+
+@app.put("/api/sessions/{session_id}/mappings")
+async def update_session_mappings_endpoint(
+    session_id: str, req: SessionUpdateMappings
+):
+    if not update_session_mappings(session_id, req.mappings):
+        raise HTTPException(404, "Session not found")
+    return {"ok": True}
+
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session_endpoint(session_id: str):
+    if not delete_session(session_id):
+        raise HTTPException(404, "Session not found")
+    return {"ok": True}
 
 
 def main():
