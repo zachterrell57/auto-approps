@@ -9,8 +9,6 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(npm install)",
       "Bash(npm run build 2>&1)",
-      "Bash(bash scripts/setup-dev.sh)",
-      "Bash(chmod +x scripts/*.sh)",
       "Bash(pip install -e . 2>&1 | tail -5)",
       "Bash(git init)"
     ]
