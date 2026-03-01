@@ -122,3 +122,16 @@
     @apply bg-background text-foreground;
     }
 }
+
+/* Source chunk highlighting in the document viewer */
+.docx-container .source-highlight {
+  background-color: rgb(254 243 199) !important; /* amber-100 */
+  transition: background-color 0.2s ease;
+}
+
+.docx-container .source-highlight-active {
+  background-color: rgb(252 211 77) !important; /* amber-300 */
+  outline: 2px solid rgb(245 158 11); /* amber-500 */
+  outline-offset: 1px;
+  border-radius: 2px;
+}

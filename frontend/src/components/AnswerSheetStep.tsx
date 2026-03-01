@@ -80,6 +80,12 @@ export function AnswerSheetStep({
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const activeCount = mappings.filter((m) => m.proposed_answer.trim()).length;
 
+  const selectedSourceChunks = useMemo(() => {
+    if (!selectedFieldId) return [];
+    const mapping = mappings.find((m) => m.field_id === selectedFieldId);
+    return mapping?.source_chunks ?? [];
+  }, [selectedFieldId, mappings]);
+
   const groupedRows = useMemo(() => {
     const mappingById = new Map<string, { mapping: FieldMapping; index: number }>();
     mappings.forEach((mapping, index) => {
@@ -256,7 +262,7 @@ export function AnswerSheetStep({
               </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
-              <DocumentViewer blobUrl={debugDocBlobUrl} />
+              <DocumentViewer blobUrl={debugDocBlobUrl} sourceChunks={selectedSourceChunks} />
             </CardContent>
           </Card>
         </div>
