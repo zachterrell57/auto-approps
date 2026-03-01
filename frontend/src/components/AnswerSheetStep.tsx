@@ -121,35 +121,28 @@ export function AnswerSheetStep({
   return (
     <div className="w-full max-w-[1600px] mx-auto">
       {/* Header */}
-      <Card className="mb-4">
-        <CardHeader>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-2xl">Review + Answer Sheet</CardTitle>
-              <CardDescription>
-                Edit mappings, then copy each response into the form manually.
-                Click a field to see its source in the document.
-              </CardDescription>
-              <p className="mt-2 text-sm text-gray-600">{activeCount} fields are ready to copy.</p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={onRemap}
-                disabled={loading || isHistorical}
-                title={isHistorical ? "Only available for current session" : undefined}
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Re-map
-              </Button>
-              <Button variant="outline" onClick={onReset} disabled={loading}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Start Over
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold">Review + Answer Sheet</h2>
+          <span className="text-sm text-gray-500">{activeCount} fields ready to copy</span>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRemap}
+            disabled={loading || isHistorical}
+            title={isHistorical ? "Only available for current session" : undefined}
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+            Re-map
+          </Button>
+          <Button variant="outline" size="sm" onClick={onReset} disabled={loading}>
+            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+            Start Over
+          </Button>
+        </div>
+      </div>
 
       {/* Side-by-side layout */}
       <div className="flex gap-4 items-start">
