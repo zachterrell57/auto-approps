@@ -24,7 +24,7 @@ export default function App() {
           <button
             onClick={() => setPage("main")}
             className={cn(
-              "text-sm h-full border-b-2 transition-colors",
+              "text-sm h-full border-b-2 -mb-px transition-colors",
               page === "main"
                 ? "border-gray-900 text-gray-900 font-medium"
                 : "border-transparent text-gray-500 hover:text-gray-700"
@@ -35,7 +35,7 @@ export default function App() {
           <button
             onClick={() => setPage("profile")}
             className={cn(
-              "text-sm h-full border-b-2 transition-colors",
+              "text-sm h-full border-b-2 -mb-px transition-colors",
               page === "profile"
                 ? "border-gray-900 text-gray-900 font-medium"
                 : "border-transparent text-gray-500 hover:text-gray-700"
@@ -46,7 +46,7 @@ export default function App() {
           <button
             onClick={() => setPage("settings")}
             className={cn(
-              "text-sm h-full border-b-2 transition-colors",
+              "text-sm h-full border-b-2 -mb-px transition-colors",
               page === "settings"
                 ? "border-gray-900 text-gray-900 font-medium"
                 : "border-transparent text-gray-500 hover:text-gray-700"
