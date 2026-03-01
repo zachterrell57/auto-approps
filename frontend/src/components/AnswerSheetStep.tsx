@@ -2,13 +2,6 @@ import { useMemo, useState } from "react";
 import { Check, Copy, FileText, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DocumentViewer } from "@/components/DocumentViewer";
@@ -22,7 +15,6 @@ interface AnswerSheetStepProps {
   isHistorical?: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
   onRemap: () => void;
-  onReset: () => void;
 }
 
 interface AnswerRow {
@@ -76,7 +68,6 @@ export function AnswerSheetStep({
   isHistorical,
   onUpdate,
   onRemap,
-  onReset,
 }: AnswerSheetStepProps) {
   const [copiedFieldId, setCopiedFieldId] = useState<string | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
@@ -119,35 +110,29 @@ export function AnswerSheetStep({
   };
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto">
-      {/* Header */}
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">Review + Answer Sheet</h2>
-          <span className="text-sm text-gray-500">{activeCount} fields ready to copy</span>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRemap}
-            disabled={loading || isHistorical}
-            title={isHistorical ? "Only available for current session" : undefined}
-          >
-            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-            Re-map
-          </Button>
-          <Button variant="outline" size="sm" onClick={onReset} disabled={loading}>
-            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-            Start Over
-          </Button>
-        </div>
-      </div>
+    <div className="flex h-[calc(100vh-3rem)] overflow-hidden">
+      {/* Left panel: Answer cards */}
+      <div className="flex-1 min-w-0 overflow-y-auto">
+        <div className="p-6 space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold">Review + Answer Sheet</h2>
+              <span className="text-sm text-gray-500">{activeCount} fields ready to copy</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRemap}
+              disabled={loading || isHistorical}
+              title={isHistorical ? "Only available for current session" : undefined}
+            >
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              Re-map
+            </Button>
+          </div>
 
-      {/* Side-by-side layout */}
-      <div className="flex gap-4 items-start">
-        {/* Left panel: Answer cards */}
-        <div className="flex-1 min-w-0 space-y-6">
+          {/* Answer cards by page */}
           {groupedRows.map(([pageIndex, rows]) => (
             <section key={pageIndex} className="border rounded-lg p-4 space-y-4 bg-white">
               <h3 className="text-sm font-semibold text-gray-700">Page {pageIndex + 1}</h3>
@@ -251,20 +236,16 @@ export function AnswerSheetStep({
             </section>
           ))}
         </div>
+      </div>
 
-        {/* Right panel: Document viewer */}
-        <div className="w-[45%] shrink-0 sticky top-4 h-[calc(100vh-2rem)]">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="pb-2 shrink-0">
-              <CardTitle className="text-lg">Document Source</CardTitle>
-              <CardDescription>
-                The uploaded source document.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
-              <DocumentViewer blobUrl={debugDocBlobUrl} sourceChunks={selectedSourceChunks} />
-            </CardContent>
-          </Card>
+      {/* Right panel: Document viewer — full height */}
+      <div className="w-1/2 shrink-0 border-l flex flex-col bg-muted/30">
+        <div className="px-4 py-3 border-b shrink-0">
+          <h3 className="text-sm font-semibold">Document Source</h3>
+          <p className="text-xs text-muted-foreground">The uploaded source document.</p>
+        </div>
+        <div className="flex-1 min-h-0">
+          <DocumentViewer blobUrl={debugDocBlobUrl} sourceChunks={selectedSourceChunks} />
         </div>
       </div>
     </div>

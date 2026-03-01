@@ -87,13 +87,25 @@ export default function App() {
         <header className="flex items-center gap-2 border-b px-4 h-12">
           <SidebarTrigger />
         </header>
-        <div className="py-8 px-4">
-          {error && (
-            <div className="max-w-2xl mx-auto mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="max-w-2xl mx-auto mb-4 mt-4 px-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+            {error}
+          </div>
+        )}
 
+        {page === "main" && formFiller.step === "answers" && formFiller.formSchema && (
+          <AnswerSheetStep
+            formSchema={formFiller.formSchema}
+            mappings={formFiller.mappings}
+            loading={formFiller.loading}
+            debugDocBlobUrl={formFiller.debugDocBlobUrl}
+            isHistorical={formFiller.isHistorical}
+            onUpdate={formFiller.updateMapping}
+            onRemap={formFiller.remap}
+          />
+        )}
+
+        <div className="py-8 px-4">
           {page === "settings" && (
             <SettingsPage
               settings={formFiller.appSettings}
@@ -117,19 +129,6 @@ export default function App() {
               loading={formFiller.loading}
               onProcess={formFiller.process}
               onLoadDebug={formFiller.loadDebugData}
-            />
-          )}
-
-          {page === "main" && formFiller.step === "answers" && formFiller.formSchema && (
-            <AnswerSheetStep
-              formSchema={formFiller.formSchema}
-              mappings={formFiller.mappings}
-              loading={formFiller.loading}
-              debugDocBlobUrl={formFiller.debugDocBlobUrl}
-              isHistorical={formFiller.isHistorical}
-              onUpdate={formFiller.updateMapping}
-              onRemap={formFiller.remap}
-              onReset={formFiller.reset}
             />
           )}
         </div>
