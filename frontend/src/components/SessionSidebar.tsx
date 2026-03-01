@@ -78,9 +78,6 @@ export function SessionSidebar({
                     <p className="text-sm font-medium truncate">
                       {session.form_title || "Untitled Form"}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {session.document_filename}
-                    </p>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">
                         {timeAgo(session.created_at)}
