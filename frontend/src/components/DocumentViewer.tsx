@@ -43,14 +43,14 @@ export function DocumentViewer({
         await renderAsync(buffer, containerRef.current, undefined, {
           className: "docx-viewer",
           inWrapper: true,
-          ignoreWidth: false,
+          ignoreWidth: true,
           ignoreHeight: true,
         });
         if (!cancelled) setRenderComplete(true);
       } catch (e) {
         if (!cancelled) {
           setError(
-            e instanceof Error ? e.message : "Failed to render document",
+            e instanceof Error ? e.message : "Failed to render document"
           );
         }
       } finally {
@@ -126,7 +126,7 @@ export function DocumentViewer({
 
       setActiveMatchIndex(index);
     },
-    [matchResults, activeMatchIndex],
+    [matchResults, activeMatchIndex]
   );
 
   const goToPrev = useCallback(() => {
@@ -143,29 +143,29 @@ export function DocumentViewer({
 
   if (error) {
     return (
-      <div className="text-sm text-red-500 italic p-4">{error}</div>
+      <div className="text-sm text-rose-500 p-4">{error}</div>
     );
   }
 
   return (
-    <div className="bg-gray-200 h-full flex flex-col">
+    <div className="bg-foreground/[0.03] h-full flex flex-col">
       {/* Source navigation bar */}
       {matchResults.length > 0 && (
-        <div className="flex items-center justify-between px-3 py-1.5 bg-amber-50 border-b border-amber-200 shrink-0">
-          <span className="text-xs font-medium text-amber-800">
+        <div className="flex items-center justify-between px-4 py-2 bg-amber-50 border-b border-amber-200/60 shrink-0">
+          <span className="text-xs font-semibold text-amber-700">
             Source {activeMatchIndex + 1} of {matchResults.length}
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <button
               onClick={goToPrev}
-              className="p-0.5 rounded hover:bg-amber-100 text-amber-700"
+              className="p-1 rounded-lg hover:bg-amber-100 text-amber-600 transition-colors"
               aria-label="Previous source"
             >
               <ChevronUp className="h-4 w-4" />
             </button>
             <button
               onClick={goToNext}
-              className="p-0.5 rounded hover:bg-amber-100 text-amber-700"
+              className="p-1 rounded-lg hover:bg-amber-100 text-amber-600 transition-colors"
               aria-label="Next source"
             >
               <ChevronDown className="h-4 w-4" />
@@ -177,7 +177,7 @@ export function DocumentViewer({
       {/* Document content */}
       <div className="flex-1 overflow-y-auto">
         {loading && (
-          <div className="text-sm text-gray-500 italic p-4">
+          <div className="text-sm text-foreground/30 p-4">
             Loading document...
           </div>
         )}
