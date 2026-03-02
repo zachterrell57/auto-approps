@@ -9,6 +9,7 @@ module.exports = {
       unpack: "**/{better-sqlite3,bindings,file-uri-to-path}/**",
     },
     name: "AutoApprops",
+    icon: "assets/icon",
     appBundleId: "com.autoapprops.app",
     extraResource: ["./playwright-browsers"],
     ignore: [
