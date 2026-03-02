@@ -102,3 +102,11 @@ export function deleteClient(id: string): boolean {
   saveAll(filtered);
   return true;
 }
+
+export function clearClients(): void {
+  try {
+    fs.unlinkSync(clientsPath());
+  } catch {
+    // Best-effort cleanup.
+  }
+}

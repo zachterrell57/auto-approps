@@ -14,12 +14,7 @@ import type {
   UploadResponse,
 } from "./types";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const BASE = "";
-
 const electron = () => window.electronAPI;
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -35,10 +30,6 @@ async function handleResponse<T>(res: Response): Promise<T> {
   }
   return res.json();
 }
-
-// ---------------------------------------------------------------------------
-// Document
-// ---------------------------------------------------------------------------
 
 export async function uploadDocument(file: File): Promise<UploadResponse> {
   const api = electron();
@@ -63,10 +54,6 @@ export async function fetchDocumentBlob(): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 
-// ---------------------------------------------------------------------------
-// Knowledge profile
-// ---------------------------------------------------------------------------
-
 export async function getKnowledgeProfile(): Promise<KnowledgeProfile> {
   const api = electron();
   if (api) return api.getKnowledgeProfile();
@@ -86,10 +73,6 @@ export async function saveKnowledgeProfile(
   });
   return handleResponse(res);
 }
-
-// ---------------------------------------------------------------------------
-// Settings
-// ---------------------------------------------------------------------------
 
 export async function getSettings(): Promise<AppSettings> {
   const api = electron();
@@ -111,9 +94,17 @@ export async function saveSettings(
   return handleResponse(res);
 }
 
-// ---------------------------------------------------------------------------
-// Scrape & map
-// ---------------------------------------------------------------------------
+export async function clearLocalData(): Promise<void> {
+  const api = electron();
+  if (api) {
+    await api.clearLocalData();
+    return;
+  }
+  const res = await fetch(`${BASE}/api/settings/clear-local-data`, {
+    method: "POST",
+  });
+  await handleResponse(res);
+}
 
 export async function scrapeForm(url: string): Promise<FormSchema> {
   const api = electron();
@@ -135,10 +126,6 @@ export async function mapFields(clientId?: string): Promise<MappingResult> {
   const res = await fetch(url, { method: "POST" });
   return handleResponse(res);
 }
-
-// ---------------------------------------------------------------------------
-// Clients
-// ---------------------------------------------------------------------------
 
 export async function listClients(): Promise<Client[]> {
   const api = electron();
@@ -188,10 +175,6 @@ export async function deleteClient(id: string): Promise<void> {
   await handleResponse(res);
 }
 
-// ---------------------------------------------------------------------------
-// Sessions
-// ---------------------------------------------------------------------------
-
 export async function listSessions(): Promise<SessionMeta[]> {
   const api = electron();
   if (api) return api.listSessions();
@@ -211,6 +194,7 @@ export async function createSession(data: {
   form_url: string;
   form_title: string;
   form_provider: string;
+  display_name?: string;
   form_schema: FormSchema;
   mapping_result: MappingResult;
 }): Promise<SessionMeta> {
@@ -238,25 +222,33 @@ export async function updateSessionMappings(
   await handleResponse(res);
 }
 
+export async function getSessionDocumentBlobUrl(id: string): Promise<string> {
+  const api = electron();
+  if (api) {
+    const result = await api.getSessionDocument(id);
+    const blob = new Blob([result.buffer], {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+    return URL.createObjectURL(blob);
+  }
+  const res = await fetch(`${BASE}/api/sessions/${id}/document`);
+  if (!res.ok) throw new Error("Failed to fetch session document");
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 export async function renameSession(
   id: string,
-  displayName: string
+  displayName: string,
 ): Promise<void> {
+  const api = electron();
+  if (api) return api.renameSession(id, displayName);
   const res = await fetch(`${BASE}/api/sessions/${id}/name`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ display_name: displayName }),
   });
   await handleResponse(res);
-}
-
-export async function generateSessionName(
-  id: string
-): Promise<{ display_name: string }> {
-  const res = await fetch(`${BASE}/api/sessions/${id}/generate-name`, {
-    method: "POST",
-  });
-  return handleResponse(res);
 }
 
 export async function deleteSession(id: string): Promise<void> {

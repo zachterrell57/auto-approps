@@ -23,7 +23,7 @@ export function useSessions() {
   }, []);
 
   useEffect(() => {
-    refreshList();
+    void refreshList();
   }, [refreshList]);
 
   const saveSession = useCallback(
@@ -40,8 +40,6 @@ export function useSessions() {
         const meta = await api.createSession(data);
         setCurrentSessionId(meta.id);
         await refreshList();
-        // Fire-and-forget: generate AI name in the background
-        api.generateSessionName(meta.id).then(() => refreshList()).catch(() => {});
         return meta.id;
       } catch (err) {
         console.error("Failed to save session", err);
@@ -50,7 +48,7 @@ export function useSessions() {
         setLoading(false);
       }
     },
-    [refreshList]
+    [refreshList],
   );
 
   const loadSession = useCallback(async (id: string): Promise<SessionFull | null> => {
@@ -79,7 +77,7 @@ export function useSessions() {
         console.error("Failed to delete session", err);
       }
     },
-    [currentSessionId, refreshList]
+    [currentSessionId, refreshList],
   );
 
   const saveEditedMappings = useCallback(
@@ -91,7 +89,7 @@ export function useSessions() {
         console.error("Failed to save edited mappings", err);
       }
     },
-    [currentSessionId]
+    [currentSessionId],
   );
 
   const renameSession = useCallback(
@@ -103,7 +101,7 @@ export function useSessions() {
         console.error("Failed to rename session", err);
       }
     },
-    [refreshList]
+    [refreshList],
   );
 
   const clearCurrentSession = useCallback(() => {
