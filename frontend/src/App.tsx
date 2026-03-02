@@ -9,7 +9,11 @@ import { ClientsPage } from "@/components/ClientsPage";
 import { SettingsPage } from "@/components/SettingsPage";
 import { ProfilePage } from "@/components/ProfilePage";
 import { SessionSidebar } from "@/components/SessionSidebar";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import type { MappingCompleteData } from "@/hooks/useFormFiller";
 
 type Page = "main" | "profile" | "settings" | "clients";
@@ -22,9 +26,9 @@ export default function App() {
 
   const handleMappingComplete = useCallback(
     (data: MappingCompleteData) => {
-      sessionManager.saveSession(data);
+      void sessionManager.saveSession(data);
     },
-    [sessionManager.saveSession]
+    [sessionManager],
   );
 
   const formFiller = useFormFiller({
@@ -35,18 +39,18 @@ export default function App() {
     async (id: string) => {
       const session = await sessionManager.loadSession(id);
       if (session) {
-        formFiller.hydrateSession(session);
+        await formFiller.hydrateSession(session);
         setPage("main");
       }
     },
-    [sessionManager.loadSession, formFiller.hydrateSession]
+    [sessionManager, formFiller],
   );
 
   const handleNewSession = useCallback(() => {
     formFiller.reset();
     sessionManager.clearCurrentSession();
     setPage("main");
-  }, [formFiller.reset, sessionManager.clearCurrentSession]);
+  }, [formFiller, sessionManager]);
 
   const handleDeleteSession = useCallback(
     async (id: string) => {
@@ -55,13 +59,15 @@ export default function App() {
         formFiller.reset();
       }
     },
-    [sessionManager.removeSession, sessionManager.currentSessionId, formFiller.reset]
+    [sessionManager, formFiller],
   );
 
-  // Debounced save of edited mappings
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!sessionManager.currentSessionId || formFiller.isHistorical === false && formFiller.step !== "answers") {
+    if (
+      !sessionManager.currentSessionId ||
+      (formFiller.isHistorical === false && formFiller.step !== "answers")
+    ) {
       return;
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -71,7 +77,7 @@ export default function App() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [formFiller.mappings, sessionManager.currentSessionId, sessionManager.saveEditedMappings, formFiller.step, formFiller.isHistorical]);
+  }, [sessionManager, formFiller]);
 
   const error = formFiller.error || profile.profileError;
 
@@ -103,6 +109,7 @@ export default function App() {
             mappings={formFiller.mappings}
             loading={formFiller.loading}
             apiKeyConfigured={formFiller.apiKeyConfigured}
+            hasDocument={formFiller.hasDocument}
             debugDocBlobUrl={formFiller.debugDocBlobUrl}
             isHistorical={formFiller.isHistorical}
             onUpdate={formFiller.updateMapping}
@@ -116,6 +123,7 @@ export default function App() {
               settings={formFiller.appSettings}
               saving={formFiller.settingsSaving}
               onSave={formFiller.saveAppSettings}
+              onClearLocalData={formFiller.clearAllLocalData}
             />
           )}
 

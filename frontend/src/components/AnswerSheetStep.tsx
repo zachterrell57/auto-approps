@@ -8,6 +8,7 @@ interface AnswerSheetStepProps {
   mappings: FieldMapping[];
   loading: boolean;
   apiKeyConfigured?: boolean;
+  hasDocument: boolean;
   debugDocBlobUrl?: string | null;
   isHistorical?: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
@@ -62,6 +63,7 @@ export function AnswerSheetStep({
   mappings,
   loading,
   apiKeyConfigured = true,
+  hasDocument,
   debugDocBlobUrl,
   isHistorical,
   onUpdate,
@@ -106,16 +108,14 @@ export function AnswerSheetStep({
     setCopiedFieldId(fieldId);
     setTimeout(
       () => setCopiedFieldId((current) => (current === fieldId ? null : current)),
-      1200
+      1200,
     );
   };
 
   return (
     <div className="flex h-[calc(100vh-3rem)] overflow-hidden">
-      {/* Left panel: Answer cards */}
       <div className="flex-1 min-w-0 overflow-y-auto">
         <div className="p-6 space-y-8">
-          {/* Header */}
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground leading-none">
@@ -123,7 +123,9 @@ export function AnswerSheetStep({
               </h1>
               <p className="mt-3 text-[15px] text-muted-foreground leading-relaxed max-w-lg">
                 Edit mappings, then copy each response into the form manually.
-                Click a field to see its source in the document.
+                {hasDocument
+                  ? " Click a field to see its source in the document."
+                  : " Source citations are based on selected knowledge context."}
               </p>
               <p className="mt-2 text-sm text-foreground/35">
                 {activeCount} field{activeCount !== 1 ? "s" : ""} ready to copy.
@@ -155,8 +157,8 @@ export function AnswerSheetStep({
                 isHistorical
                   ? "Only available for current session"
                   : !apiKeyConfigured
-                  ? "Add API key in Settings to re-map"
-                  : undefined
+                    ? "Add API key in Settings to re-map"
+                    : undefined
               }
               className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 shrink-0 disabled:opacity-20 disabled:cursor-not-allowed"
             >
@@ -165,7 +167,6 @@ export function AnswerSheetStep({
             </button>
           </div>
 
-          {/* Answer cards by page */}
           {groupedRows.map(([pageIndex, rows]) => (
             <section key={pageIndex} className="space-y-4">
               <div className="flex items-center gap-3">
@@ -197,7 +198,6 @@ export function AnswerSheetStep({
                         setSelectedFieldId(isSelected ? null : field.field_id)
                       }
                     >
-                      {/* Field header */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-2">
                           <p className="text-sm font-medium text-foreground leading-tight">
@@ -231,7 +231,6 @@ export function AnswerSheetStep({
                           </div>
                         </div>
 
-                        {/* Copy button */}
                         <div
                           className="flex items-center gap-2"
                           onClick={(e) => e.stopPropagation()}
@@ -257,7 +256,6 @@ export function AnswerSheetStep({
                         </div>
                       </div>
 
-                      {/* Action hint */}
                       <p className="text-[12px] text-foreground/30">
                         {actionHint(field.field_type, answer)}
                       </p>
@@ -268,7 +266,6 @@ export function AnswerSheetStep({
                         </p>
                       )}
 
-                      {/* Editable answer */}
                       <div onClick={(e) => e.stopPropagation()}>
                         {useTextarea ? (
                           <textarea
@@ -305,18 +302,25 @@ export function AnswerSheetStep({
         </div>
       </div>
 
-      {/* Right panel: Document viewer — full height */}
       <div className="w-1/2 shrink-0 border-l border-foreground/8 flex flex-col">
         <div className="px-5 py-4 border-b border-foreground/8 shrink-0">
           <h2 className="font-heading text-lg text-foreground leading-tight">
             Document Source
           </h2>
           <p className="text-xs text-foreground/35 mt-1">
-            The uploaded source document.
+            {hasDocument
+              ? "The uploaded source document."
+              : "No document uploaded. Answers came from client and/or profile knowledge."}
           </p>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
-          <DocumentViewer blobUrl={debugDocBlobUrl} sourceChunks={selectedSourceChunks} />
+          {hasDocument ? (
+            <DocumentViewer blobUrl={debugDocBlobUrl} sourceChunks={selectedSourceChunks} />
+          ) : (
+            <div className="h-full flex items-center justify-center px-6 text-center text-sm text-foreground/40 bg-foreground/[0.02]">
+              No document uploaded; answers sourced from knowledge context.
+            </div>
+          )}
         </div>
       </div>
     </div>

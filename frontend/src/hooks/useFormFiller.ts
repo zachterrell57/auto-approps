@@ -18,7 +18,7 @@ import type {
 export type Step = "upload" | "answers";
 
 export interface MappingCompleteData {
-  document_filename: string;
+  document_filename: string | null;
   form_url: string;
   form_title: string;
   form_provider: string;
@@ -66,7 +66,21 @@ export function useFormFiller(options?: {
   const [mappingResult, setMappingResult] = useState<MappingResult | null>(null);
   const [mappings, setMappings] = useState<FieldMapping[]>([]);
   const [debugDocBlobUrl, setDebugDocBlobUrl] = useState<string | null>(null);
+  const documentBlobUrlRef = useRef<string | null>(null);
   const [isHistorical, setIsHistorical] = useState(false);
+  const [hasDocument, setHasDocument] = useState(false);
+  const [activeClientId, setActiveClientId] = useState<string | undefined>(
+    undefined,
+  );
+  const [includeDocument, setIncludeDocument] = useState(false);
+
+  const replaceDocumentBlobUrl = useCallback((nextUrl: string | null) => {
+    if (documentBlobUrlRef.current?.startsWith("blob:")) {
+      URL.revokeObjectURL(documentBlobUrlRef.current);
+    }
+    documentBlobUrlRef.current = nextUrl;
+    setDebugDocBlobUrl(nextUrl);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,72 +89,101 @@ export function useFormFiller(options?: {
         const loaded = await api.getSettings();
         if (cancelled) return;
         setAppSettings(loaded);
-      } catch (error: unknown) {
+      } catch (err: unknown) {
         if (cancelled) return;
-        setError(errorMessage(error, "Failed to load settings"));
+        setError(errorMessage(err, "Failed to load settings"));
       }
     }
-    loadSettings();
-    return () => { cancelled = true; };
+
+    void loadSettings();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const process = useCallback(async (file: File, formUrl: string, clientId?: string) => {
+  useEffect(() => {
+    return () => {
+      if (documentBlobUrlRef.current?.startsWith("blob:")) {
+        URL.revokeObjectURL(documentBlobUrlRef.current);
+      }
+    };
+  }, []);
+
+  const process = useCallback(
+    async (file: File | null, formUrl: string, clientId?: string) => {
+      if (!appSettings.anthropic_api_key_set) {
+        setError(MISSING_API_KEY_MESSAGE);
+        return;
+      }
+
+      const shouldIncludeDocument = Boolean(file);
+      setLoading(true);
+      setProcessingStage(shouldIncludeDocument ? "uploading" : "scraping");
+      setError(null);
+      replaceDocumentBlobUrl(null);
+      setIsHistorical(false);
+      setHasDocument(shouldIncludeDocument);
+      setIncludeDocument(shouldIncludeDocument);
+      setActiveClientId(clientId);
+
+      try {
+        const uploaded = file ? await api.uploadDocument(file) : null;
+        setUploadResult(uploaded);
+
+        setProcessingStage("scraping");
+        const schema = await api.scrapeForm(formUrl);
+        setFormSchema(schema);
+
+        setProcessingStage("mapping");
+        const result = await api.mapFields({
+          clientId,
+          includeDocument: shouldIncludeDocument,
+        });
+        setMappingResult(result);
+        setMappings(result.mappings);
+        setStep("answers");
+
+        onMappingCompleteRef.current?.({
+          document_filename: uploaded?.filename ?? null,
+          form_url: schema.url || formUrl,
+          form_title: schema.title,
+          form_provider: schema.provider,
+          form_schema: schema,
+          mapping_result: result,
+        });
+      } catch (err: unknown) {
+        setError(errorMessage(err, "An error occurred"));
+      } finally {
+        setLoading(false);
+        setProcessingStage(null);
+      }
+    },
+    [appSettings.anthropic_api_key_set, replaceDocumentBlobUrl],
+  );
+
+  const remap = useCallback(async () => {
     if (!appSettings.anthropic_api_key_set) {
       setError(MISSING_API_KEY_MESSAGE);
       return;
     }
+
     setLoading(true);
+    setProcessingStage("mapping");
     setError(null);
-    setDebugDocBlobUrl(null);
-    setIsHistorical(false);
     try {
-      setProcessingStage("uploading");
-      const uploaded = await api.uploadDocument(file);
-      setUploadResult(uploaded);
-
-      setProcessingStage("scraping");
-      const schema = await api.scrapeForm(formUrl);
-      setFormSchema(schema);
-
-      setProcessingStage("mapping");
-      const result = await api.mapFields(clientId);
+      const result = await api.mapFields({
+        clientId: activeClientId,
+        includeDocument,
+      });
       setMappingResult(result);
       setMappings(result.mappings);
-      setStep("answers");
-
-      onMappingCompleteRef.current?.({
-        document_filename: uploaded.filename,
-        form_url: schema.url || formUrl,
-        form_title: schema.title,
-        form_provider: schema.provider,
-        form_schema: schema,
-        mapping_result: result,
-      });
-    } catch (error: unknown) {
-      setError(errorMessage(error, "An error occurred"));
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Re-mapping failed"));
     } finally {
       setLoading(false);
       setProcessingStage(null);
     }
-  }, [appSettings.anthropic_api_key_set]);
-
-  const remap = useCallback(async (clientId?: string) => {
-    if (!appSettings.anthropic_api_key_set) {
-      setError(MISSING_API_KEY_MESSAGE);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await api.mapFields(clientId);
-      setMappingResult(result);
-      setMappings(result.mappings);
-    } catch (error: unknown) {
-      setError(errorMessage(error, "Re-mapping failed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [appSettings.anthropic_api_key_set]);
+  }, [appSettings.anthropic_api_key_set, activeClientId, includeDocument]);
 
   const saveAppSettings = useCallback(async (apiKey: string) => {
     setSettingsSaving(true);
@@ -148,20 +191,47 @@ export function useFormFiller(options?: {
     try {
       const saved = await api.saveSettings({ anthropic_api_key: apiKey });
       setAppSettings(saved);
-    } catch (error: unknown) {
-      setError(errorMessage(error, "Failed to save settings"));
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Failed to save settings"));
     } finally {
       setSettingsSaving(false);
     }
   }, []);
 
+  const clearAllLocalData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api.clearLocalData();
+      setStep("upload");
+      setUploadResult(null);
+      setFormSchema(null);
+      setMappingResult(null);
+      setMappings([]);
+      replaceDocumentBlobUrl(null);
+      setIsHistorical(false);
+      setHasDocument(false);
+      setActiveClientId(undefined);
+      setIncludeDocument(false);
+      setProcessingStage(null);
+      setAppSettings({
+        anthropic_api_key_set: false,
+        anthropic_api_key_preview: "",
+      });
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Failed to clear local data"));
+    } finally {
+      setLoading(false);
+    }
+  }, [replaceDocumentBlobUrl]);
+
   const updateMapping = useCallback(
     (index: number, updates: Partial<FieldMapping>) => {
       setMappings((prev) =>
-        prev.map((m, i) => (i === index ? { ...m, ...updates } : m))
+        prev.map((m, i) => (i === index ? { ...m, ...updates } : m)),
       );
     },
-    []
+    [],
   );
 
   const reset = useCallback(() => {
@@ -173,21 +243,41 @@ export function useFormFiller(options?: {
     setFormSchema(null);
     setMappingResult(null);
     setMappings([]);
-    setDebugDocBlobUrl(null);
+    replaceDocumentBlobUrl(null);
     setIsHistorical(false);
-  }, []);
+    setHasDocument(false);
+    setActiveClientId(undefined);
+    setIncludeDocument(false);
+  }, [replaceDocumentBlobUrl]);
 
-  const hydrateSession = useCallback((session: SessionFull) => {
-    setError(null);
-    setFormSchema(session.form_schema);
-    setMappingResult(session.mapping_result);
-    setMappings(
-      session.edited_mappings ?? session.mapping_result.mappings
-    );
-    setDebugDocBlobUrl(`/api/sessions/${session.id}/document`);
-    setIsHistorical(true);
-    setStep("answers");
-  }, []);
+  const hydrateSession = useCallback(
+    async (session: SessionFull) => {
+      const sessionHasDocument = Boolean(session.document_filename);
+      setError(null);
+      setFormSchema(session.form_schema);
+      setMappingResult(session.mapping_result);
+      setMappings(session.edited_mappings ?? session.mapping_result.mappings);
+
+      if (sessionHasDocument) {
+        try {
+          const blobUrl = await api.getSessionDocumentBlobUrl(session.id);
+          replaceDocumentBlobUrl(blobUrl);
+        } catch (err: unknown) {
+          setError(errorMessage(err, "Could not load historical session document"));
+          replaceDocumentBlobUrl(null);
+        }
+      } else {
+        replaceDocumentBlobUrl(null);
+      }
+
+      setHasDocument(sessionHasDocument);
+      setIncludeDocument(sessionHasDocument);
+      setActiveClientId(undefined);
+      setIsHistorical(true);
+      setStep("answers");
+    },
+    [replaceDocumentBlobUrl],
+  );
 
   const loadDebugData = useCallback(() => {
     setError(null);
@@ -195,10 +285,13 @@ export function useFormFiller(options?: {
     setFormSchema(DEBUG_FORM_SCHEMA);
     setMappingResult(DEBUG_MAPPING_RESULT);
     setMappings(DEBUG_MAPPING_RESULT.mappings);
-    setDebugDocBlobUrl(DEBUG_DOC_BLOB_URL);
+    replaceDocumentBlobUrl(DEBUG_DOC_BLOB_URL);
+    setHasDocument(true);
+    setIncludeDocument(true);
+    setActiveClientId(undefined);
     setIsHistorical(false);
     setStep("answers");
-  }, []);
+  }, [replaceDocumentBlobUrl]);
 
   return {
     step,
@@ -214,10 +307,12 @@ export function useFormFiller(options?: {
     appSettings,
     debugDocBlobUrl,
     isHistorical,
+    hasDocument,
     process,
     remap,
     updateMapping,
     saveAppSettings,
+    clearAllLocalData,
     reset,
     hydrateSession,
     loadDebugData,

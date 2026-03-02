@@ -245,7 +245,8 @@ function _fieldDedupKey(field: FormField): string {
         .sort()
         .join("|")
     : "";
-  return `${label}\x00${field.field_type}\x00${opts}`;
+  const fieldId = _normalizeText(field.field_id).toLowerCase();
+  return `${field.page_index}\x00${fieldId}\x00${label}\x00${field.field_type}\x00${opts}`;
 }
 
 function _isTerminalNavigationReason(reasonCode: string): boolean {
