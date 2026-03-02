@@ -5,10 +5,16 @@ import type { AppSettings } from "@/lib/types";
 interface SettingsPageProps {
   settings: AppSettings;
   saving: boolean;
-  onSave: (apiKey: string) => void;
+  onSave: (apiKey: string) => void | Promise<void>;
+  onClearLocalData?: () => void | Promise<void>;
 }
 
-export function SettingsPage({ settings, saving, onSave }: SettingsPageProps) {
+export function SettingsPage({
+  settings,
+  saving,
+  onSave,
+  onClearLocalData,
+}: SettingsPageProps) {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const dirty = apiKey.trim().length > 0;
@@ -100,7 +106,38 @@ export function SettingsPage({ settings, saving, onSave }: SettingsPageProps) {
               An API key is required to map document fields to form questions.
             </p>
           )}
+
+          <p className="text-xs text-foreground/40 mt-3">
+            Alpha storage note: API keys and session data are stored locally in
+            plaintext on this device.
+          </p>
         </section>
+
+        {onClearLocalData && (
+          <section>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-200/60 bg-rose-50/40 p-4">
+              <div>
+                <p className="text-sm font-medium text-rose-700">Clear Local Data</p>
+                <p className="text-xs text-rose-700/80 mt-1">
+                  Deletes local sessions, clients, profile, and stored API key.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const confirmed = window.confirm(
+                    "Clear all local data? This removes sessions, clients, profile, and API key.",
+                  );
+                  if (!confirmed) return;
+                  void onClearLocalData();
+                }}
+                className="h-10 px-4 rounded-lg border border-rose-300/70 text-sm font-medium text-rose-700 hover:bg-rose-100/70 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

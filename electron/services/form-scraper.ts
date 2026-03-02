@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { FieldType, FormField, FormSchema } from "./models";
+import { settings } from "./config";
 
 // Maps the internal Google Forms type code to our FieldType.
 const TYPE_MAP: Record<number, FieldType> = {
@@ -28,7 +29,21 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
     url = url.replace(/\/+$/, "") + "/viewform";
   }
 
-  const resp = await fetch(url, { redirect: "follow" });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), settings.google_form_fetch_timeout_ms);
+
+  let resp: Response;
+  try {
+    resp = await fetch(url, { redirect: "follow", signal: controller.signal });
+  } catch (e) {
+    const message =
+      e instanceof Error && e.name === "AbortError"
+        ? `Timed out fetching form after ${settings.google_form_fetch_timeout_ms}ms`
+        : `Failed to fetch form: ${String(e)}`;
+    throw new Error(message);
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!resp.ok) {
     throw new Error(
       `Failed to fetch form (HTTP ${resp.status}): ${resp.statusText}`,

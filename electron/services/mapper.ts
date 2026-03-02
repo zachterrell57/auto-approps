@@ -27,25 +27,24 @@ import { knowledgeProfileHasContent } from "./models";
 
 const SYSTEM_PROMPT = `You are an expert at congressional appropriations and government forms.
 
-Your task: given a parsed document and a form schema, map the document content to form fields.
+Your task: given available evidence sources and a form schema, map the best-supported answers to form fields.
 
 Rules:
-1. For each form field, find the best matching content from the document.
+1. For each form field, find the best matching content from the provided evidence.
 2. For radio/dropdown/checkbox fields, your answer MUST exactly match one of the provided options.
 3. Include a source citation for each answer — reference the specific section/paragraph/table row.
 4. Rate your confidence: "high" (exact match found), "medium" (inferred from context), "low" (guessing).
-5. For number fields, preserve exact precision from the document.
+5. For number fields, preserve exact precision from the source evidence.
 6. If no relevant content exists for a field, leave proposed_answer empty and set confidence to "low".
 7. Include brief reasoning for each mapping.
 8. You MUST call the provided tool exactly once.
-9. For source_chunk_indices, include the integer index of every document chunk you used to derive the answer (from the [Chunk N] markers). Use an empty array if no chunks were referenced.
-10. A reusable User/Firm context block may be provided. Treat it as secondary evidence.
-11. If reusable profile context conflicts with the uploaded document, prefer the uploaded document.
+9. Source precedence is strict: Document > Client Knowledge > User/Firm Profile.
+10. If sources conflict, choose the highest-priority source and explain briefly.
+11. For source_chunk_indices, include the integer index of every document chunk you used (from the [Chunk N] markers). Use an empty array if no document chunks were referenced.
 12. Do not invent client-specific details.
 13. If an answer is derived mainly from reusable profile context, set source_citation to "User/Firm Profile".
-14. Keep your reasoning and source_citation fields concise — one sentence each. Prioritize completing all field mappings over detailed explanations.
-15. A Client Knowledge block may be provided with details specific to the client being served. Treat it as secondary evidence (below the uploaded document, above User/Firm profile).
-16. If an answer is derived mainly from client knowledge, set source_citation to "Client Knowledge".
+14. If an answer is derived mainly from client knowledge, set source_citation to "Client Knowledge".
+15. Keep reasoning and source_citation concise — one sentence each.
 `;
 
 const _TOOL_NAME = "submit_field_mappings";
@@ -110,25 +109,41 @@ function _normalizeLabel(value: string): string {
 // ---------------------------------------------------------------------------
 
 export function buildUserMessage(
-  doc: ParsedDocument,
+  doc: ParsedDocument | null,
   form: FormSchema,
   fieldIdToAlias: Record<string, string>,
   knowledgeProfile?: KnowledgeProfile | null,
   clientKnowledge?: string | null,
 ): string {
-  const parts: string[] = ["## Document Content\n"];
+  const docChunks = doc?.chunks ?? [];
+  const parts: string[] = [
+    "## Evidence Priority\n",
+    "1) Document\n2) Client Knowledge\n3) User/Firm Profile\n",
+  ];
 
-  for (const chunk of doc.chunks) {
+  if (docChunks.length > 0) {
+    parts.push("## Document Content\n");
+    for (const chunk of docChunks) {
+      parts.push(
+        `[Chunk ${chunk.index}, Source: ${chunk.source_location}]\n${chunk.text}\n`,
+      );
+    }
+  } else {
+    parts.push("## Document Content\nNo uploaded document was provided.\n");
+  }
+
+  if (clientKnowledge && clientKnowledge.trim()) {
+    parts.push("\n## Client Knowledge\n");
     parts.push(
-      `[Chunk ${chunk.index}, Source: ${chunk.source_location}]\n${chunk.text}\n`,
+      "Middle-priority source. Use after document evidence and before User/Firm profile context.",
     );
+    parts.push(`\n[Client Knowledge]\n${clientKnowledge.trim()}\n`);
   }
 
   if (knowledgeProfile && knowledgeProfileHasContent(knowledgeProfile)) {
     parts.push("\n## Reusable User/Firm Context\n");
     parts.push(
-      "Use this context only to fill gaps not covered by the uploaded document. " +
-        "Do not invent client-specific details.",
+      "Lowest-priority source. Use only to fill gaps not covered by document or client knowledge.",
     );
     if (knowledgeProfile.user_context.trim()) {
       parts.push(
@@ -140,15 +155,6 @@ export function buildUserMessage(
         `\n[Firm Knowledge]\n${knowledgeProfile.firm_context.trim()}\n`,
       );
     }
-  }
-
-  if (clientKnowledge && clientKnowledge.trim()) {
-    parts.push("\n## Client Knowledge\n");
-    parts.push(
-      "Context specific to the client this form is being filled for. " +
-        "Use to fill gaps not covered by the uploaded document.",
-    );
-    parts.push(`\n[Client Knowledge]\n${clientKnowledge.trim()}\n`);
   }
 
   parts.push("\n## Form Fields\n");
@@ -382,11 +388,41 @@ function _resolveFieldId(
 // Validate choice-type answers against known options (with fuzzy fallback)
 // ---------------------------------------------------------------------------
 
-function _validateChoice(answer: string, options: string[]): string {
+function _validateSingleChoice(answer: string, options: string[]): string {
   if (options.includes(answer)) return answer;
   const matches = getCloseMatches(answer, options, 1, 0.6);
   if (matches.length > 0) return matches[0];
   return answer;
+}
+
+function _splitCheckboxAnswer(answer: string): string[] {
+  return answer
+    .split(/[\n,;|]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function _validateCheckboxChoices(answer: string, options: string[]): string {
+  const tokens = _splitCheckboxAnswer(answer);
+  const candidates = tokens.length > 0 ? tokens : [answer.trim()];
+  const normalized = new Set<string>();
+  const resolved: string[] = [];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const best = _validateSingleChoice(candidate, options);
+    if (!options.includes(best)) continue;
+    const key = best.toLowerCase();
+    if (normalized.has(key)) continue;
+    normalized.add(key);
+    resolved.push(best);
+  }
+
+  if (resolved.length === 0) {
+    return answer;
+  }
+
+  return resolved.join("; ");
 }
 
 // ---------------------------------------------------------------------------
@@ -394,7 +430,7 @@ function _validateChoice(answer: string, options: string[]): string {
 // ---------------------------------------------------------------------------
 
 export async function mapFields(
-  doc: ParsedDocument,
+  doc: ParsedDocument | null,
   form: FormSchema,
   knowledgeProfile?: KnowledgeProfile | null,
   clientKnowledge?: string | null,
@@ -404,6 +440,7 @@ export async function mapFields(
   }
 
   const client = new Anthropic({ apiKey: settings.anthropic_api_key });
+  const docChunks = doc?.chunks ?? [];
 
   const { aliasToFieldId, fieldIdToAlias } = _buildAliasMaps(form.fields);
   const userMessage = buildUserMessage(
@@ -430,7 +467,7 @@ export async function mapFields(
       if (
         nonEmptyRaw === 0 &&
         form.fields.length > 0 &&
-        doc.chunks.length > 0 &&
+        docChunks.length > 0 &&
         attempt < retries - 1
       ) {
         lastError = "zero_non_empty_answers";
@@ -476,7 +513,7 @@ export async function mapFields(
   }
 
   const chunkByIndex: Record<number, DocChunk> = {};
-  for (const c of doc.chunks) {
+  for (const c of docChunks) {
     chunkByIndex[c.index] = c;
   }
 
@@ -550,10 +587,21 @@ export async function mapFields(
 
     // Validate choice-type answers against known options
     if (field.options && field.options.length > 0 && mapping.proposed_answer) {
-      mapping.proposed_answer = _validateChoice(
-        mapping.proposed_answer,
-        field.options,
-      );
+      if (
+        field.field_type === "radio" ||
+        field.field_type === "dropdown" ||
+        field.field_type === "linear_scale"
+      ) {
+        mapping.proposed_answer = _validateSingleChoice(
+          mapping.proposed_answer,
+          field.options,
+        );
+      } else if (field.field_type === "checkbox") {
+        mapping.proposed_answer = _validateCheckboxChoices(
+          mapping.proposed_answer,
+          field.options,
+        );
+      }
     }
 
     mappingByFieldId[field.field_id] = mapping;
@@ -623,7 +671,7 @@ export async function mapFields(
   console.info(
     `Mapping summary: fields=${form.fields.length} raw_rows=${(resultData.mappings ?? []).length} resolved_rows=${Object.keys(mappingByFieldId).length} non_empty=${nonEmptyFinal} unmapped=${unmappedFields.length}`,
   );
-  if (nonEmptyFinal === 0 && form.fields.length > 0 && doc.chunks.length > 0) {
+  if (nonEmptyFinal === 0 && form.fields.length > 0 && docChunks.length > 0) {
     console.warn(
       "Mapping produced zero non-empty answers despite non-empty document and field set.",
     );
@@ -632,6 +680,6 @@ export async function mapFields(
   return {
     mappings,
     unmapped_fields: unmappedFields,
-    doc_chunks: [...doc.chunks],
+    doc_chunks: [...docChunks],
   };
 }

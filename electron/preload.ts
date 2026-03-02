@@ -20,10 +20,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   putSettings: (args: { anthropic_api_key: string }) =>
     ipcRenderer.invoke(ch.PUT_SETTINGS, args),
 
+  clearLocalData: () =>
+    ipcRenderer.invoke(ch.CLEAR_LOCAL_DATA),
+
   scrape: (args: { url: string }) =>
     ipcRenderer.invoke(ch.SCRAPE, args),
 
-  map: (args?: { client_id?: string }) =>
+  map: (args?: { client_id?: string; include_document?: boolean }) =>
     ipcRenderer.invoke(ch.MAP, args),
 
   listSessions: () => ipcRenderer.invoke(ch.LIST_SESSIONS),
@@ -35,16 +38,23 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke(ch.GET_SESSION_DOCUMENT, { id }),
 
   createSession: (args: {
-    document_filename: string;
+    document_filename: string | null;
     form_url: string;
     form_title: string;
     form_provider: string;
+    display_name?: string;
     form_schema: unknown;
     mapping_result: unknown;
   }) => ipcRenderer.invoke(ch.CREATE_SESSION, args),
 
   updateSessionMappings: (id: string, mappings: unknown[]) =>
     ipcRenderer.invoke(ch.UPDATE_SESSION_MAPPINGS, { id, mappings }),
+
+  renameSession: (id: string, displayName: string) =>
+    ipcRenderer.invoke(ch.RENAME_SESSION, {
+      id,
+      display_name: displayName,
+    }),
 
   deleteSession: (id: string) =>
     ipcRenderer.invoke(ch.DELETE_SESSION, { id }),

@@ -78,11 +78,11 @@ export interface KnowledgeProfileUpdate {
 export interface SessionMeta {
   id: string;
   created_at: string;
-  document_filename: string;
+  document_filename: string | null;
   form_url: string;
   form_title: string;
   form_provider: string;
-  display_name: string;
+  display_name?: string;
 }
 
 export interface SessionFull extends SessionMeta {

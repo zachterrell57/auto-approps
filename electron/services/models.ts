@@ -110,10 +110,11 @@ export type MappingResult = z.infer<typeof MappingResultSchema>;
 export const SessionMetaSchema = z.object({
   id: z.string(),
   created_at: z.string(),
-  document_filename: z.string(),
+  document_filename: z.string().nullable().default(null),
   form_url: z.string().default(""),
   form_title: z.string().default(""),
   form_provider: z.string().default(""),
+  display_name: z.string().default(""),
 });
 
 export type SessionMeta = z.infer<typeof SessionMetaSchema>;
@@ -135,7 +136,7 @@ export type SessionFull = z.infer<typeof SessionFullSchema>;
 // ---------------------------------------------------------------------------
 
 export const SessionCreateSchema = z.object({
-  document_filename: z.string(),
+  document_filename: z.string().nullable().default(null),
   form_url: z.string().default(""),
   form_title: z.string().default(""),
   form_provider: z.string().default(""),

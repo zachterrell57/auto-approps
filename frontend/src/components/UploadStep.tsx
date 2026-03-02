@@ -1,5 +1,16 @@
 import { useState, useCallback } from "react";
-import { FileText, Link, Upload, ArrowRight, Check, X, Users, FileUp, Globe, Sparkles } from "lucide-react";
+import {
+  FileText,
+  Link,
+  Upload,
+  ArrowRight,
+  Check,
+  X,
+  Users,
+  FileUp,
+  Globe,
+  Sparkles,
+} from "lucide-react";
 import type { Client } from "@/lib/types";
 import type { ProcessingStage } from "@/hooks/useFormFiller";
 
@@ -8,7 +19,7 @@ interface UploadStepProps {
   processingStage?: ProcessingStage;
   clients?: Client[];
   apiKeyConfigured?: boolean;
-  onProcess: (file: File, formUrl: string, clientId?: string) => void;
+  onProcess: (file: File | null, formUrl: string, clientId?: string) => void;
   onLoadDebug?: () => void;
   onOpenSettings?: () => void;
 }
@@ -19,9 +30,12 @@ const STAGES = [
   { key: "mapping" as const, label: "Mapping fields with AI", icon: Sparkles },
 ];
 
-function getStageIndex(stage: ProcessingStage): number {
+function getStageIndex(
+  stage: ProcessingStage,
+  stages: ReadonlyArray<{ key: Exclude<ProcessingStage, null> }>,
+): number {
   if (!stage) return -1;
-  return STAGES.findIndex((s) => s.key === stage);
+  return stages.findIndex((s) => s.key === stage);
 }
 
 export function UploadStep({
@@ -47,16 +61,13 @@ export function UploadStep({
     }
   }, []);
 
-  const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const selected = e.target.files?.[0];
-      if (selected) setFile(selected);
-    },
-    []
-  );
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (selected) setFile(selected);
+  }, []);
 
   const isValid = (() => {
-    if (!file || !formUrl.trim()) return false;
+    if (!formUrl.trim()) return false;
     try {
       const parsed = new URL(formUrl.trim());
       return parsed.protocol === "http:" || parsed.protocol === "https:";
@@ -65,7 +76,10 @@ export function UploadStep({
     }
   })();
 
-  const activeIndex = getStageIndex(processingStage ?? null);
+  const activeStages = file
+    ? STAGES
+    : STAGES.filter((stage) => stage.key !== "uploading");
+  const activeIndex = getStageIndex(processingStage ?? null, activeStages);
 
   if (loading && processingStage) {
     return (
@@ -75,26 +89,26 @@ export function UploadStep({
             Processing
           </h1>
           <p className="mt-4 text-[15px] text-muted-foreground leading-relaxed max-w-md">
-            Analyzing your document and mapping it to the form fields.
+            Preparing answers from your selected sources.
           </p>
         </div>
 
-        {/* Progress bar */}
         <div className="mb-10">
           <div className="h-1 w-full rounded-full bg-foreground/[0.06] overflow-hidden">
             <div
               className="h-full rounded-full bg-amber-500 transition-all duration-700 ease-out"
-              style={{ width: `${((activeIndex + 1) / STAGES.length) * 100}%` }}
+              style={{
+                width: `${((activeIndex + 1) / activeStages.length) * 100}%`,
+              }}
             />
           </div>
           <p className="mt-2.5 text-xs text-muted-foreground tabular-nums">
-            Step {activeIndex + 1} of {STAGES.length}
+            Step {activeIndex + 1} of {activeStages.length}
           </p>
         </div>
 
-        {/* Steps */}
         <div className="space-y-4">
-          {STAGES.map((stage, i) => {
+          {activeStages.map((stage, i) => {
             const isDone = i < activeIndex;
             const isActive = i === activeIndex;
             const Icon = stage.icon;
@@ -106,18 +120,17 @@ export function UploadStep({
                   isActive
                     ? "border-amber-300/60 bg-amber-50/50 shadow-sm"
                     : isDone
-                    ? "border-emerald-200/60 bg-emerald-50/30"
-                    : "border-foreground/[0.06] bg-foreground/[0.015]"
+                      ? "border-emerald-200/60 bg-emerald-50/30"
+                      : "border-foreground/[0.06] bg-foreground/[0.015]"
                 }`}
               >
-                {/* Icon area */}
                 <div
                   className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-500 ${
                     isActive
                       ? "bg-amber-500/15"
                       : isDone
-                      ? "bg-emerald-500/15"
-                      : "bg-foreground/[0.04]"
+                        ? "bg-emerald-500/15"
+                        : "bg-foreground/[0.04]"
                   }`}
                 >
                   {isDone ? (
@@ -129,25 +142,21 @@ export function UploadStep({
                   )}
                 </div>
 
-                {/* Label */}
                 <span
                   className={`text-sm font-medium transition-colors duration-500 ${
                     isActive
                       ? "text-foreground"
                       : isDone
-                      ? "text-emerald-700"
-                      : "text-foreground/25"
+                        ? "text-emerald-700"
+                        : "text-foreground/25"
                   }`}
                 >
                   {stage.label}
                 </span>
 
-                {/* Status indicator */}
                 <div className="ml-auto">
                   {isDone && (
-                    <span className="text-[11px] font-medium text-emerald-600">
-                      Done
-                    </span>
+                    <span className="text-[11px] font-medium text-emerald-600">Done</span>
                   )}
                   {isActive && (
                     <span className="h-4 w-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin block" />
@@ -163,19 +172,47 @@ export function UploadStep({
 
   return (
     <div className="w-full max-w-xl mx-auto pt-6">
-      {/* Header */}
       <div className="mb-12">
         <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground leading-none">
-          Upload & Map
+          Map Form
         </h1>
         <p className="mt-4 text-[15px] text-muted-foreground leading-relaxed max-w-md">
-          Upload a Word document and paste any web form URL to generate
+          Paste a web form URL and optionally upload a Word document to generate
           copy-ready answers for manual form entry.
         </p>
       </div>
 
       <div className="space-y-10">
-        {/* Step 1 — Document */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <span
+              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold transition-all duration-300 ${
+                isValid
+                  ? "bg-emerald-500 text-white"
+                  : "bg-amber-600/10 text-amber-700"
+              }`}
+            >
+              {isValid ? <Check className="w-3 h-3" strokeWidth={3} /> : "1"}
+            </span>
+            <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
+              Form URL
+            </span>
+          </div>
+
+          <div className="relative group">
+            <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-foreground/20 transition-colors group-focus-within:text-amber-500">
+              <Link className="w-4 h-4" />
+            </div>
+            <input
+              type="url"
+              placeholder="Paste any web form URL..."
+              value={formUrl}
+              onChange={(e) => setFormUrl(e.target.value)}
+              className="w-full h-12 pl-11 pr-4 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"
+            />
+          </div>
+        </section>
+
         <section>
           <div className="flex items-center gap-3 mb-4">
             <span
@@ -185,10 +222,10 @@ export function UploadStep({
                   : "bg-amber-600/10 text-amber-700"
               }`}
             >
-              {file ? <Check className="w-3 h-3" strokeWidth={3} /> : "1"}
+              {file ? <Check className="w-3 h-3" strokeWidth={3} /> : "2"}
             </span>
             <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
-              Document
+              Document <span className="font-normal text-foreground/30">(optional)</span>
             </span>
           </div>
 
@@ -204,8 +241,8 @@ export function UploadStep({
               dragOver
                 ? "border-amber-400 bg-amber-50 shadow-[0_0_0_4px_rgba(217,119,6,0.08)] scale-[1.005]"
                 : file
-                ? "border-emerald-300/80 bg-emerald-50/40"
-                : "border-foreground/10 hover:border-foreground/20 hover:shadow-sm dot-grid"
+                  ? "border-emerald-300/80 bg-emerald-50/40"
+                  : "border-foreground/10 hover:border-foreground/20 hover:shadow-sm dot-grid"
             } ${file ? "py-5 px-6" : "py-14 px-8"}`}
           >
             <input
@@ -222,9 +259,7 @@ export function UploadStep({
                   <FileText className="w-[18px] h-[18px] text-emerald-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {file.name}
-                  </p>
+                  <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {(file.size / 1024).toFixed(0)} KB
                   </p>
@@ -263,7 +298,7 @@ export function UploadStep({
                   <span className="inline-block font-mono text-[12px] px-1.5 py-[2px] rounded-md bg-foreground/[0.05] text-foreground/40">
                     .docx
                   </span>{" "}
-                  file here or{" "}
+                  file here (optional) or{" "}
                   <span className="text-amber-600 font-medium">browse</span>
                 </p>
               </div>
@@ -271,38 +306,6 @@ export function UploadStep({
           </div>
         </section>
 
-        {/* Step 2 — Form URL */}
-        <section>
-          <div className="flex items-center gap-3 mb-4">
-            <span
-              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold transition-all duration-300 ${
-                isValid
-                  ? "bg-emerald-500 text-white"
-                  : "bg-amber-600/10 text-amber-700"
-              }`}
-            >
-              {isValid ? <Check className="w-3 h-3" strokeWidth={3} /> : "2"}
-            </span>
-            <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
-              Form URL
-            </span>
-          </div>
-
-          <div className="relative group">
-            <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-foreground/20 transition-colors group-focus-within:text-amber-500">
-              <Link className="w-4 h-4" />
-            </div>
-            <input
-              type="url"
-              placeholder="Paste any web form URL..."
-              value={formUrl}
-              onChange={(e) => setFormUrl(e.target.value)}
-              className="w-full h-12 pl-11 pr-4 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"
-            />
-          </div>
-        </section>
-
-        {/* Step 3 — Client (optional) */}
         {clients.length > 0 && (
           <section>
             <div className="flex items-center gap-3 mb-4">
@@ -337,7 +340,7 @@ export function UploadStep({
         {!apiKeyConfigured && (
           <div className="rounded-2xl border border-amber-300/50 bg-amber-50/40 p-4">
             <p className="text-sm text-amber-800">
-              Add your Anthropic API key before processing documents.
+              Add your Anthropic API key before processing forms.
             </p>
             {onOpenSettings && (
               <button
@@ -351,19 +354,31 @@ export function UploadStep({
           </div>
         )}
 
-        {/* Action */}
         <div className="pt-2">
           <button
             disabled={!isValid || loading || !apiKeyConfigured}
-            onClick={() => file && onProcess(file, formUrl, selectedClientId || undefined)}
+            onClick={() => onProcess(file, formUrl, selectedClientId || undefined)}
             className="group w-full h-[52px] rounded-2xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 flex items-center justify-center gap-2.5"
           >
-            <span>Process Document & Form</span>
-            <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+            {loading ? (
+              <>
+                <span className="h-4 w-4 border-2 border-background/20 border-t-background rounded-full animate-spin" />
+                <span>Processing...</span>
+              </>
+            ) : (
+              <>
+                <span>Process Form</span>
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+              </>
+            )}
           </button>
         </div>
 
-        {/* Debug (dev only) */}
+        <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] px-3 py-2 text-[12px] leading-relaxed text-foreground/50">
+          Preflight note: only publicly accessible forms are supported.
+          Login-gated forms may fail scraping.
+        </div>
+
         {import.meta.env.DEV && onLoadDebug && (
           <button
             onClick={onLoadDebug}
