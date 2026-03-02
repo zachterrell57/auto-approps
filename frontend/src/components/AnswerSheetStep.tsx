@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, ClipboardList, Copy, FileText, RotateCcw } from "lucide-react";
+import { Check, ClipboardList, Copy, FileText, RotateCcw } from "lucide-react";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import type { FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types";
 
@@ -72,7 +72,6 @@ export function AnswerSheetStep({
   const [copiedFieldId, setCopiedFieldId] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
-  const [warningsOpen, setWarningsOpen] = useState(false);
   const activeCount = mappings.filter((m) => m.proposed_answer.trim()).length;
 
   const confidenceCounts = useMemo(() => {
@@ -200,34 +199,6 @@ export function AnswerSheetStep({
             </div>
           </div>
 
-          {/* Scrape warnings */}
-          {formSchema.scrape_warnings.length > 0 && (
-            <div className="rounded-xl border border-amber-200/60 bg-amber-50/40 overflow-hidden">
-              <button
-                onClick={() => setWarningsOpen(!warningsOpen)}
-                className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-amber-50/60 transition-colors"
-              >
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                <span className="text-sm font-medium text-amber-700 flex-1">
-                  {formSchema.scrape_warnings.length} scraping note{formSchema.scrape_warnings.length !== 1 ? "s" : ""}
-                </span>
-                {warningsOpen ? (
-                  <ChevronDown className="h-4 w-4 text-amber-500" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-amber-500" />
-                )}
-              </button>
-              {warningsOpen && (
-                <ul className="px-4 pb-3 space-y-1.5">
-                  {formSchema.scrape_warnings.map((warning, i) => (
-                    <li key={i} className="text-xs text-amber-700/80 leading-relaxed pl-6">
-                      {warning}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
 
           {groupedRows.map(([pageIndex, rows]) => (
             <section key={pageIndex} className="space-y-4">
