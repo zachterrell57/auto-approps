@@ -22,7 +22,10 @@ _UNLOCK_MAX_ROUNDS = 3
 async def scrape_ms_form(url: str) -> FormSchema:
     """Scrape a Microsoft Form URL and return its schema."""
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=settings.ms_playwright_headless)
+        browser = await p.chromium.launch(
+            headless=settings.ms_playwright_headless,
+            args=["--auto-open-devtools-for-tabs=false"],
+        )
         page = await browser.new_page()
 
         await page.goto(url, wait_until="domcontentloaded")
