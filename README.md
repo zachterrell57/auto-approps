@@ -6,7 +6,7 @@ Desktop Electron app for mapping `.docx` content to web form fields (Google, Mic
 
 - Delivery target: Electron desktop app only.
 - No always-on FastAPI backend is required for alpha use.
-- Session auto-name generation via backend endpoint is disabled for alpha.
+- Sessions are auto-named via Haiku when created.
 
 ## Prerequisites
 
