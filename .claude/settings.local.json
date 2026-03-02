@@ -5,7 +5,12 @@
       "Bash(npm install docx-preview)",
       "Bash(cd /Users/zachterrell/Developer/form-filler/frontend && npx shadcn@latest add sidebar --yes 2>&1)",
       "Bash(npm install date-fns 2>&1)",
-      "Bash(npx vite build 2>&1)"
+      "Bash(npx vite build 2>&1)",
+      "Bash(wc -l /Users/zachterrell/Developer/form-filler/frontend/src/components/*.tsx | sort -n)",
+      "Bash(npx tsc -p tsconfig.electron.json --noEmit 2>&1)",
+      "Bash(npm run start 2>&1 | head -100)",
+      "Bash(lsof -ti:5173 -ti:5174 2>/dev/null | xargs kill 2>/dev/null; echo \"Cleaned up\")",
+      "WebFetch(domain:outreach.senate.gov)"
     ]
   }
 }

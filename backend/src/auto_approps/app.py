@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from .config import settings
 from .doc_parser import parse_docx
 from .form_scraper import scrape_form
+from .generic_form_scraper import scrape_generic_form
 from .knowledge_profile_store import load_knowledge_profile, save_knowledge_profile
 from .mapper import map_fields
 from .models import (
@@ -136,14 +137,13 @@ async def put_settings(req: SettingsUpdate) -> SettingsResponse:
 
 @app.post("/api/scrape")
 async def scrape_form_endpoint(req: ScrapeRequest):
-    try:
-        provider = detect_provider(req.url)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    provider = detect_provider(req.url)
 
     try:
         if provider == FormProvider.microsoft:
             schema = await scrape_ms_form(req.url)
+        elif provider == FormProvider.generic:
+            schema = await scrape_generic_form(req.url)
         else:
             schema = await scrape_form(req.url)
             schema.provider = "google"

@@ -9,3 +9,11 @@ __pycache__/
 # Secrets & data
 .env
 backend/data/
+
+# Node
+node_modules/
+
+# Build output
+.vite/
+out/
+dist-electron/
