@@ -289,7 +289,6 @@ async function _requestMappingPayload(
     tool_choice: { type: "tool", name: _TOOL_NAME },
   });
 
-  console.log("[mapper] Response model:", response.model);
 
   for (const block of response.content) {
     if (block.type !== "tool_use") continue;
