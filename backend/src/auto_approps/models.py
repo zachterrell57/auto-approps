@@ -73,6 +73,7 @@ class SessionMeta(BaseModel):
     form_url: str = ""
     form_title: str = ""
     form_provider: str = ""
+    display_name: str = ""
 
 
 class SessionFull(SessionMeta):
@@ -92,6 +93,10 @@ class SessionCreate(BaseModel):
 
 class SessionUpdateMappings(BaseModel):
     mappings: list[dict]
+
+
+class SessionRename(BaseModel):
+    display_name: str
 
 
 class KnowledgeProfileBase(BaseModel):

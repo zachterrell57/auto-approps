@@ -15,16 +15,19 @@ from .models import (
     KnowledgeProfileUpdate,
     ParsedDocument,
     SessionCreate,
+    SessionRename,
     SessionUpdateMappings,
 )
 from .ms_form_scraper import scrape_ms_form
 from .provider import FormProvider, detect_provider
+from .namer import generate_session_name
 from .session_store import (
     create_session,
     delete_session,
     get_session,
     get_session_document,
     list_sessions,
+    rename_session,
     update_session_mappings,
 )
 from .settings_store import read_api_key, write_api_key
@@ -224,6 +227,32 @@ async def create_session_endpoint(req: SessionCreate):
     except Exception as e:
         raise HTTPException(500, f"Failed to create session: {e}")
     return meta
+
+
+@app.put("/api/sessions/{session_id}/name")
+async def rename_session_endpoint(session_id: str, req: SessionRename):
+    if not rename_session(session_id, req.display_name):
+        raise HTTPException(404, "Session not found")
+    return {"ok": True, "display_name": req.display_name}
+
+
+@app.post("/api/sessions/{session_id}/generate-name")
+async def generate_session_name_endpoint(session_id: str):
+    session = get_session(session_id)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+
+    form_schema = session.get("form_schema", {})
+    field_labels = [f.get("label", "") for f in form_schema.get("fields", [])]
+
+    name = await generate_session_name(
+        document_filename=session.get("document_filename", ""),
+        form_title=session.get("form_title", ""),
+        form_field_labels=field_labels,
+    )
+
+    rename_session(session_id, name)
+    return {"display_name": name}
 
 
 @app.put("/api/sessions/{session_id}/mappings")
