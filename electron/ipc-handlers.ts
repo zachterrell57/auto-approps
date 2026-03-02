@@ -210,6 +210,28 @@ export function registerIpcHandlers(): void {
     },
   );
 
+  // ── Hydrate transient state (for re-mapping historical sessions) ────
+  ipcMain.handle(
+    ch.HYDRATE_STATE,
+    async (
+      _event,
+      args: {
+        form_schema: Record<string, unknown>;
+        document_bytes?: ArrayBuffer | null;
+        document_filename?: string | null;
+      },
+    ) => {
+      const { FormSchemaSchema } = await import("./services/models.js");
+      state.form_schema = FormSchemaSchema.parse(args.form_schema);
+      if (args.document_bytes) {
+        const buf = Buffer.from(args.document_bytes);
+        state.raw_docx_bytes = buf;
+        state.parsed_doc = await parseDocx(buf, args.document_filename ?? "document.docx");
+      }
+      return { ok: true };
+    },
+  );
+
   // ── Sessions ─────────────────────────────────────────────────────────
   ipcMain.handle(ch.LIST_SESSIONS, async () => {
     return listSessions();

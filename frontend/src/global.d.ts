@@ -28,6 +28,11 @@ export interface ElectronAPI {
     client_id?: string;
     include_document?: boolean;
   }): Promise<MappingResult>;
+  hydrateState(args: {
+    form_schema: unknown;
+    document_bytes?: ArrayBuffer | null;
+    document_filename?: string | null;
+  }): Promise<{ ok: boolean }>;
   listSessions(): Promise<SessionMeta[]>;
   getSession(id: string): Promise<SessionFull>;
   getSessionDocument(

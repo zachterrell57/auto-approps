@@ -29,6 +29,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   map: (args?: { client_id?: string; include_document?: boolean }) =>
     ipcRenderer.invoke(ch.MAP, args),
 
+  hydrateState: (args: {
+    form_schema: unknown;
+    document_bytes?: ArrayBuffer | null;
+    document_filename?: string | null;
+  }) => ipcRenderer.invoke(ch.HYDRATE_STATE, args),
+
   listSessions: () => ipcRenderer.invoke(ch.LIST_SESSIONS),
 
   getSession: (id: string) =>
