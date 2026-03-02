@@ -8,7 +8,11 @@ __pycache__/
 
 # Secrets & data
 .env
+.env.*
 backend/data/
+
+# Claude Code local settings (contains machine-specific paths)
+.claude/settings.local.json
 
 # Node
 node_modules/
