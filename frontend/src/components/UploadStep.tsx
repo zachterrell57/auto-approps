@@ -379,16 +379,6 @@ export function UploadStep({
           )}
         </div>
 
-        <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] px-3 py-2 text-[12px] leading-relaxed text-foreground/50">
-          Preflight note: only publicly accessible forms are supported.
-          Login-gated forms may fail scraping.
-        </div>
-
-        <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] px-3 py-2 text-[12px] leading-relaxed text-foreground/50">
-          Preflight note: only publicly accessible forms are supported.
-          Login-gated forms may fail scraping.
-        </div>
-
         {import.meta.env.DEV && onLoadDebug && (
           <button
             onClick={onLoadDebug}
