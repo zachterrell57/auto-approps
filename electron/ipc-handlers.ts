@@ -37,6 +37,7 @@ import {
   deleteSession,
   clearSessions,
 } from "./services/session-store.js";
+import { generateSessionName } from "./services/namer.js";
 
 function maskKey(key: string): string {
   if (key.length <= 8) return key ? "*".repeat(key.length) : "";
@@ -253,13 +254,29 @@ export function registerIpcHandlers(): void {
       if (includeDocument && !state.raw_docx_bytes) {
         throw new Error("Document metadata was provided, but no document is loaded.");
       }
+
+      // Generate an AI session name via Haiku when no explicit name was given
+      let displayName = args.display_name;
+      if (!displayName) {
+        const fields = (args.form_schema as { fields?: { label?: string }[] })
+          .fields;
+        const fieldLabels = fields
+          ? fields.map((f) => f.label ?? "").filter(Boolean)
+          : [];
+        displayName = await generateSessionName({
+          documentFilename: args.document_filename,
+          formTitle: args.form_title,
+          formFieldLabels: fieldLabels,
+        });
+      }
+
       return createSession({
         documentFilename: args.document_filename,
         documentBytes: includeDocument ? state.raw_docx_bytes : null,
         formUrl: args.form_url,
         formTitle: args.form_title,
         formProvider: args.form_provider,
-        displayName: args.display_name,
+        displayName,
         formSchema: args.form_schema,
         mappingResult: args.mapping_result,
       });
