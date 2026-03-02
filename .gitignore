@@ -17,3 +17,6 @@ node_modules/
 .vite/
 out/
 dist-electron/
+
+# Playwright bundled browsers (downloaded at build time)
+playwright-browsers/
