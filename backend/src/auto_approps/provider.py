@@ -6,6 +6,7 @@ from enum import Enum
 class FormProvider(str, Enum):
     google = "google"
     microsoft = "microsoft"
+    generic = "generic"
 
 
 def detect_provider(url: str) -> FormProvider:
@@ -14,6 +15,4 @@ def detect_provider(url: str) -> FormProvider:
         return FormProvider.google
     if "forms.office.com" in url or "forms.microsoft.com" in url:
         return FormProvider.microsoft
-    raise ValueError(
-        "Unsupported form URL. Please provide a Google Forms or Microsoft Forms URL."
-    )
+    return FormProvider.generic

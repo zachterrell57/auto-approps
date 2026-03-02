@@ -33,12 +33,15 @@ export function UploadStep({
     []
   );
 
-  const isValid =
-    file !== null &&
-    formUrl.trim().length > 0 &&
-    (formUrl.includes("google.com/forms") ||
-      formUrl.includes("forms.office.com") ||
-      formUrl.includes("forms.microsoft.com"));
+  const isValid = (() => {
+    if (!file || !formUrl.trim()) return false;
+    try {
+      const parsed = new URL(formUrl.trim());
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  })();
 
   return (
     <div className="w-full max-w-xl mx-auto pt-6">
@@ -48,8 +51,8 @@ export function UploadStep({
           Upload & Map
         </h1>
         <p className="mt-4 text-[15px] text-muted-foreground leading-relaxed max-w-md">
-          Upload a Word document and paste a Google Forms or Microsoft Forms URL
-          to generate copy-ready answers for manual form entry.
+          Upload a Word document and paste any web form URL to generate
+          copy-ready answers for manual form entry.
         </p>
       </div>
 
@@ -173,7 +176,7 @@ export function UploadStep({
             </div>
             <input
               type="url"
-              placeholder="Paste a Google Forms or Microsoft Forms URL..."
+              placeholder="Paste any web form URL..."
               value={formUrl}
               onChange={(e) => setFormUrl(e.target.value)}
               className="w-full h-12 pl-11 pr-4 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"

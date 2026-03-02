@@ -52,6 +52,7 @@ async def scrape_ms_form(url: str) -> FormSchema:
 
         page_index = 0
         all_fields: list[FormField] = []
+        seen_fields: set[str] = set()
         snapshot = await get_page_snapshot(page)
         nav_context = new_navigation_context(url)
         seen_signatures: set[str] = set()
@@ -68,7 +69,11 @@ async def scrape_ms_form(url: str) -> FormSchema:
             seen_signatures.add(snapshot.signature)
 
             fields = await _extract_fields(page, page_index)
-            all_fields.extend(fields)
+            for f in fields:
+                key = _field_dedup_key(f)
+                if key not in seen_fields:
+                    seen_fields.add(key)
+                    all_fields.append(f)
 
             nav_outcome = await navigate_to_next_page(page, nav_context, snapshot)
             if nav_outcome.moved:
@@ -174,6 +179,13 @@ def _normalize_text(value: str | None) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def _field_dedup_key(field: FormField) -> str:
+    """Build a fingerprint from label + type + options to deduplicate fields across pages."""
+    label = _normalize_text(field.label).lower()
+    opts = "|".join(sorted(o.lower().strip() for o in field.options)) if field.options else ""
+    return f"{label}\x00{field.field_type.value}\x00{opts}"
+
+
 def _is_terminal_navigation_reason(reason_code: str) -> bool:
     return reason_code in {"no_forward_control"}
 
@@ -208,6 +220,11 @@ async def _extract_fields(page: Page, page_index: int) -> list[FormField]:
     count = await containers.count()
     for i in range(count):
         container = containers.nth(i)
+        try:
+            if not await container.is_visible():
+                continue
+        except Exception:
+            pass
         field = await _parse_question(container, i, page_index)
         if field:
             fields.append(field)

@@ -4,15 +4,14 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
 export default defineConfig({
+  root: path.resolve(__dirname),
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
-  server: {
-    proxy: {
-      '/api': 'http://127.0.0.1:8000',
-    },
+  build: {
+    outDir: path.resolve(__dirname, '../.vite/renderer/main_window'),
   },
 })
