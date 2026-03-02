@@ -37,6 +37,21 @@ Rules:
 11. If reusable profile context conflicts with the uploaded document, prefer the uploaded document.
 12. Do not invent client-specific details.
 13. If an answer is derived mainly from reusable profile context, set source_citation to "User/Firm Profile".
+14. IMPORTANT — Inference for classification and categorical questions:
+    Many form fields ask you to CLASSIFY the request (e.g. "Is this Defense Funding?",
+    "What type of project is this?", "Which agency does this relate to?"). The answer to
+    these questions will almost never be stated verbatim in the document. You MUST analyze
+    the document's subject matter, mentioned agencies, programs, funding sources, and
+    overall context to infer the correct classification. For example, if the document
+    discusses military programs, Department of Defense, defense agencies, or national
+    security topics, you should infer it is defense-related. Do NOT default to "N/A",
+    "Not applicable", or a generic/catch-all option simply because the classification is
+    not explicitly stated. Only leave a classification field empty when the document
+    truly provides no contextual signal at all.
+15. When a question asks you to choose between categories, always reason through which
+    category best fits the document content before answering. Explain your reasoning in
+    the reasoning field. A "medium" confidence inference is far more valuable than an
+    empty answer or a wrong default.
 """
 
 _TOOL_NAME = "submit_field_mappings"
@@ -102,6 +117,12 @@ def build_user_message(
     parts.append(
         "For field_id, prefer the short Key value (for example F001). "
         "Exact original ID values are also accepted."
+    )
+    parts.append(
+        "\nIMPORTANT: For classification or categorical fields (radio, dropdown, checkbox), "
+        "analyze the full document context to infer the correct answer — even if the document "
+        "does not state the classification explicitly. Do not skip these or default to a "
+        "generic catch-all option."
     )
 
     return "\n".join(parts)
