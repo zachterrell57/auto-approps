@@ -215,7 +215,6 @@ export async function chooseNextWithAI(
     };
   }
 
-  console.log("[browser-ai] Response model:", response.model);
 
   for (const block of response.content) {
     if (block.type !== "tool_use") continue;
