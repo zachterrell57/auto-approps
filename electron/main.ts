@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, nativeTheme } from "electron";
 import path from "node:path";
 import { setUserDataPath } from "./services/config.js";
 import { readApiKey } from "./services/settings-store.js";
@@ -30,7 +30,6 @@ function createWindow(): void {
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
@@ -50,6 +49,8 @@ app.whenReady().then(() => {
 
   // Register all IPC handlers
   registerIpcHandlers();
+
+  nativeTheme.themeSource = "light";
 
   createWindow();
 
