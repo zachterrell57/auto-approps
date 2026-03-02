@@ -180,6 +180,27 @@ export async function updateSessionMappings(
   await handleResponse(res);
 }
 
+export async function renameSession(
+  id: string,
+  displayName: string
+): Promise<void> {
+  const res = await fetch(`${BASE}/api/sessions/${id}/name`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ display_name: displayName }),
+  });
+  await handleResponse(res);
+}
+
+export async function generateSessionName(
+  id: string
+): Promise<{ display_name: string }> {
+  const res = await fetch(`${BASE}/api/sessions/${id}/generate-name`, {
+    method: "POST",
+  });
+  return handleResponse(res);
+}
+
 export async function deleteSession(id: string): Promise<void> {
   const api = electron();
   if (api) return api.deleteSession(id);

@@ -35,10 +35,16 @@ def _get_conn(db_path: Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
             form_provider     TEXT NOT NULL DEFAULT '',
             form_schema       TEXT NOT NULL,
             mapping_result    TEXT NOT NULL,
-            edited_mappings   TEXT
+            edited_mappings   TEXT,
+            display_name      TEXT NOT NULL DEFAULT ''
         )
         """
     )
+    # Migration: add display_name column if missing (existing databases)
+    cursor = conn.execute("PRAGMA table_info(sessions)")
+    columns = {row["name"] for row in cursor.fetchall()}
+    if "display_name" not in columns:
+        conn.execute("ALTER TABLE sessions ADD COLUMN display_name TEXT NOT NULL DEFAULT ''")
     conn.commit()
     _conn = conn
     return _conn
@@ -48,7 +54,8 @@ def list_sessions(db_path: Path = DEFAULT_DB_PATH) -> list[dict]:
     conn = _get_conn(db_path)
     rows = conn.execute(
         """
-        SELECT id, created_at, document_filename, form_url, form_title, form_provider
+        SELECT id, created_at, document_filename, form_url, form_title, form_provider,
+               display_name
         FROM sessions
         ORDER BY created_at DESC
         """
@@ -61,7 +68,7 @@ def get_session(session_id: str, db_path: Path = DEFAULT_DB_PATH) -> dict | None
     row = conn.execute(
         """
         SELECT id, created_at, document_filename, form_url, form_title, form_provider,
-               form_schema, mapping_result, edited_mappings
+               display_name, form_schema, mapping_result, edited_mappings
         FROM sessions
         WHERE id = ?
         """,
@@ -141,6 +148,18 @@ def update_session_mappings(
     cur = conn.execute(
         "UPDATE sessions SET edited_mappings = ? WHERE id = ?",
         (json.dumps(mappings), session_id),
+    )
+    conn.commit()
+    return cur.rowcount > 0
+
+
+def rename_session(
+    session_id: str, display_name: str, db_path: Path = DEFAULT_DB_PATH
+) -> bool:
+    conn = _get_conn(db_path)
+    cur = conn.execute(
+        "UPDATE sessions SET display_name = ? WHERE id = ?",
+        (display_name, session_id),
     )
     conn.commit()
     return cur.rowcount > 0

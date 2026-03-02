@@ -40,6 +40,8 @@ export function useSessions() {
         const meta = await api.createSession(data);
         setCurrentSessionId(meta.id);
         await refreshList();
+        // Fire-and-forget: generate AI name in the background
+        api.generateSessionName(meta.id).then(() => refreshList()).catch(() => {});
         return meta.id;
       } catch (err) {
         console.error("Failed to save session", err);
@@ -92,6 +94,18 @@ export function useSessions() {
     [currentSessionId]
   );
 
+  const renameSession = useCallback(
+    async (id: string, displayName: string) => {
+      try {
+        await api.renameSession(id, displayName);
+        await refreshList();
+      } catch (err) {
+        console.error("Failed to rename session", err);
+      }
+    },
+    [refreshList]
+  );
+
   const clearCurrentSession = useCallback(() => {
     setCurrentSessionId(null);
   }, []);
@@ -103,6 +117,7 @@ export function useSessions() {
     saveSession,
     loadSession,
     removeSession,
+    renameSession,
     saveEditedMappings,
     clearCurrentSession,
     refreshList,
