@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { X } from "lucide-react";
 import { useClients } from "@/hooks/useClients";
 import { useKnowledgeProfile } from "@/hooks/useKnowledgeProfile";
 import { useFormFiller } from "@/hooks/useFormFiller";
@@ -48,9 +49,15 @@ export default function App() {
     refreshList,
   } = useSessions();
 
+  const [sessionSaveError, setSessionSaveError] = useState<string | null>(null);
+
   const handleMappingComplete = useCallback(
     (data: MappingCompleteData) => {
-      void saveSession(data);
+      saveSession(data).catch((err) => {
+        setSessionSaveError(
+          `Failed to save session: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
     },
     [saveSession],
   );
@@ -138,7 +145,9 @@ export default function App() {
     };
   }, [currentSessionId, step, mappings, saveEditedMappings]);
 
-  const error = formError || profileError;
+  const [dismissedError, setDismissedError] = useState<string | null>(null);
+  const rawError = formError || profileError || sessionSaveError;
+  const error = rawError && rawError !== dismissedError ? rawError : null;
 
   return (
     <SidebarProvider>
@@ -157,8 +166,15 @@ export default function App() {
           <SidebarTrigger />
         </header>
         {error && (
-          <div className="max-w-xl mx-auto mb-6 mt-4 px-4 py-3 rounded-xl border border-rose-200/60 bg-rose-50/50 text-sm text-rose-700">
-            {error}
+          <div className="max-w-xl mx-auto mb-6 mt-4 px-4 py-3 rounded-xl border border-rose-200/60 bg-rose-50/50 text-sm text-rose-700 flex items-start gap-2">
+            <span className="flex-1">{error}</span>
+            <button
+              onClick={() => setDismissedError(rawError)}
+              className="shrink-0 text-rose-400 hover:text-rose-600 transition-colors p-0.5"
+              title="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         )}
 

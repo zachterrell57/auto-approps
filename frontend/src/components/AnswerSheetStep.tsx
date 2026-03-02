@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, FileText, RotateCcw } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, ClipboardList, Copy, FileText, RotateCcw } from "lucide-react";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import type { FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types";
 
@@ -70,8 +70,20 @@ export function AnswerSheetStep({
   onRemap,
 }: AnswerSheetStepProps) {
   const [copiedFieldId, setCopiedFieldId] = useState<string | null>(null);
+  const [copiedAll, setCopiedAll] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [warningsOpen, setWarningsOpen] = useState(false);
   const activeCount = mappings.filter((m) => m.proposed_answer.trim()).length;
+
+  const confidenceCounts = useMemo(() => {
+    const counts = { high: 0, medium: 0, low: 0 };
+    for (const m of mappings) {
+      if (m.confidence in counts) {
+        counts[m.confidence as keyof typeof counts]++;
+      }
+    }
+    return counts;
+  }, [mappings]);
 
   const selectedSourceChunks = useMemo(() => {
     if (!selectedFieldId) return [];
@@ -112,6 +124,18 @@ export function AnswerSheetStep({
     );
   };
 
+  const handleCopyAll = async () => {
+    const lines = mappings
+      .filter((m) => m.proposed_answer.trim())
+      .map((m) => `${m.field_label}: ${m.proposed_answer}`)
+      .join("\n\n");
+    if (!lines) return;
+    const copied = await copyToClipboard(lines);
+    if (!copied) return;
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 1500);
+  };
+
   return (
     <div className="flex h-[calc(100vh-3rem)] overflow-hidden">
       <div className="flex-1 min-w-0 overflow-y-auto">
@@ -127,31 +151,83 @@ export function AnswerSheetStep({
                   ? " Click a field to see its source in the document."
                   : " Source citations are based on selected knowledge context."}
               </p>
-              <p className="mt-2 text-sm text-foreground/35">
-                {activeCount} field{activeCount !== 1 ? "s" : ""} ready to copy.
-              </p>
+              <div className="mt-2 flex items-center gap-3 flex-wrap text-sm text-foreground/35">
+                <span>{activeCount} field{activeCount !== 1 ? "s" : ""} ready to copy</span>
+                <span className="text-foreground/15">|</span>
+                <span className="text-emerald-600">{confidenceCounts.high} high</span>
+                <span className="text-amber-600">{confidenceCounts.medium} med</span>
+                <span className="text-rose-600">{confidenceCounts.low} low</span>
+              </div>
               {!apiKeyConfigured && (
                 <p className="mt-2 text-sm text-amber-700/90">
                   Re-map is unavailable until an Anthropic API key is set in Settings.
                 </p>
               )}
             </div>
-            <button
-              onClick={onRemap}
-              disabled={loading || isHistorical || !apiKeyConfigured}
-              title={
-                isHistorical
-                  ? "Only available for current session"
-                  : !apiKeyConfigured
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleCopyAll}
+                disabled={activeCount === 0}
+                className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed"
+              >
+                {copiedAll ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="text-emerald-600">Copied All</span>
+                  </>
+                ) : (
+                  <>
+                    <ClipboardList className="h-3.5 w-3.5" />
+                    Copy All
+                  </>
+                )}
+              </button>
+              <button
+                onClick={onRemap}
+                disabled={loading || !apiKeyConfigured}
+                title={
+                  !apiKeyConfigured
                     ? "Add API key in Settings to re-map"
-                    : undefined
-              }
-              className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 shrink-0 disabled:opacity-20 disabled:cursor-not-allowed"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Re-map
-            </button>
+                    : isHistorical
+                      ? "Re-maps with current knowledge profile and client context"
+                      : undefined
+                }
+                className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Re-map
+              </button>
+            </div>
           </div>
+
+          {/* Scrape warnings */}
+          {formSchema.scrape_warnings.length > 0 && (
+            <div className="rounded-xl border border-amber-200/60 bg-amber-50/40 overflow-hidden">
+              <button
+                onClick={() => setWarningsOpen(!warningsOpen)}
+                className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-amber-50/60 transition-colors"
+              >
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span className="text-sm font-medium text-amber-700 flex-1">
+                  {formSchema.scrape_warnings.length} scraping note{formSchema.scrape_warnings.length !== 1 ? "s" : ""}
+                </span>
+                {warningsOpen ? (
+                  <ChevronDown className="h-4 w-4 text-amber-500" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-amber-500" />
+                )}
+              </button>
+              {warningsOpen && (
+                <ul className="px-4 pb-3 space-y-1.5">
+                  {formSchema.scrape_warnings.map((warning, i) => (
+                    <li key={i} className="text-xs text-amber-700/80 leading-relaxed pl-6">
+                      {warning}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           {groupedRows.map(([pageIndex, rows]) => (
             <section key={pageIndex} className="space-y-4">
@@ -288,7 +364,7 @@ export function AnswerSheetStep({
         </div>
       </div>
 
-      <div className="w-1/2 shrink-0 border-l border-foreground/8 flex flex-col">
+      <div className="hidden lg:flex w-1/2 shrink-0 border-l border-foreground/8 flex-col">
         <div className="px-5 py-4 border-b border-foreground/8 shrink-0">
           <h2 className="font-heading text-lg text-foreground leading-tight">
             Document Source

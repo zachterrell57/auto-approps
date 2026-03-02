@@ -3,6 +3,7 @@ import { renderAsync } from "docx-preview";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { fetchDocumentBlob } from "@/lib/api";
 import { findChunkElements, type MatchResult } from "@/lib/docTextMatcher";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { DocChunk } from "@/lib/types";
 
 const HIGHLIGHT_CLASS = "source-highlight";
@@ -177,8 +178,17 @@ export function DocumentViewer({
       {/* Document content */}
       <div className="flex-1 overflow-y-auto">
         {loading && (
-          <div className="text-sm text-foreground/30 p-4">
-            Loading document...
+          <div className="p-6 space-y-4">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-6 w-1/2 mt-4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-4/5" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
           </div>
         )}
         <div ref={containerRef} className="docx-container" />
