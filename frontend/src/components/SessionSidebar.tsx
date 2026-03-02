@@ -49,6 +49,7 @@ export function SessionSidebar({
 }: SessionSidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -160,26 +161,53 @@ export function SessionSidebar({
                       </span>
                       {editingId !== session.id && (
                         <div className="flex items-center gap-0.5">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startRename(session);
-                            }}
-                            className="text-foreground/15 hover:text-foreground/50 transition-colors p-0.5"
-                            title="Rename session"
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteSession(session.id);
-                            }}
-                            className="text-foreground/15 hover:text-rose-500 transition-colors p-0.5"
-                            title="Delete session"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          {confirmDeleteId === session.id ? (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteSession(session.id);
+                                  setConfirmDeleteId(null);
+                                }}
+                                className="text-[10px] font-medium text-rose-600 hover:text-rose-700 transition-colors px-1"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmDeleteId(null);
+                                }}
+                                className="text-foreground/30 hover:text-foreground/50 transition-colors p-0.5"
+                                title="Cancel"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startRename(session);
+                                }}
+                                className="text-foreground/15 hover:text-foreground/50 transition-colors p-0.5"
+                                title="Rename session"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmDeleteId(session.id);
+                                }}
+                                className="text-foreground/15 hover:text-rose-500 transition-colors p-0.5"
+                                title="Delete session"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>

@@ -36,15 +36,23 @@ export function ProfilePage({
             </p>
             <p className="text-xs text-foreground/30 mt-2">
               Last saved: {profileUpdatedAt}
+              {profileDirty && (
+                <span className="ml-2 text-amber-600">— Unsaved changes</span>
+              )}
             </p>
           </div>
-          <button
-            onClick={onSaveProfile}
-            disabled={profileSaving || !profileDirty}
-            className="shrink-0 h-10 px-5 rounded-xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none"
-          >
-            {profileSaving ? "Saving..." : "Save Profile"}
-          </button>
+          <div className="relative shrink-0">
+            {profileDirty && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500" />
+            )}
+            <button
+              onClick={onSaveProfile}
+              disabled={profileSaving || !profileDirty}
+              className="h-10 px-5 rounded-xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none"
+            >
+              {profileSaving ? "Saving..." : "Save Profile"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -68,6 +76,9 @@ export function ProfilePage({
             className="w-full min-h-[160px] p-4 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200 resize-y"
             maxLength={20000}
           />
+          <p className="text-xs text-foreground/20 mt-1 text-right">
+            {knowledgeProfile.user_context.length.toLocaleString()} / 20,000
+          </p>
         </section>
 
         {/* Firm Knowledge */}
@@ -89,6 +100,9 @@ export function ProfilePage({
             className="w-full min-h-[160px] p-4 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200 resize-y"
             maxLength={20000}
           />
+          <p className="text-xs text-foreground/20 mt-1 text-right">
+            {knowledgeProfile.firm_context.length.toLocaleString()} / 20,000
+          </p>
         </section>
       </div>
     </div>
