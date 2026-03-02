@@ -29,11 +29,12 @@ function getDb(): BetterSqlite3.Database {
     CREATE TABLE IF NOT EXISTS sessions (
       id                TEXT PRIMARY KEY,
       created_at        TEXT NOT NULL,
-      document_filename TEXT NOT NULL,
-      document_bytes    BLOB NOT NULL,
+      document_filename TEXT,
+      document_bytes    BLOB,
       form_url          TEXT NOT NULL DEFAULT '',
       form_title        TEXT NOT NULL DEFAULT '',
       form_provider     TEXT NOT NULL DEFAULT '',
+      display_name      TEXT NOT NULL DEFAULT '',
       form_schema       TEXT NOT NULL,
       mapping_result    TEXT NOT NULL,
       edited_mappings   TEXT
@@ -55,7 +56,7 @@ export function listSessions(): SessionMeta[] {
   const conn = getDb();
   const rows = conn
     .prepare(
-      `SELECT id, created_at, document_filename, form_url, form_title, form_provider
+      `SELECT id, created_at, document_filename, form_url, form_title, form_provider, display_name
        FROM sessions
        ORDER BY created_at DESC`
     )
@@ -72,7 +73,7 @@ export function getSession(sessionId: string): SessionFull | null {
   const conn = getDb();
   const row = conn
     .prepare(
-      `SELECT id, created_at, document_filename, form_url, form_title, form_provider,
+      `SELECT id, created_at, document_filename, form_url, form_title, form_provider, display_name,
               form_schema, mapping_result, edited_mappings
        FROM sessions
        WHERE id = ?`
@@ -81,10 +82,11 @@ export function getSession(sessionId: string): SessionFull | null {
     | {
         id: string;
         created_at: string;
-        document_filename: string;
+        document_filename: string | null;
         form_url: string;
         form_title: string;
         form_provider: string;
+        display_name: string;
         form_schema: string;
         mapping_result: string;
         edited_mappings: string | null;
@@ -102,6 +104,7 @@ export function getSession(sessionId: string): SessionFull | null {
     form_url: row.form_url,
     form_title: row.form_title,
     form_provider: row.form_provider,
+    display_name: row.display_name,
     form_schema: JSON.parse(row.form_schema),
     mapping_result: JSON.parse(row.mapping_result),
     edited_mappings: row.edited_mappings
@@ -123,10 +126,10 @@ export function getSessionDocument(
       "SELECT document_bytes, document_filename FROM sessions WHERE id = ?"
     )
     .get(sessionId) as
-    | { document_bytes: Buffer; document_filename: string }
+    | { document_bytes: Buffer | null; document_filename: string | null }
     | undefined;
 
-  if (!row) {
+  if (!row || !row.document_bytes || !row.document_filename) {
     return null;
   }
 
@@ -140,33 +143,37 @@ export function getSessionDocument(
  * Create a new session and return its metadata.
  */
 export function createSession(params: {
-  documentFilename: string;
-  documentBytes: Buffer;
+  documentFilename?: string | null;
+  documentBytes?: Buffer | null;
   formUrl?: string;
   formTitle?: string;
   formProvider?: string;
+  displayName?: string;
   formSchema: Record<string, unknown>;
   mappingResult: Record<string, unknown>;
 }): SessionMeta {
   const conn = getDb();
   const id = uuidv4();
   const createdAt = new Date().toISOString();
+  const displayName =
+    params.displayName ?? params.formTitle ?? params.documentFilename ?? "";
 
   conn
     .prepare(
       `INSERT INTO sessions
          (id, created_at, document_filename, document_bytes, form_url, form_title,
-          form_provider, form_schema, mapping_result)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          form_provider, display_name, form_schema, mapping_result)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
       createdAt,
-      params.documentFilename,
-      params.documentBytes,
+      params.documentFilename ?? null,
+      params.documentBytes ?? null,
       params.formUrl ?? "",
       params.formTitle ?? "",
       params.formProvider ?? "",
+      displayName,
       JSON.stringify(params.formSchema),
       JSON.stringify(params.mappingResult)
     );
@@ -174,11 +181,27 @@ export function createSession(params: {
   return {
     id,
     created_at: createdAt,
-    document_filename: params.documentFilename,
+    document_filename: params.documentFilename ?? null,
     form_url: params.formUrl ?? "",
     form_title: params.formTitle ?? "",
     form_provider: params.formProvider ?? "",
+    display_name: displayName,
   };
+}
+
+/**
+ * Update a session display name.
+ * Returns `true` if a row was updated, `false` if the id was not found.
+ */
+export function renameSession(
+  sessionId: string,
+  displayName: string,
+): boolean {
+  const conn = getDb();
+  const result = conn
+    .prepare("UPDATE sessions SET display_name = ? WHERE id = ?")
+    .run(displayName, sessionId);
+  return result.changes > 0;
 }
 
 /**
@@ -208,4 +231,24 @@ export function deleteSession(sessionId: string): boolean {
     .run(sessionId);
 
   return result.changes > 0;
+}
+
+/**
+ * Remove all persisted session data, including SQLite and WAL sidecars.
+ */
+export function clearSessions(): void {
+  if (db !== null) {
+    db.close();
+    db = null;
+  }
+
+  const dbPath = path.join(getUserDataPath(), "sessions.db");
+  const sidecars = [dbPath, `${dbPath}-shm`, `${dbPath}-wal`];
+  for (const filePath of sidecars) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch {
+      // Best-effort cleanup.
+    }
+  }
 }

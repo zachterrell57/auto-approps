@@ -60,3 +60,11 @@ export function writeApiKey(apiKey: string): void {
   data.anthropic_api_key = apiKey;
   atomicWriteJsonSync(settingsPath(), data);
 }
+
+export function clearSettings(): void {
+  try {
+    fs.unlinkSync(settingsPath());
+  } catch {
+    // Best-effort cleanup.
+  }
+}

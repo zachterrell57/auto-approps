@@ -53,6 +53,7 @@ export interface Settings {
   generic_playwright_headless: boolean;
   generic_nav_max_pages: number;
   generic_page_load_timeout_ms: number;
+  google_form_fetch_timeout_ms: number;
 }
 
 export const settings: Settings = {
@@ -67,4 +68,5 @@ export const settings: Settings = {
   generic_playwright_headless: true,
   generic_nav_max_pages: 10,
   generic_page_load_timeout_ms: 15000,
+  google_form_fetch_timeout_ms: 15000,
 };

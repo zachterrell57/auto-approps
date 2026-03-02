@@ -69,3 +69,11 @@ export function saveKnowledgeProfile(
   atomicWriteJsonSync(profilePath(), profile);
   return profile;
 }
+
+export function clearKnowledgeProfile(): void {
+  try {
+    fs.unlinkSync(profilePath());
+  } catch {
+    // Best-effort cleanup.
+  }
+}

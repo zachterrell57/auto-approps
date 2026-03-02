@@ -28,6 +28,9 @@ export const GET_SETTINGS = "app:settings:get" as const;
 /** Takes { anthropic_api_key: string }, returns AppSettings */
 export const PUT_SETTINGS = "app:settings:put" as const;
 
+/** Clears all locally stored settings/knowledge/clients/sessions */
+export const CLEAR_LOCAL_DATA = "app:settings:clear-local-data" as const;
+
 // ── Form scraping & mapping ────────────────────────────────────────────────
 /** Takes { url: string }, returns FormSchema */
 export const SCRAPE = "app:form:scrape" as const;
@@ -48,6 +51,9 @@ export const CREATE_SESSION = "app:sessions:create" as const;
 /** Takes { id: string; mappings: dict[] }, returns void */
 export const UPDATE_SESSION_MAPPINGS =
   "app:sessions:update-mappings" as const;
+
+/** Takes { id: string; display_name: string }, returns void */
+export const RENAME_SESSION = "app:sessions:rename" as const;
 
 /** Takes { id: string }, returns void */
 export const DELETE_SESSION = "app:sessions:delete" as const;
@@ -80,12 +86,14 @@ export const IPC_CHANNELS = {
   PUT_KNOWLEDGE_PROFILE,
   GET_SETTINGS,
   PUT_SETTINGS,
+  CLEAR_LOCAL_DATA,
   SCRAPE,
   MAP,
   LIST_SESSIONS,
   GET_SESSION,
   CREATE_SESSION,
   UPDATE_SESSION_MAPPINGS,
+  RENAME_SESSION,
   DELETE_SESSION,
   GET_SESSION_DOCUMENT,
   LIST_CLIENTS,
