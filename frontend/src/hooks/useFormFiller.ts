@@ -26,9 +26,25 @@ export interface MappingCompleteData {
   mapping_result: MappingResult;
 }
 
+const MISSING_API_KEY_MESSAGE =
+  "Add your Anthropic API key in Settings before processing forms.";
+
+function isMissingApiKeyError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("anthropic_api_key") ||
+    message.includes("anthropic api key") ||
+    message.includes("missing_api_key")
+  );
+}
+
 function errorMessage(error: unknown, fallback: string): string {
+  if (isMissingApiKeyError(error)) return MISSING_API_KEY_MESSAGE;
   return error instanceof Error ? error.message : fallback;
 }
+
+export type ProcessingStage = "uploading" | "scraping" | "mapping" | null;
 
 export function useFormFiller(options?: {
   onMappingComplete?: (data: MappingCompleteData) => void;
@@ -38,6 +54,7 @@ export function useFormFiller(options?: {
 
   const [step, setStep] = useState<Step>("upload");
   const [loading, setLoading] = useState(false);
+  const [processingStage, setProcessingStage] = useState<ProcessingStage>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettings>({
@@ -91,62 +108,69 @@ export function useFormFiller(options?: {
     };
   }, []);
 
-  const process = useCallback(
-    async (file: File, formUrl: string, clientId?: string) => {
-      if (!appSettings.anthropic_api_key_set) {
-        setError("Set an Anthropic API key in Settings before processing.");
-        return;
-      }
+  const process = useCallback(async (file: File, formUrl: string, clientId?: string) => {
+    if (!appSettings.anthropic_api_key_set) {
+      setError(MISSING_API_KEY_MESSAGE);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    replaceDocumentBlobUrl(null);
+    setIsHistorical(false);
+    setHasDocument(true);
+    setActiveClientId(clientId);
+    try {
+      setProcessingStage("uploading");
+      const uploaded = await api.uploadDocument(file);
+      setUploadResult(uploaded);
 
-      setLoading(true);
-      setError(null);
-      replaceDocumentBlobUrl(null);
-      setIsHistorical(false);
-      setHasDocument(true);
-      setActiveClientId(clientId);
+      setProcessingStage("scraping");
+      const schema = await api.scrapeForm(formUrl);
+      setFormSchema(schema);
 
-      try {
-        const uploaded = await api.uploadDocument(file);
-        setUploadResult(uploaded);
+      setProcessingStage("mapping");
+      const result = await api.mapFields(clientId);
+      setMappingResult(result);
+      setMappings(result.mappings);
+      setStep("answers");
 
-        const schema = await api.scrapeForm(formUrl);
-        setFormSchema(schema);
+      onMappingCompleteRef.current?.({
+        document_filename: uploaded.filename,
+        form_url: schema.url || formUrl,
+        form_title: schema.title,
+        form_provider: schema.provider,
+        form_schema: schema,
+        mapping_result: result,
+      });
+    } catch (error: unknown) {
+      setError(errorMessage(error, "An error occurred"));
+    } finally {
+      setLoading(false);
+      setProcessingStage(null);
+    }
+  }, [appSettings.anthropic_api_key_set, replaceDocumentBlobUrl]);
 
-        const result = await api.mapFields(clientId);
-        setMappingResult(result);
-        setMappings(result.mappings);
-        setStep("answers");
-
-        onMappingCompleteRef.current?.({
-          document_filename: uploaded.filename,
-          form_url: schema.url || formUrl,
-          form_title: schema.title,
-          form_provider: schema.provider,
-          form_schema: schema,
-          mapping_result: result,
-        });
-      } catch (err: unknown) {
-        setError(errorMessage(err, "An error occurred"));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [appSettings.anthropic_api_key_set, replaceDocumentBlobUrl],
-  );
-
-  const remap = useCallback(async () => {
+  const remap = useCallback(async (clientId?: string) => {
+    if (!appSettings.anthropic_api_key_set) {
+      setError(MISSING_API_KEY_MESSAGE);
+      return;
+    }
+    const effectiveClientId = clientId ?? activeClientId;
     setLoading(true);
     setError(null);
     try {
-      const result = await api.mapFields(activeClientId);
+      const result = await api.mapFields(effectiveClientId);
       setMappingResult(result);
       setMappings(result.mappings);
+      if (clientId !== undefined) {
+        setActiveClientId(clientId);
+      }
     } catch (err: unknown) {
       setError(errorMessage(err, "Re-mapping failed"));
     } finally {
       setLoading(false);
     }
-  }, [activeClientId]);
+  }, [appSettings.anthropic_api_key_set, activeClientId]);
 
   const saveAppSettings = useCallback(async (apiKey: string) => {
     setSettingsSaving(true);
@@ -198,6 +222,7 @@ export function useFormFiller(options?: {
   const reset = useCallback(() => {
     setStep("upload");
     setLoading(false);
+    setProcessingStage(null);
     setError(null);
     setUploadResult(null);
     setFormSchema(null);
@@ -255,8 +280,10 @@ export function useFormFiller(options?: {
   return {
     step,
     loading,
+    processingStage,
     settingsSaving,
     error,
+    apiKeyConfigured: appSettings.anthropic_api_key_set,
     uploadResult,
     formSchema,
     mappingResult,

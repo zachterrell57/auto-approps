@@ -54,8 +54,10 @@ export default function App() {
   const {
     step,
     loading,
+    processingStage,
     settingsSaving,
     error: formError,
+    apiKeyConfigured,
     formSchema,
     mappings,
     appSettings,
@@ -163,6 +165,7 @@ export default function App() {
             mappings={mappings}
             loading={loading}
             hasDocument={hasDocument}
+            apiKeyConfigured={apiKeyConfigured}
             debugDocBlobUrl={debugDocBlobUrl}
             isHistorical={isHistorical}
             onUpdate={updateMapping}
@@ -202,10 +205,12 @@ export default function App() {
           {page === "main" && step === "upload" && (
             <UploadStep
               loading={loading}
-              apiKeySet={appSettings.anthropic_api_key_set}
+              processingStage={processingStage}
               clients={clients}
+              apiKeyConfigured={apiKeyConfigured}
               onProcess={process}
               onLoadDebug={loadDebugData}
+              onOpenSettings={() => setPage("settings")}
             />
           )}
         </div>

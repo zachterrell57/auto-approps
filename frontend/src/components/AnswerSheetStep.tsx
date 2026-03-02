@@ -8,6 +8,7 @@ interface AnswerSheetStepProps {
   mappings: FieldMapping[];
   loading: boolean;
   hasDocument: boolean;
+  apiKeyConfigured?: boolean;
   debugDocBlobUrl?: string | null;
   isHistorical?: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
@@ -62,6 +63,7 @@ export function AnswerSheetStep({
   mappings,
   loading,
   hasDocument,
+  apiKeyConfigured = true,
   debugDocBlobUrl,
   isHistorical,
   onUpdate,
@@ -130,6 +132,11 @@ export function AnswerSheetStep({
               <p className="mt-2 text-sm text-foreground/35">
                 {activeCount} field{activeCount !== 1 ? "s" : ""} ready to copy.
               </p>
+              {!apiKeyConfigured && (
+                <p className="mt-2 text-sm text-amber-700/90">
+                  Re-map is unavailable until an Anthropic API key is set in Settings.
+                </p>
+              )}
               {formSchema.scrape_warnings.length > 0 && (
                 <div className="mt-3 rounded-xl border border-amber-300/40 bg-amber-50/30 px-3 py-2">
                   <p className="text-[11px] font-semibold tracking-[0.06em] uppercase text-amber-700/80">
@@ -147,8 +154,14 @@ export function AnswerSheetStep({
             </div>
             <button
               onClick={onRemap}
-              disabled={loading || isHistorical}
-              title={isHistorical ? "Only available for current session" : undefined}
+              disabled={loading || isHistorical || !apiKeyConfigured}
+              title={
+                isHistorical
+                  ? "Only available for current session"
+                  : !apiKeyConfigured
+                  ? "Add API key in Settings to re-map"
+                  : undefined
+              }
               className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 shrink-0 disabled:opacity-20 disabled:cursor-not-allowed"
             >
               <RotateCcw className="h-3.5 w-3.5" />
