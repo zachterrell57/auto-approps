@@ -9,7 +9,11 @@ import { ClientsPage } from "@/components/ClientsPage";
 import { SettingsPage } from "@/components/SettingsPage";
 import { ProfilePage } from "@/components/ProfilePage";
 import { SessionSidebar } from "@/components/SessionSidebar";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import type { MappingCompleteData } from "@/hooks/useFormFiller";
 
 type Page = "main" | "profile" | "settings" | "clients";
@@ -120,7 +124,6 @@ export default function App() {
     reloadKnowledgeProfile,
   ]);
 
-  // Debounced save of edited mappings for active session.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!currentSessionId || step !== "answers") {
@@ -164,8 +167,8 @@ export default function App() {
             formSchema={formSchema}
             mappings={mappings}
             loading={loading}
-            hasDocument={hasDocument}
             apiKeyConfigured={apiKeyConfigured}
+            hasDocument={hasDocument}
             debugDocBlobUrl={debugDocBlobUrl}
             isHistorical={isHistorical}
             onUpdate={updateMapping}
