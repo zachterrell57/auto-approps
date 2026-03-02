@@ -45,23 +45,16 @@ jobs:
       - name: Install dependencies
         run: npm ci && npm ci --prefix frontend
 
-      - name: Verify notarization credentials
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          echo "APPLE_ID length: ${#APPLE_ID}"
-          echo "APPLE_ID_PASSWORD length: ${#APPLE_ID_PASSWORD}"
-          echo "APPLE_TEAM_ID length: ${#APPLE_TEAM_ID}"
-          xcrun notarytool history --apple-id "$APPLE_ID" --password "$APPLE_ID_PASSWORD" --team-id "$APPLE_TEAM_ID"
-
       - name: Build, sign & notarize
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run make -- --arch=${{ matrix.arch }}
+        run: |
+          export APPLE_ID=$(echo "$APPLE_ID" | tr -d '[:space:]')
+          export APPLE_ID_PASSWORD=$(echo "$APPLE_ID_PASSWORD" | tr -d '[:space:]')
+          export APPLE_TEAM_ID=$(echo "$APPLE_TEAM_ID" | tr -d '[:space:]')
+          npm run make -- --arch=${{ matrix.arch }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
