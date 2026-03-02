@@ -16,7 +16,13 @@
       "Bash(npx tsc --noEmit -p tsconfig.electron.json 2>&1 | head -60)",
       "Bash(python -c \"from backend.src.auto_approps import models, client_store, mapper, app; print\\('OK'\\)\" 2>&1)",
       "Bash(git pull origin main)",
-      "Bash(git pull origin main --no-rebase)"
+      "Bash(git pull origin main --no-rebase)",
+      "Bash(git merge origin/main)",
+      "Bash(ls tsconfig*.json)",
+      "Bash(cd frontend && npx vite build 2>&1 | tail -20)",
+      "Bash(ls *.json)",
+      "Bash(npx tsc -p tsconfig.node.json --noEmit 2>&1 | head -20)",
+      "Bash(npx tsc -p tsconfig.app.json --noEmit 2>&1 | head -20)"
     ]
   }
 }
