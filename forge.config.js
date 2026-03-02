@@ -1,13 +1,24 @@
 const { VitePlugin } = require("@electron-forge/plugin-vite");
+const { MakerDMG } = require("@electron-forge/maker-dmg");
 const { MakerZIP } = require("@electron-forge/maker-zip");
 
 /** @type {import('@electron-forge/shared-types').ForgeConfig} */
 module.exports = {
   packagerConfig: {
-    asar: true,
+    asar: {
+      unpack: "**/{better-sqlite3,bindings,file-uri-to-path}/**",
+    },
     name: "AutoApprops",
+    appBundleId: "com.autoapprops.app",
+    extraResource: ["./playwright-browsers"],
+    ignore: [
+      /^\/backend/,
+      /^\/\.git/,
+      /^\/scripts/,
+      /^\/playwright-browsers/,
+    ],
   },
-  makers: [new MakerZIP({})],
+  makers: [new MakerDMG({}), new MakerZIP({})],
   plugins: [
     new VitePlugin({
       build: [

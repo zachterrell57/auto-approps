@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "description": "AutoApprops — AI-powered congressional appropriations form filler",
+  "author": "AutoApprops",
+  "license": "UNLICENSED",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "postinstall": "electron-rebuild",
+    "premake": "node scripts/download-playwright-browser.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -42,6 +46,7 @@
     "tailwindcss": "^4.0.0",
     "tw-animate-css": "^1.4.0",
     "typescript": "~5.9.3",
-    "vite": "^5.4.0"
+    "vite": "^5.4.0",
+    "@electron/rebuild": "^3.7.1"
   }
 }
