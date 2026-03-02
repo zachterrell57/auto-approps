@@ -44,6 +44,8 @@ Rules:
 12. Do not invent client-specific details.
 13. If an answer is derived mainly from reusable profile context, set source_citation to "User/Firm Profile".
 14. Keep your reasoning and source_citation fields concise — one sentence each. Prioritize completing all field mappings over detailed explanations.
+15. A Client Knowledge block may be provided with details specific to the client being served. Treat it as secondary evidence (below the uploaded document, above User/Firm profile).
+16. If an answer is derived mainly from client knowledge, set source_citation to "Client Knowledge".
 `;
 
 const _TOOL_NAME = "submit_field_mappings";
@@ -112,6 +114,7 @@ export function buildUserMessage(
   form: FormSchema,
   fieldIdToAlias: Record<string, string>,
   knowledgeProfile?: KnowledgeProfile | null,
+  clientKnowledge?: string | null,
 ): string {
   const parts: string[] = ["## Document Content\n"];
 
@@ -137,6 +140,15 @@ export function buildUserMessage(
         `\n[Firm Knowledge]\n${knowledgeProfile.firm_context.trim()}\n`,
       );
     }
+  }
+
+  if (clientKnowledge && clientKnowledge.trim()) {
+    parts.push("\n## Client Knowledge\n");
+    parts.push(
+      "Context specific to the client this form is being filled for. " +
+        "Use to fill gaps not covered by the uploaded document.",
+    );
+    parts.push(`\n[Client Knowledge]\n${clientKnowledge.trim()}\n`);
   }
 
   parts.push("\n## Form Fields\n");
@@ -386,6 +398,7 @@ export async function mapFields(
   doc: ParsedDocument,
   form: FormSchema,
   knowledgeProfile?: KnowledgeProfile | null,
+  clientKnowledge?: string | null,
 ): Promise<MappingResult> {
   if (!settings.anthropic_api_key) {
     throw new Error("ANTHROPIC_API_KEY is not configured");
@@ -399,6 +412,7 @@ export async function mapFields(
     form,
     fieldIdToAlias,
     knowledgeProfile,
+    clientKnowledge,
   );
 
   const retries = Math.max(1, settings.mapping_ai_retries + 1);

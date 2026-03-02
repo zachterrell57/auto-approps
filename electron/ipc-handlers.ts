@@ -4,6 +4,13 @@ import state from "./services/state.js";
 import { settings } from "./services/config.js";
 import { readApiKey, writeApiKey } from "./services/settings-store.js";
 import {
+  listClients,
+  getClient,
+  createClient,
+  updateClient,
+  deleteClient,
+} from "./services/client-store.js";
+import {
   loadKnowledgeProfile,
   saveKnowledgeProfile,
 } from "./services/knowledge-store.js";
@@ -116,7 +123,7 @@ export function registerIpcHandlers(): void {
   });
 
   // ── Map fields ───────────────────────────────────────────────────────
-  ipcMain.handle(ch.MAP, async () => {
+  ipcMain.handle(ch.MAP, async (_event, args?: { client_id?: string }) => {
     if (!state.parsed_doc) {
       throw new Error("No document uploaded. Upload a .docx first.");
     }
@@ -129,10 +136,19 @@ export function registerIpcHandlers(): void {
       ? profile
       : undefined;
 
+    let clientKnowledge: string | undefined;
+    if (args?.client_id) {
+      const client = getClient(args.client_id);
+      if (client && client.knowledge.trim()) {
+        clientKnowledge = client.knowledge;
+      }
+    }
+
     const result = await mapFields(
       state.parsed_doc,
       state.form_schema,
       knowledgeProfile,
+      clientKnowledge,
     );
     state.mapping_result = result;
     return result;
@@ -212,6 +228,49 @@ export function registerIpcHandlers(): void {
     async (_event, args: { id: string }) => {
       if (!deleteSession(args.id)) {
         throw new Error("Session not found");
+      }
+      return { ok: true };
+    },
+  );
+
+  // ── Clients ─────────────────────────────────────────────────────────
+  ipcMain.handle(ch.LIST_CLIENTS, async () => {
+    return listClients();
+  });
+
+  ipcMain.handle(ch.GET_CLIENT, async (_event, args: { id: string }) => {
+    const client = getClient(args.id);
+    if (!client) throw new Error("Client not found");
+    return client;
+  });
+
+  ipcMain.handle(
+    ch.CREATE_CLIENT,
+    async (_event, args: { name: string; knowledge?: string }) => {
+      return createClient({ name: args.name, knowledge: args.knowledge ?? "" });
+    },
+  );
+
+  ipcMain.handle(
+    ch.UPDATE_CLIENT,
+    async (
+      _event,
+      args: { id: string; name?: string; knowledge?: string },
+    ) => {
+      const updated = updateClient(args.id, {
+        name: args.name,
+        knowledge: args.knowledge,
+      });
+      if (!updated) throw new Error("Client not found");
+      return updated;
+    },
+  );
+
+  ipcMain.handle(
+    ch.DELETE_CLIENT,
+    async (_event, args: { id: string }) => {
+      if (!deleteClient(args.id)) {
+        throw new Error("Client not found");
       }
       return { ok: true };
     },

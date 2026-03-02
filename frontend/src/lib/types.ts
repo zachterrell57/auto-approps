@@ -90,6 +90,24 @@ export interface SessionFull extends SessionMeta {
   edited_mappings: FieldMapping[] | null;
 }
 
+export interface Client {
+  id: string;
+  name: string;
+  knowledge: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientCreate {
+  name: string;
+  knowledge?: string;
+}
+
+export interface ClientUpdate {
+  name?: string;
+  knowledge?: string;
+}
+
 export interface AppSettings {
   anthropic_api_key_set: boolean;
   anthropic_api_key_preview: string;

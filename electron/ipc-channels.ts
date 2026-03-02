@@ -55,6 +55,22 @@ export const DELETE_SESSION = "app:sessions:delete" as const;
 /** Takes { id: string }, returns { bytes: Buffer; filename: string } */
 export const GET_SESSION_DOCUMENT = "app:sessions:get-document" as const;
 
+// ── Clients ──────────────────────────────────────────────────────────────
+/** Returns Client[] */
+export const LIST_CLIENTS = "app:clients:list" as const;
+
+/** Takes ClientCreate, returns Client */
+export const CREATE_CLIENT = "app:clients:create" as const;
+
+/** Takes { id: string }, returns Client */
+export const GET_CLIENT = "app:clients:get" as const;
+
+/** Takes { id: string; ...ClientUpdate }, returns Client */
+export const UPDATE_CLIENT = "app:clients:update" as const;
+
+/** Takes { id: string }, returns void */
+export const DELETE_CLIENT = "app:clients:delete" as const;
+
 // ── Aggregate type for type-safe handler registration ──────────────────────
 
 export const IPC_CHANNELS = {
@@ -72,6 +88,11 @@ export const IPC_CHANNELS = {
   UPDATE_SESSION_MAPPINGS,
   DELETE_SESSION,
   GET_SESSION_DOCUMENT,
+  LIST_CLIENTS,
+  CREATE_CLIENT,
+  GET_CLIENT,
+  UPDATE_CLIENT,
+  DELETE_CLIENT,
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

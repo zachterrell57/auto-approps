@@ -126,6 +126,20 @@ export function AnswerSheetStep({
               <p className="mt-2 text-sm text-foreground/35">
                 {activeCount} field{activeCount !== 1 ? "s" : ""} ready to copy.
               </p>
+              {formSchema.scrape_warnings.length > 0 && (
+                <div className="mt-3 rounded-xl border border-amber-300/40 bg-amber-50/30 px-3 py-2">
+                  <p className="text-[11px] font-semibold tracking-[0.06em] uppercase text-amber-700/80">
+                    Form scrape notes
+                  </p>
+                  <div className="mt-1 space-y-1">
+                    {formSchema.scrape_warnings.slice(0, 5).map((warning, index) => (
+                      <p key={`${warning}-${index}`} className="text-[12px] leading-relaxed text-amber-700/75">
+                        {warning}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <button
               onClick={onRemap}

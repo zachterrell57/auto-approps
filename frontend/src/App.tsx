@@ -1,20 +1,23 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useClients } from "@/hooks/useClients";
 import { useKnowledgeProfile } from "@/hooks/useKnowledgeProfile";
 import { useFormFiller } from "@/hooks/useFormFiller";
 import { useSessions } from "@/hooks/useSessions";
 import { UploadStep } from "@/components/UploadStep";
 import { AnswerSheetStep } from "@/components/AnswerSheetStep";
+import { ClientsPage } from "@/components/ClientsPage";
 import { SettingsPage } from "@/components/SettingsPage";
 import { ProfilePage } from "@/components/ProfilePage";
 import { SessionSidebar } from "@/components/SessionSidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import type { MappingCompleteData } from "@/hooks/useFormFiller";
 
-type Page = "main" | "profile" | "settings";
+type Page = "main" | "profile" | "settings" | "clients";
 
 export default function App() {
   const [page, setPage] = useState<Page>("main");
   const profile = useKnowledgeProfile();
+  const clientManager = useClients();
   const sessionManager = useSessions();
 
   const handleMappingComplete = useCallback(
@@ -124,9 +127,19 @@ export default function App() {
             />
           )}
 
+          {page === "clients" && (
+            <ClientsPage
+              clients={clientManager.clients}
+              onCreateClient={clientManager.addClient}
+              onUpdateClient={clientManager.editClient}
+              onDeleteClient={clientManager.removeClient}
+            />
+          )}
+
           {page === "main" && formFiller.step === "upload" && (
             <UploadStep
               loading={formFiller.loading}
+              clients={clientManager.clients}
               onProcess={formFiller.process}
               onLoadDebug={formFiller.loadDebugData}
             />

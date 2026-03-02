@@ -1,20 +1,24 @@
 import { useState, useCallback } from "react";
-import { FileText, Link, Upload, ArrowRight, Check, X } from "lucide-react";
+import { FileText, Link, Upload, ArrowRight, Check, X, Users } from "lucide-react";
+import type { Client } from "@/lib/types";
 
 interface UploadStepProps {
   loading: boolean;
-  onProcess: (file: File, formUrl: string) => void;
+  clients?: Client[];
+  onProcess: (file: File, formUrl: string, clientId?: string) => void;
   onLoadDebug?: () => void;
 }
 
 export function UploadStep({
   loading,
+  clients = [],
   onProcess,
   onLoadDebug,
 }: UploadStepProps) {
   const [file, setFile] = useState<File | null>(null);
   const [formUrl, setFormUrl] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -184,11 +188,43 @@ export function UploadStep({
           </div>
         </section>
 
+        {/* Step 3 — Client (optional) */}
+        {clients.length > 0 && (
+          <section>
+            <div className="flex items-center gap-3 mb-4">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold bg-amber-600/10 text-amber-700">
+                3
+              </span>
+              <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
+                Client <span className="font-normal text-foreground/30">(optional)</span>
+              </span>
+            </div>
+
+            <div className="relative group">
+              <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-foreground/20 transition-colors group-focus-within:text-amber-500">
+                <Users className="w-4 h-4" />
+              </div>
+              <select
+                value={selectedClientId}
+                onChange={(e) => setSelectedClientId(e.target.value)}
+                className="w-full h-12 pl-11 pr-4 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200 appearance-none cursor-pointer"
+              >
+                <option value="">No client selected</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </section>
+        )}
+
         {/* Action */}
         <div className="pt-2">
           <button
             disabled={!isValid || loading}
-            onClick={() => file && onProcess(file, formUrl)}
+            onClick={() => file && onProcess(file, formUrl, selectedClientId || undefined)}
             className="group w-full h-[52px] rounded-2xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 flex items-center justify-center gap-2.5"
           >
             {loading ? (
