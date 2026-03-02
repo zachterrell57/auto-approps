@@ -12,10 +12,66 @@ import type { SessionMeta, SessionFull } from "./models.js";
 
 let db: BetterSqlite3.Database | null = null;
 
+/** Path to a small JSON file that records which app version last wrote the DB. */
+function versionStampPath(): string {
+  return path.join(getUserDataPath(), ".db-version");
+}
+
+/**
+ * Read the app version from package.json at build time.
+ * Electron-forge bundles the root package.json into the asar, so
+ * `require` will resolve it both in dev and in packaged builds.
+ */
+function getAppVersion(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require("../../package.json").version as string;
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
+ * If the stored DB version doesn't match the current app version, delete the
+ * sessions database so a fresh .dmg install starts with a clean slate.
+ */
+function purgeStaleDatabase(): void {
+  const stampFile = versionStampPath();
+  const currentVersion = getAppVersion();
+
+  let storedVersion = "";
+  try {
+    storedVersion = fs.readFileSync(stampFile, "utf-8").trim();
+  } catch {
+    // File doesn't exist yet — first launch or pre-stamp build.
+  }
+
+  if (storedVersion === currentVersion) {
+    return; // DB was created by this version — keep it.
+  }
+
+  // Wipe the database files so getDb() recreates a fresh one.
+  const dbFiles = ["sessions.db", "sessions.db-wal", "sessions.db-shm"];
+  for (const file of dbFiles) {
+    const filePath = path.join(getUserDataPath(), file);
+    try {
+      fs.unlinkSync(filePath);
+    } catch {
+      // File may not exist — that's fine.
+    }
+  }
+
+  // Write the new version stamp.
+  fs.mkdirSync(getUserDataPath(), { recursive: true });
+  fs.writeFileSync(stampFile, currentVersion, "utf-8");
+}
+
 function getDb(): BetterSqlite3.Database {
   if (db !== null) {
     return db;
   }
+
+  purgeStaleDatabase();
 
   const dbPath = path.join(getUserDataPath(), "sessions.db");
   const dbDir = path.dirname(dbPath);
@@ -47,6 +103,13 @@ function getDb(): BetterSqlite3.Database {
     conn.exec(
       "ALTER TABLE sessions ADD COLUMN display_name TEXT NOT NULL DEFAULT ''"
     );
+  }
+
+  // Ensure the version stamp is up to date (covers first-ever launch too).
+  try {
+    fs.writeFileSync(versionStampPath(), getAppVersion(), "utf-8");
+  } catch {
+    // Non-fatal — worst case the DB gets cleared again next launch.
   }
 
   db = conn;
