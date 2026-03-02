@@ -36,9 +36,18 @@ function getDb(): BetterSqlite3.Database {
       form_provider     TEXT NOT NULL DEFAULT '',
       form_schema       TEXT NOT NULL,
       mapping_result    TEXT NOT NULL,
-      edited_mappings   TEXT
+      edited_mappings   TEXT,
+      display_name      TEXT NOT NULL DEFAULT ''
     )
   `);
+
+  // Migrate existing databases that lack the display_name column.
+  const cols = conn.pragma("table_info(sessions)") as { name: string }[];
+  if (!cols.some((c) => c.name === "display_name")) {
+    conn.exec(
+      "ALTER TABLE sessions ADD COLUMN display_name TEXT NOT NULL DEFAULT ''"
+    );
+  }
 
   db = conn;
   return db;
@@ -55,7 +64,7 @@ export function listSessions(): SessionMeta[] {
   const conn = getDb();
   const rows = conn
     .prepare(
-      `SELECT id, created_at, document_filename, form_url, form_title, form_provider
+      `SELECT id, created_at, document_filename, form_url, form_title, form_provider, display_name
        FROM sessions
        ORDER BY created_at DESC`
     )
@@ -73,7 +82,7 @@ export function getSession(sessionId: string): SessionFull | null {
   const row = conn
     .prepare(
       `SELECT id, created_at, document_filename, form_url, form_title, form_provider,
-              form_schema, mapping_result, edited_mappings
+              display_name, form_schema, mapping_result, edited_mappings
        FROM sessions
        WHERE id = ?`
     )
@@ -85,6 +94,7 @@ export function getSession(sessionId: string): SessionFull | null {
         form_url: string;
         form_title: string;
         form_provider: string;
+        display_name: string;
         form_schema: string;
         mapping_result: string;
         edited_mappings: string | null;
@@ -102,6 +112,7 @@ export function getSession(sessionId: string): SessionFull | null {
     form_url: row.form_url,
     form_title: row.form_title,
     form_provider: row.form_provider,
+    display_name: row.display_name,
     form_schema: JSON.parse(row.form_schema),
     mapping_result: JSON.parse(row.mapping_result),
     edited_mappings: row.edited_mappings
@@ -178,6 +189,7 @@ export function createSession(params: {
     form_url: params.formUrl ?? "",
     form_title: params.formTitle ?? "",
     form_provider: params.formProvider ?? "",
+    display_name: "",
   };
 }
 
@@ -193,6 +205,22 @@ export function updateSessionMappings(
   const result = conn
     .prepare("UPDATE sessions SET edited_mappings = ? WHERE id = ?")
     .run(JSON.stringify(mappings), sessionId);
+
+  return result.changes > 0;
+}
+
+/**
+ * Update the display_name for a session.
+ * Returns `true` if a row was updated, `false` if the id was not found.
+ */
+export function renameSession(
+  sessionId: string,
+  displayName: string
+): boolean {
+  const conn = getDb();
+  const result = conn
+    .prepare("UPDATE sessions SET display_name = ? WHERE id = ?")
+    .run(displayName, sessionId);
 
   return result.changes > 0;
 }

@@ -46,6 +46,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   updateSessionMappings: (id: string, mappings: unknown[]) =>
     ipcRenderer.invoke(ch.UPDATE_SESSION_MAPPINGS, { id, mappings }),
 
+  renameSession: (id: string, displayName: string) =>
+    ipcRenderer.invoke(ch.RENAME_SESSION, { id, display_name: displayName }),
+
   deleteSession: (id: string) =>
     ipcRenderer.invoke(ch.DELETE_SESSION, { id }),
 

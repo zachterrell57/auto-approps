@@ -49,6 +49,9 @@ export const CREATE_SESSION = "app:sessions:create" as const;
 export const UPDATE_SESSION_MAPPINGS =
   "app:sessions:update-mappings" as const;
 
+/** Takes { id: string; display_name: string }, returns void */
+export const RENAME_SESSION = "app:sessions:rename" as const;
+
 /** Takes { id: string }, returns void */
 export const DELETE_SESSION = "app:sessions:delete" as const;
 
@@ -86,6 +89,7 @@ export const IPC_CHANNELS = {
   GET_SESSION,
   CREATE_SESSION,
   UPDATE_SESSION_MAPPINGS,
+  RENAME_SESSION,
   DELETE_SESSION,
   GET_SESSION_DOCUMENT,
   LIST_CLIENTS,

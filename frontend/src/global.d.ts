@@ -37,6 +37,7 @@ export interface ElectronAPI {
     id: string,
     mappings: unknown[],
   ): Promise<void>;
+  renameSession(id: string, displayName: string): Promise<void>;
   deleteSession(id: string): Promise<void>;
 }
 

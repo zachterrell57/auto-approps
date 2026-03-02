@@ -114,6 +114,7 @@ export const SessionMetaSchema = z.object({
   form_url: z.string().default(""),
   form_title: z.string().default(""),
   form_provider: z.string().default(""),
+  display_name: z.string().default(""),
 });
 
 export type SessionMeta = z.infer<typeof SessionMetaSchema>;

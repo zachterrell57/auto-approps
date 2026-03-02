@@ -27,6 +27,7 @@ import {
   getSessionDocument,
   createSession,
   updateSessionMappings,
+  renameSession,
   deleteSession,
 } from "./services/session-store.js";
 
@@ -217,6 +218,19 @@ export function registerIpcHandlers(): void {
       args: { id: string; mappings: Record<string, unknown>[] },
     ) => {
       if (!updateSessionMappings(args.id, args.mappings)) {
+        throw new Error("Session not found");
+      }
+      return { ok: true };
+    },
+  );
+
+  ipcMain.handle(
+    ch.RENAME_SESSION,
+    async (
+      _event,
+      args: { id: string; display_name: string },
+    ) => {
+      if (!renameSession(args.id, args.display_name)) {
         throw new Error("Session not found");
       }
       return { ok: true };

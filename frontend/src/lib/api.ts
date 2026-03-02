@@ -242,6 +242,8 @@ export async function renameSession(
   id: string,
   displayName: string
 ): Promise<void> {
+  const api = electron();
+  if (api) return api.renameSession(id, displayName);
   const res = await fetch(`${BASE}/api/sessions/${id}/name`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
