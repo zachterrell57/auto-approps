@@ -11,7 +11,7 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "postinstall": "electron-rebuild",
-    "premake": "node scripts/download-playwright-browser.js"
+    "premake": "node scripts/clean-db.js && node scripts/download-playwright-browser.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
