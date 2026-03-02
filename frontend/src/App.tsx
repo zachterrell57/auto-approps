@@ -9,6 +9,7 @@ import { AnswerSheetStep } from "@/components/AnswerSheetStep";
 import { ClientsPage } from "@/components/ClientsPage";
 import { SettingsPage } from "@/components/SettingsPage";
 import { ProfilePage } from "@/components/ProfilePage";
+import { OnboardingPage } from "@/components/OnboardingPage";
 import { SessionSidebar } from "@/components/SessionSidebar";
 import {
   SidebarProvider,
@@ -50,6 +51,9 @@ export default function App() {
   } = useSessions();
 
   const [sessionSaveError, setSessionSaveError] = useState<string | null>(null);
+  const [onboardingDismissedForSession, setOnboardingDismissedForSession] =
+    useState(false);
+  const [onboardingForcedOpen, setOnboardingForcedOpen] = useState(false);
 
   const handleMappingComplete = useCallback(
     (data: MappingCompleteData) => {
@@ -67,6 +71,7 @@ export default function App() {
     loading,
     processingStage,
     settingsSaving,
+    settingsLoaded,
     error: formError,
     apiKeyConfigured,
     formSchema,
@@ -122,6 +127,8 @@ export default function App() {
       refreshClients(),
       reloadKnowledgeProfile(),
     ]);
+    setOnboardingDismissedForSession(false);
+    setOnboardingForcedOpen(false);
     setPage("main");
   }, [
     clearAllLocalData,
@@ -130,6 +137,31 @@ export default function App() {
     refreshList,
     reloadKnowledgeProfile,
   ]);
+
+  const handleShowOnboarding = useCallback(() => {
+    setOnboardingDismissedForSession(false);
+    setOnboardingForcedOpen(true);
+    setPage("main");
+  }, []);
+
+  const handleOnboardingClose = useCallback(() => {
+    setOnboardingForcedOpen(false);
+    if (!apiKeyConfigured) {
+      setOnboardingDismissedForSession(true);
+    }
+  }, [apiKeyConfigured]);
+
+  const handleOnboardingSave = useCallback(
+    async (apiKey: string) => {
+      const saved = await saveAppSettings(apiKey);
+      if (!saved) {
+        return;
+      }
+      setOnboardingDismissedForSession(false);
+      setOnboardingForcedOpen(false);
+    },
+    [saveAppSettings],
+  );
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -148,6 +180,11 @@ export default function App() {
   const [dismissedError, setDismissedError] = useState<string | null>(null);
   const rawError = formError || profileError || sessionSaveError;
   const error = rawError && rawError !== dismissedError ? rawError : null;
+  const showOnboarding =
+    page === "main" &&
+    settingsLoaded &&
+    (onboardingForcedOpen ||
+      (!apiKeyConfigured && !onboardingDismissedForSession));
 
   return (
     <SidebarProvider>
@@ -178,7 +215,7 @@ export default function App() {
           </div>
         )}
 
-        {page === "main" && step === "answers" && formSchema && (
+        {page === "main" && !showOnboarding && step === "answers" && formSchema && (
           <AnswerSheetStep
             formSchema={formSchema}
             mappings={mappings}
@@ -198,6 +235,7 @@ export default function App() {
               settings={appSettings}
               saving={settingsSaving}
               onSave={saveAppSettings}
+              onShowOnboarding={handleShowOnboarding}
               onClearLocalData={handleClearLocalData}
             />
           )}
@@ -221,7 +259,16 @@ export default function App() {
             />
           )}
 
-          {page === "main" && step === "upload" && (
+          {showOnboarding && (
+            <OnboardingPage
+              saving={settingsSaving}
+              apiKeyConfigured={apiKeyConfigured}
+              onSave={handleOnboardingSave}
+              onClose={handleOnboardingClose}
+            />
+          )}
+
+          {page === "main" && !showOnboarding && step === "upload" && (
             <UploadStep
               loading={loading}
               processingStage={processingStage}

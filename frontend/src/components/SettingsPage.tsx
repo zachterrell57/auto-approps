@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Eye, EyeOff, Key, Check } from "lucide-react";
+import { validateAnthropicApiKey } from "@/lib/apiKey";
 import type { AppSettings } from "@/lib/types";
 
 interface SettingsPageProps {
   settings: AppSettings;
   saving: boolean;
-  onSave: (apiKey: string) => void | Promise<void>;
+  onSave: (apiKey: string) => boolean | Promise<boolean>;
+  onShowOnboarding?: () => void | Promise<void>;
   onClearLocalData?: () => void | Promise<void>;
 }
 
@@ -13,6 +15,7 @@ export function SettingsPage({
   settings,
   saving,
   onSave,
+  onShowOnboarding,
   onClearLocalData,
 }: SettingsPageProps) {
   const [apiKey, setApiKey] = useState("");
@@ -20,17 +23,18 @@ export function SettingsPage({
   const [keyError, setKeyError] = useState<string | null>(null);
   const dirty = apiKey.trim().length > 0;
 
-  function handleSave() {
+  async function handleSave() {
     if (!dirty) return;
-    const trimmed = apiKey.trim();
-    if (!trimmed.startsWith("sk-ant-") || trimmed.length < 20) {
-      setKeyError(
-        "Invalid key format. Anthropic API keys start with \"sk-ant-\" and are at least 20 characters.",
-      );
+    const { normalizedKey, error } = validateAnthropicApiKey(apiKey);
+    if (error) {
+      setKeyError(error);
       return;
     }
     setKeyError(null);
-    onSave(trimmed);
+    const saved = await onSave(normalizedKey);
+    if (!saved) {
+      return;
+    }
     setApiKey("");
     setShowKey(false);
   }
@@ -105,7 +109,9 @@ export function SettingsPage({
               </button>
             </div>
             <button
-              onClick={handleSave}
+              onClick={() => {
+                void handleSave();
+              }}
               disabled={!dirty || saving}
               className="h-12 px-6 rounded-xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none"
             >
@@ -128,6 +134,28 @@ export function SettingsPage({
             plaintext on this device.
           </p>
         </section>
+
+        {onShowOnboarding && (
+          <section>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-foreground/10 bg-foreground/[0.015] p-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Onboarding</p>
+                <p className="text-xs text-foreground/60 mt-1">
+                  Reopen the intro and API key setup screen.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  void onShowOnboarding();
+                }}
+                className="h-10 px-4 rounded-lg border border-foreground/15 text-sm font-medium text-foreground/70 hover:bg-foreground/[0.03] transition-colors"
+              >
+                Show onboarding again
+              </button>
+            </div>
+          </section>
+        )}
 
         {onClearLocalData && (
           <section>

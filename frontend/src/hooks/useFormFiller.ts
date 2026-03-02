@@ -56,6 +56,7 @@ export function useFormFiller(options?: {
   const [loading, setLoading] = useState(false);
   const [processingStage, setProcessingStage] = useState<ProcessingStage>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettings>({
     anthropic_api_key_set: false,
@@ -92,6 +93,10 @@ export function useFormFiller(options?: {
       } catch (err: unknown) {
         if (cancelled) return;
         setError(errorMessage(err, "Failed to load settings"));
+      } finally {
+        if (!cancelled) {
+          setSettingsLoaded(true);
+        }
       }
     }
 
@@ -196,8 +201,10 @@ export function useFormFiller(options?: {
     try {
       const saved = await api.saveSettings({ anthropic_api_key: apiKey });
       setAppSettings(saved);
+      return true;
     } catch (err: unknown) {
       setError(errorMessage(err, "Failed to save settings"));
+      return false;
     } finally {
       setSettingsSaving(false);
     }
@@ -318,6 +325,7 @@ export function useFormFiller(options?: {
     loading,
     processingStage,
     settingsSaving,
+    settingsLoaded,
     error,
     apiKeyConfigured: appSettings.anthropic_api_key_set,
     uploadResult,
