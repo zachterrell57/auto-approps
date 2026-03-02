@@ -23,7 +23,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   scrape: (args: { url: string }) =>
     ipcRenderer.invoke(ch.SCRAPE, args),
 
-  map: () => ipcRenderer.invoke(ch.MAP),
+  map: (args?: { client_id?: string }) =>
+    ipcRenderer.invoke(ch.MAP, args),
 
   listSessions: () => ipcRenderer.invoke(ch.LIST_SESSIONS),
 
@@ -47,4 +48,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   deleteSession: (id: string) =>
     ipcRenderer.invoke(ch.DELETE_SESSION, { id }),
+
+  listClients: () => ipcRenderer.invoke(ch.LIST_CLIENTS),
+
+  getClient: (id: string) =>
+    ipcRenderer.invoke(ch.GET_CLIENT, { id }),
+
+  createClient: (args: { name: string; knowledge?: string }) =>
+    ipcRenderer.invoke(ch.CREATE_CLIENT, args),
+
+  updateClient: (id: string, args: { name?: string; knowledge?: string }) =>
+    ipcRenderer.invoke(ch.UPDATE_CLIENT, { id, ...args }),
+
+  deleteClient: (id: string) =>
+    ipcRenderer.invoke(ch.DELETE_CLIENT, { id }),
 });

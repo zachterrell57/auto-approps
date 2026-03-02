@@ -191,6 +191,34 @@ export function knowledgeProfileHasContent(profile: KnowledgeProfile): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Client
+// ---------------------------------------------------------------------------
+
+export const ClientCreateSchema = z.object({
+  name: z.string().max(255),
+  knowledge: z.string().max(20000).default(""),
+});
+
+export type ClientCreate = z.infer<typeof ClientCreateSchema>;
+
+export const ClientUpdateSchema = z.object({
+  name: z.string().max(255).optional(),
+  knowledge: z.string().max(20000).optional(),
+});
+
+export type ClientUpdate = z.infer<typeof ClientUpdateSchema>;
+
+export const ClientSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  knowledge: z.string().default(""),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export type Client = z.infer<typeof ClientSchema>;
+
+// ---------------------------------------------------------------------------
 // AppSettings (referenced by IPC channels)
 // ---------------------------------------------------------------------------
 

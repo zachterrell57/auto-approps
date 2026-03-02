@@ -1,5 +1,8 @@
 import type {
   AppSettings,
+  Client,
+  ClientCreate,
+  ClientUpdate,
   FieldMapping,
   FormSchema,
   KnowledgeProfile,
@@ -123,11 +126,66 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
   return handleResponse(res);
 }
 
-export async function mapFields(): Promise<MappingResult> {
+export async function mapFields(clientId?: string): Promise<MappingResult> {
   const api = electron();
-  if (api) return api.map();
-  const res = await fetch(`${BASE}/api/map`, { method: "POST" });
+  if (api) return api.map(clientId ? { client_id: clientId } : undefined);
+  const url = clientId
+    ? `${BASE}/api/map?client_id=${encodeURIComponent(clientId)}`
+    : `${BASE}/api/map`;
+  const res = await fetch(url, { method: "POST" });
   return handleResponse(res);
+}
+
+// ---------------------------------------------------------------------------
+// Clients
+// ---------------------------------------------------------------------------
+
+export async function listClients(): Promise<Client[]> {
+  const api = electron();
+  if (api) return api.listClients();
+  const res = await fetch(`${BASE}/api/clients`);
+  return handleResponse(res);
+}
+
+export async function getClient(id: string): Promise<Client> {
+  const api = electron();
+  if (api) return api.getClient(id);
+  const res = await fetch(`${BASE}/api/clients/${id}`);
+  return handleResponse(res);
+}
+
+export async function createClient(data: ClientCreate): Promise<Client> {
+  const api = electron();
+  if (api) return api.createClient(data);
+  const res = await fetch(`${BASE}/api/clients`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function updateClient(
+  id: string,
+  data: ClientUpdate,
+): Promise<Client> {
+  const api = electron();
+  if (api) return api.updateClient(id, data);
+  const res = await fetch(`${BASE}/api/clients/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteClient(id: string): Promise<void> {
+  const api = electron();
+  if (api) return api.deleteClient(id);
+  const res = await fetch(`${BASE}/api/clients/${id}`, {
+    method: "DELETE",
+  });
+  await handleResponse(res);
 }
 
 // ---------------------------------------------------------------------------

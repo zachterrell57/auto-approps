@@ -10,7 +10,11 @@
       "Bash(npx tsc -p tsconfig.electron.json --noEmit 2>&1)",
       "Bash(npm run start 2>&1 | head -100)",
       "Bash(lsof -ti:5173 -ti:5174 2>/dev/null | xargs kill 2>/dev/null; echo \"Cleaned up\")",
-      "WebFetch(domain:outreach.senate.gov)"
+      "WebFetch(domain:outreach.senate.gov)",
+      "Bash(wc -l /Users/zachterrell/Developer/form-filler/backend/src/auto_approps/*.py)",
+      "Bash(cd /Users/zachterrell/Developer/form-filler && npx tsc --noEmit -p electron/tsconfig.json 2>&1 | head -60)",
+      "Bash(npx tsc --noEmit -p tsconfig.electron.json 2>&1 | head -60)",
+      "Bash(python -c \"from backend.src.auto_approps import models, client_store, mapper, app; print\\('OK'\\)\" 2>&1)"
     ]
   }
 }

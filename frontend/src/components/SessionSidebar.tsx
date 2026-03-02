@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from "date-fns";
-import { Plus, Settings, Trash2, User } from "lucide-react";
+import { Plus, Settings, Trash2, User, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +19,7 @@ interface SessionSidebarProps {
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
-  onNavigate: (page: "profile" | "settings") => void;
+  onNavigate: (page: "profile" | "settings" | "clients") => void;
   activePage: string;
 }
 
@@ -105,6 +105,15 @@ export function SessionSidebar({
 
       <SidebarFooter className="border-t border-foreground/8">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={activePage === "clients"}
+              onClick={() => onNavigate("clients")}
+            >
+              <Users className="h-4 w-4" />
+              Clients
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={activePage === "profile"}

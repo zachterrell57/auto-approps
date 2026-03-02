@@ -67,7 +67,7 @@ export function useFormFiller(options?: {
     return () => { cancelled = true; };
   }, []);
 
-  const process = useCallback(async (file: File, formUrl: string) => {
+  const process = useCallback(async (file: File, formUrl: string, clientId?: string) => {
     setLoading(true);
     setError(null);
     setDebugDocBlobUrl(null);
@@ -79,7 +79,7 @@ export function useFormFiller(options?: {
       const schema = await api.scrapeForm(formUrl);
       setFormSchema(schema);
 
-      const result = await api.mapFields();
+      const result = await api.mapFields(clientId);
       setMappingResult(result);
       setMappings(result.mappings);
       setStep("answers");
@@ -99,11 +99,11 @@ export function useFormFiller(options?: {
     }
   }, []);
 
-  const remap = useCallback(async () => {
+  const remap = useCallback(async (clientId?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.mapFields();
+      const result = await api.mapFields(clientId);
       setMappingResult(result);
       setMappings(result.mappings);
     } catch (error: unknown) {
