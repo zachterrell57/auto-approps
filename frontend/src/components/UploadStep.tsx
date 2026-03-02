@@ -1,16 +1,30 @@
 import { useState, useCallback } from "react";
-import { FileText, Link, Upload, ArrowRight, Check, X, Users } from "lucide-react";
+import { FileText, Link, Upload, ArrowRight, Check, X, Users, FileUp, Globe, Sparkles } from "lucide-react";
 import type { Client } from "@/lib/types";
+import type { ProcessingStage } from "@/hooks/useFormFiller";
 
 interface UploadStepProps {
   loading: boolean;
+  processingStage?: ProcessingStage;
   clients?: Client[];
   onProcess: (file: File, formUrl: string, clientId?: string) => void;
   onLoadDebug?: () => void;
 }
 
+const STAGES = [
+  { key: "uploading" as const, label: "Reading document", icon: FileUp },
+  { key: "scraping" as const, label: "Scraping form", icon: Globe },
+  { key: "mapping" as const, label: "Mapping fields with AI", icon: Sparkles },
+];
+
+function getStageIndex(stage: ProcessingStage): number {
+  if (!stage) return -1;
+  return STAGES.findIndex((s) => s.key === stage);
+}
+
 export function UploadStep({
   loading,
+  processingStage,
   clients = [],
   onProcess,
   onLoadDebug,
@@ -46,6 +60,102 @@ export function UploadStep({
       return false;
     }
   })();
+
+  const activeIndex = getStageIndex(processingStage ?? null);
+
+  if (loading && processingStage) {
+    return (
+      <div className="w-full max-w-xl mx-auto pt-6">
+        <div className="mb-12">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground leading-none">
+            Processing
+          </h1>
+          <p className="mt-4 text-[15px] text-muted-foreground leading-relaxed max-w-md">
+            Analyzing your document and mapping it to the form fields.
+          </p>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mb-10">
+          <div className="h-1 w-full rounded-full bg-foreground/[0.06] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-amber-500 transition-all duration-700 ease-out"
+              style={{ width: `${((activeIndex + 1) / STAGES.length) * 100}%` }}
+            />
+          </div>
+          <p className="mt-2.5 text-xs text-muted-foreground tabular-nums">
+            Step {activeIndex + 1} of {STAGES.length}
+          </p>
+        </div>
+
+        {/* Steps */}
+        <div className="space-y-4">
+          {STAGES.map((stage, i) => {
+            const isDone = i < activeIndex;
+            const isActive = i === activeIndex;
+            const Icon = stage.icon;
+
+            return (
+              <div
+                key={stage.key}
+                className={`flex items-center gap-4 rounded-2xl border px-5 py-4 transition-all duration-500 ${
+                  isActive
+                    ? "border-amber-300/60 bg-amber-50/50 shadow-sm"
+                    : isDone
+                    ? "border-emerald-200/60 bg-emerald-50/30"
+                    : "border-foreground/[0.06] bg-foreground/[0.015]"
+                }`}
+              >
+                {/* Icon area */}
+                <div
+                  className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-500 ${
+                    isActive
+                      ? "bg-amber-500/15"
+                      : isDone
+                      ? "bg-emerald-500/15"
+                      : "bg-foreground/[0.04]"
+                  }`}
+                >
+                  {isDone ? (
+                    <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.5} />
+                  ) : isActive ? (
+                    <Icon className="w-4 h-4 text-amber-600 animate-pulse" />
+                  ) : (
+                    <Icon className="w-4 h-4 text-foreground/20" />
+                  )}
+                </div>
+
+                {/* Label */}
+                <span
+                  className={`text-sm font-medium transition-colors duration-500 ${
+                    isActive
+                      ? "text-foreground"
+                      : isDone
+                      ? "text-emerald-700"
+                      : "text-foreground/25"
+                  }`}
+                >
+                  {stage.label}
+                </span>
+
+                {/* Status indicator */}
+                <div className="ml-auto">
+                  {isDone && (
+                    <span className="text-[11px] font-medium text-emerald-600">
+                      Done
+                    </span>
+                  )}
+                  {isActive && (
+                    <span className="h-4 w-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin block" />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-xl mx-auto pt-6">
@@ -227,17 +337,8 @@ export function UploadStep({
             onClick={() => file && onProcess(file, formUrl, selectedClientId || undefined)}
             className="group w-full h-[52px] rounded-2xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 flex items-center justify-center gap-2.5"
           >
-            {loading ? (
-              <>
-                <span className="h-4 w-4 border-2 border-background/20 border-t-background rounded-full animate-spin" />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <>
-                <span>Process Document & Form</span>
-                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-              </>
-            )}
+            <span>Process Document & Form</span>
+            <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
           </button>
         </div>
 
