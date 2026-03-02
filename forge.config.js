@@ -1,3 +1,4 @@
+const path = require("path");
 const { VitePlugin } = require("@electron-forge/plugin-vite");
 const { MakerDMG } = require("@electron-forge/maker-dmg");
 const { MakerZIP } = require("@electron-forge/maker-zip");
@@ -18,6 +19,28 @@ module.exports = {
       /^\/scripts/,
       /^\/playwright-browsers/,
     ],
+    osxSign: {
+      optionsForFile: (filePath) => {
+        const isApp = filePath.endsWith(".app");
+        return {
+          entitlements: path.resolve(
+            __dirname,
+            isApp ? "entitlements.plist" : "entitlements.child.plist"
+          ),
+          "entitlements-inherit": path.resolve(
+            __dirname,
+            "entitlements.child.plist"
+          ),
+        };
+      },
+    },
+    ...(process.env.APPLE_ID && {
+      osxNotarize: {
+        appleId: process.env.APPLE_ID,
+        appleIdPassword: process.env.APPLE_ID_PASSWORD,
+        teamId: process.env.APPLE_TEAM_ID,
+      },
+    }),
   },
   makers: [new MakerDMG({}), new MakerZIP({})],
   plugins: [
