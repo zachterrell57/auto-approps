@@ -132,6 +132,11 @@ export function useFormFiller(options?: {
 
         setProcessingStage("scraping");
         const schema = await api.scrapeForm(formUrl);
+        if (schema.fields.length === 0) {
+          throw new Error(
+            "No form fields detected. The form may require login, be expired, or have an unsupported structure.",
+          );
+        }
         setFormSchema(schema);
 
         setProcessingStage("mapping");
@@ -258,16 +263,31 @@ export function useFormFiller(options?: {
       setMappingResult(session.mapping_result);
       setMappings(session.edited_mappings ?? session.mapping_result.mappings);
 
+      let docBytes: ArrayBuffer | null = null;
       if (sessionHasDocument) {
         try {
           const blobUrl = await api.getSessionDocumentBlobUrl(session.id);
           replaceDocumentBlobUrl(blobUrl);
+          // Also fetch raw bytes so the main process can re-parse for re-mapping
+          const docResult = await api.getSessionDocumentBytes(session.id);
+          docBytes = docResult;
         } catch (err: unknown) {
           setError(errorMessage(err, "Could not load historical session document"));
           replaceDocumentBlobUrl(null);
         }
       } else {
         replaceDocumentBlobUrl(null);
+      }
+
+      // Hydrate the main process transient state so re-map works
+      try {
+        await api.hydrateState({
+          formSchema: session.form_schema,
+          documentBytes: docBytes,
+          documentFilename: session.document_filename,
+        });
+      } catch {
+        // Non-fatal: re-map may still work if only knowledge context is needed
       }
 
       setHasDocument(sessionHasDocument);

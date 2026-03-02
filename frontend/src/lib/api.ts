@@ -145,6 +145,23 @@ export async function mapFields(args?: {
   return handleResponse(res);
 }
 
+export async function hydrateState(args: {
+  formSchema: FormSchema;
+  documentBytes?: ArrayBuffer | null;
+  documentFilename?: string | null;
+}): Promise<void> {
+  const api = electron();
+  if (api) {
+    await api.hydrateState({
+      form_schema: args.formSchema,
+      document_bytes: args.documentBytes,
+      document_filename: args.documentFilename,
+    });
+    return;
+  }
+  // fetch fallback not needed — hydration is Electron-only
+}
+
 export async function listClients(): Promise<Client[]> {
   const api = electron();
   if (api) return api.listClients();
@@ -238,6 +255,17 @@ export async function updateSessionMappings(
     body: JSON.stringify({ mappings }),
   });
   await handleResponse(res);
+}
+
+export async function getSessionDocumentBytes(id: string): Promise<ArrayBuffer> {
+  const api = electron();
+  if (api) {
+    const result = await api.getSessionDocument(id);
+    return result.buffer;
+  }
+  const res = await fetch(`${BASE}/api/sessions/${id}/document`);
+  if (!res.ok) throw new Error("Failed to fetch session document");
+  return res.arrayBuffer();
 }
 
 export async function getSessionDocumentBlobUrl(id: string): Promise<string> {

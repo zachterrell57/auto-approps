@@ -17,11 +17,20 @@ export function SettingsPage({
 }: SettingsPageProps) {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
   const dirty = apiKey.trim().length > 0;
 
   function handleSave() {
     if (!dirty) return;
-    onSave(apiKey.trim());
+    const trimmed = apiKey.trim();
+    if (!trimmed.startsWith("sk-ant-") || trimmed.length < 20) {
+      setKeyError(
+        "Invalid key format. Anthropic API keys start with \"sk-ant-\" and are at least 20 characters.",
+      );
+      return;
+    }
+    setKeyError(null);
+    onSave(trimmed);
     setApiKey("");
     setShowKey(false);
   }
@@ -76,7 +85,10 @@ export function SettingsPage({
                     : "sk-ant-..."
                 }
                 value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  if (keyError) setKeyError(null);
+                }}
                 className="w-full h-12 pl-4 pr-10 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"
               />
               <button
@@ -101,7 +113,11 @@ export function SettingsPage({
             </button>
           </div>
 
-          {!settings.anthropic_api_key_set && (
+          {keyError && (
+            <p className="text-xs text-rose-600 mt-3">{keyError}</p>
+          )}
+
+          {!settings.anthropic_api_key_set && !keyError && (
             <p className="text-xs text-amber-600 mt-3">
               An API key is required to map document fields to form questions.
             </p>
