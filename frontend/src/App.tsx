@@ -140,6 +140,7 @@ export default function App() {
           {page === "main" && formFiller.step === "upload" && (
             <UploadStep
               loading={formFiller.loading}
+              processingStage={formFiller.processingStage}
               clients={clientManager.clients}
               onProcess={formFiller.process}
               onLoadDebug={formFiller.loadDebugData}

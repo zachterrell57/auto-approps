@@ -30,6 +30,8 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+export type ProcessingStage = "uploading" | "scraping" | "mapping" | null;
+
 export function useFormFiller(options?: {
   onMappingComplete?: (data: MappingCompleteData) => void;
 }) {
@@ -38,6 +40,7 @@ export function useFormFiller(options?: {
 
   const [step, setStep] = useState<Step>("upload");
   const [loading, setLoading] = useState(false);
+  const [processingStage, setProcessingStage] = useState<ProcessingStage>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettings>({
@@ -73,12 +76,15 @@ export function useFormFiller(options?: {
     setDebugDocBlobUrl(null);
     setIsHistorical(false);
     try {
+      setProcessingStage("uploading");
       const uploaded = await api.uploadDocument(file);
       setUploadResult(uploaded);
 
+      setProcessingStage("scraping");
       const schema = await api.scrapeForm(formUrl);
       setFormSchema(schema);
 
+      setProcessingStage("mapping");
       const result = await api.mapFields(clientId);
       setMappingResult(result);
       setMappings(result.mappings);
@@ -96,6 +102,7 @@ export function useFormFiller(options?: {
       setError(errorMessage(error, "An error occurred"));
     } finally {
       setLoading(false);
+      setProcessingStage(null);
     }
   }, []);
 
@@ -138,6 +145,7 @@ export function useFormFiller(options?: {
   const reset = useCallback(() => {
     setStep("upload");
     setLoading(false);
+    setProcessingStage(null);
     setError(null);
     setUploadResult(null);
     setFormSchema(null);
@@ -173,6 +181,7 @@ export function useFormFiller(options?: {
   return {
     step,
     loading,
+    processingStage,
     settingsSaving,
     error,
     uploadResult,
