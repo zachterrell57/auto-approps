@@ -16,74 +16,134 @@ type Page = "main" | "profile" | "settings" | "clients";
 
 export default function App() {
   const [page, setPage] = useState<Page>("main");
-  const profile = useKnowledgeProfile();
-  const clientManager = useClients();
-  const sessionManager = useSessions();
+  const {
+    knowledgeProfile,
+    profileDirty,
+    profileSaving,
+    profileError,
+    updateKnowledgeProfile,
+    saveKnowledgeProfile,
+    reloadKnowledgeProfile,
+  } = useKnowledgeProfile();
+  const {
+    clients,
+    addClient,
+    editClient,
+    removeClient,
+    refresh: refreshClients,
+  } = useClients();
+  const {
+    sessions,
+    currentSessionId,
+    saveSession,
+    loadSession,
+    removeSession,
+    renameSession,
+    saveEditedMappings,
+    clearCurrentSession,
+    refreshList,
+  } = useSessions();
 
   const handleMappingComplete = useCallback(
     (data: MappingCompleteData) => {
-      sessionManager.saveSession(data);
+      void saveSession(data);
     },
-    [sessionManager.saveSession]
+    [saveSession],
   );
 
-  const formFiller = useFormFiller({
+  const {
+    step,
+    loading,
+    settingsSaving,
+    error: formError,
+    formSchema,
+    mappings,
+    appSettings,
+    debugDocBlobUrl,
+    isHistorical,
+    hasDocument,
+    process,
+    remap,
+    updateMapping,
+    saveAppSettings,
+    clearAllLocalData,
+    reset,
+    hydrateSession,
+    loadDebugData,
+  } = useFormFiller({
     onMappingComplete: handleMappingComplete,
   });
 
   const handleSelectSession = useCallback(
     async (id: string) => {
-      const session = await sessionManager.loadSession(id);
+      const session = await loadSession(id);
       if (session) {
-        formFiller.hydrateSession(session);
+        await hydrateSession(session);
         setPage("main");
       }
     },
-    [sessionManager.loadSession, formFiller.hydrateSession]
+    [loadSession, hydrateSession],
   );
 
   const handleNewSession = useCallback(() => {
-    formFiller.reset();
-    sessionManager.clearCurrentSession();
+    reset();
+    clearCurrentSession();
     setPage("main");
-  }, [formFiller.reset, sessionManager.clearCurrentSession]);
+  }, [reset, clearCurrentSession]);
 
   const handleDeleteSession = useCallback(
     async (id: string) => {
-      await sessionManager.removeSession(id);
-      if (sessionManager.currentSessionId === id) {
-        formFiller.reset();
+      await removeSession(id);
+      if (currentSessionId === id) {
+        reset();
       }
     },
-    [sessionManager.removeSession, sessionManager.currentSessionId, formFiller.reset]
+    [removeSession, currentSessionId, reset],
   );
 
-  // Debounced save of edited mappings
+  const handleClearLocalData = useCallback(async () => {
+    await clearAllLocalData();
+    clearCurrentSession();
+    await Promise.all([
+      refreshList(),
+      refreshClients(),
+      reloadKnowledgeProfile(),
+    ]);
+    setPage("main");
+  }, [
+    clearAllLocalData,
+    clearCurrentSession,
+    refreshClients,
+    refreshList,
+    reloadKnowledgeProfile,
+  ]);
+
+  // Debounced save of edited mappings for active session.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!sessionManager.currentSessionId || formFiller.isHistorical === false && formFiller.step !== "answers") {
+    if (!currentSessionId || step !== "answers") {
       return;
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      sessionManager.saveEditedMappings(formFiller.mappings);
+      void saveEditedMappings(mappings);
     }, 2000);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [formFiller.mappings, sessionManager.currentSessionId, sessionManager.saveEditedMappings, formFiller.step, formFiller.isHistorical]);
+  }, [currentSessionId, step, mappings, saveEditedMappings]);
 
-  const error = formFiller.error || profile.profileError;
+  const error = formError || profileError;
 
   return (
     <SidebarProvider>
       <SessionSidebar
-        sessions={sessionManager.sessions}
-        currentSessionId={sessionManager.currentSessionId}
+        sessions={sessions}
+        currentSessionId={currentSessionId}
         onSelectSession={handleSelectSession}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
-        onRenameSession={sessionManager.renameSession}
+        onRenameSession={renameSession}
         onNavigate={(p) => setPage(p)}
         activePage={page}
       />
@@ -97,52 +157,55 @@ export default function App() {
           </div>
         )}
 
-        {page === "main" && formFiller.step === "answers" && formFiller.formSchema && (
+        {page === "main" && step === "answers" && formSchema && (
           <AnswerSheetStep
-            formSchema={formFiller.formSchema}
-            mappings={formFiller.mappings}
-            loading={formFiller.loading}
-            debugDocBlobUrl={formFiller.debugDocBlobUrl}
-            isHistorical={formFiller.isHistorical}
-            onUpdate={formFiller.updateMapping}
-            onRemap={formFiller.remap}
+            formSchema={formSchema}
+            mappings={mappings}
+            loading={loading}
+            hasDocument={hasDocument}
+            debugDocBlobUrl={debugDocBlobUrl}
+            isHistorical={isHistorical}
+            onUpdate={updateMapping}
+            onRemap={remap}
           />
         )}
 
         <div className="py-8 px-6">
           {page === "settings" && (
             <SettingsPage
-              settings={formFiller.appSettings}
-              saving={formFiller.settingsSaving}
-              onSave={formFiller.saveAppSettings}
+              settings={appSettings}
+              saving={settingsSaving}
+              onSave={saveAppSettings}
+              onClearLocalData={handleClearLocalData}
             />
           )}
 
           {page === "profile" && (
             <ProfilePage
-              knowledgeProfile={profile.knowledgeProfile}
-              profileDirty={profile.profileDirty}
-              profileSaving={profile.profileSaving}
-              onProfileChange={profile.updateKnowledgeProfile}
-              onSaveProfile={profile.saveKnowledgeProfile}
+              knowledgeProfile={knowledgeProfile}
+              profileDirty={profileDirty}
+              profileSaving={profileSaving}
+              onProfileChange={updateKnowledgeProfile}
+              onSaveProfile={saveKnowledgeProfile}
             />
           )}
 
           {page === "clients" && (
             <ClientsPage
-              clients={clientManager.clients}
-              onCreateClient={clientManager.addClient}
-              onUpdateClient={clientManager.editClient}
-              onDeleteClient={clientManager.removeClient}
+              clients={clients}
+              onCreateClient={addClient}
+              onUpdateClient={editClient}
+              onDeleteClient={removeClient}
             />
           )}
 
-          {page === "main" && formFiller.step === "upload" && (
+          {page === "main" && step === "upload" && (
             <UploadStep
-              loading={formFiller.loading}
-              clients={clientManager.clients}
-              onProcess={formFiller.process}
-              onLoadDebug={formFiller.loadDebugData}
+              loading={loading}
+              apiKeySet={appSettings.anthropic_api_key_set}
+              clients={clients}
+              onProcess={process}
+              onLoadDebug={loadDebugData}
             />
           )}
         </div>

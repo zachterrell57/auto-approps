@@ -1,18 +1,24 @@
 import { ipcMain } from "electron";
 import * as ch from "./ipc-channels.js";
-import state from "./services/state.js";
+import state, { resetState } from "./services/state.js";
 import { settings } from "./services/config.js";
-import { readApiKey, writeApiKey } from "./services/settings-store.js";
+import {
+  readApiKey,
+  writeApiKey,
+  clearSettings,
+} from "./services/settings-store.js";
 import {
   listClients,
   getClient,
   createClient,
   updateClient,
   deleteClient,
+  clearClients,
 } from "./services/client-store.js";
 import {
   loadKnowledgeProfile,
   saveKnowledgeProfile,
+  clearKnowledgeProfile,
 } from "./services/knowledge-store.js";
 import { parseDocx } from "./services/doc-parser.js";
 import { detectProvider } from "./services/provider.js";
@@ -27,12 +33,38 @@ import {
   getSessionDocument,
   createSession,
   updateSessionMappings,
+  renameSession,
   deleteSession,
+  clearSessions,
 } from "./services/session-store.js";
 
 function maskKey(key: string): string {
   if (key.length <= 8) return key ? "*".repeat(key.length) : "";
   return key.slice(0, 7) + "..." + key.slice(-4);
+}
+
+function normalizeAndValidateFormUrl(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    throw new Error("Form URL is required.");
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error("Invalid form URL.");
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error("Only HTTP(S) form URLs are supported.");
+  }
+
+  if (!parsed.hostname) {
+    throw new Error("Invalid form URL host.");
+  }
+
+  return parsed.toString();
 }
 
 export function registerIpcHandlers(): void {
@@ -41,7 +73,7 @@ export function registerIpcHandlers(): void {
     ch.UPLOAD,
     async (_event, args: { buffer: ArrayBuffer; filename: string }) => {
       const buf = Buffer.from(args.buffer);
-      if (!args.filename.endsWith(".docx")) {
+      if (!args.filename.toLowerCase().endsWith(".docx")) {
         throw new Error("Only .docx files are supported");
       }
       const parsed = await parseDocx(buf, args.filename);
@@ -106,16 +138,27 @@ export function registerIpcHandlers(): void {
     },
   );
 
+  ipcMain.handle(ch.CLEAR_LOCAL_DATA, async () => {
+    clearSettings();
+    clearKnowledgeProfile();
+    clearClients();
+    clearSessions();
+    resetState();
+    settings.anthropic_api_key = "";
+    return { ok: true };
+  });
+
   // ── Scrape form ──────────────────────────────────────────────────────
   ipcMain.handle(ch.SCRAPE, async (_event, args: { url: string }) => {
-    const provider = detectProvider(args.url);
+    const normalizedUrl = normalizeAndValidateFormUrl(args.url);
+    const provider = detectProvider(normalizedUrl);
     let schema;
     if (provider === "microsoft") {
-      schema = await scrapeMsForm(args.url);
+      schema = await scrapeMsForm(normalizedUrl);
     } else if (provider === "generic") {
-      schema = await scrapeGenericForm(args.url);
+      schema = await scrapeGenericForm(normalizedUrl);
     } else {
-      schema = await scrapeForm(args.url);
+      schema = await scrapeForm(normalizedUrl);
       schema.provider = "google";
     }
     state.form_schema = schema;
@@ -123,36 +166,47 @@ export function registerIpcHandlers(): void {
   });
 
   // ── Map fields ───────────────────────────────────────────────────────
-  ipcMain.handle(ch.MAP, async (_event, args?: { client_id?: string }) => {
-    if (!state.parsed_doc) {
-      throw new Error("No document uploaded. Upload a .docx first.");
-    }
-    if (!state.form_schema) {
-      throw new Error("No form scraped. Scrape a form first.");
-    }
-
-    const profile = loadKnowledgeProfile();
-    const knowledgeProfile = knowledgeProfileHasContent(profile)
-      ? profile
-      : undefined;
-
-    let clientKnowledge: string | undefined;
-    if (args?.client_id) {
-      const client = getClient(args.client_id);
-      if (client && client.knowledge.trim()) {
-        clientKnowledge = client.knowledge;
+  ipcMain.handle(
+    ch.MAP,
+    async (_event, args?: { client_id?: string }) => {
+      if (!state.form_schema) {
+        throw new Error("No form scraped. Scrape a form first.");
       }
-    }
 
-    const result = await mapFields(
-      state.parsed_doc,
-      state.form_schema,
-      knowledgeProfile,
-      clientKnowledge,
-    );
-    state.mapping_result = result;
-    return result;
-  });
+      const profile = loadKnowledgeProfile();
+      const knowledgeProfile = knowledgeProfileHasContent(profile)
+        ? profile
+        : undefined;
+
+      let clientKnowledge: string | undefined;
+      if (args?.client_id) {
+        const client = getClient(args.client_id);
+        if (client && client.knowledge.trim()) {
+          clientKnowledge = client.knowledge;
+        }
+      }
+
+      const hasDocument = Boolean(state.parsed_doc);
+      const hasClientKnowledge = Boolean(clientKnowledge?.trim());
+      const hasProfileKnowledge = Boolean(
+        knowledgeProfile?.user_context.trim() || knowledgeProfile?.firm_context.trim(),
+      );
+      if (!hasDocument && !hasClientKnowledge && !hasProfileKnowledge) {
+        throw new Error(
+          "No source context available. Upload a document, choose a client with saved knowledge, or add user/firm profile knowledge.",
+        );
+      }
+
+      const result = await mapFields(
+        hasDocument ? state.parsed_doc : null,
+        state.form_schema,
+        knowledgeProfile,
+        clientKnowledge,
+      );
+      state.mapping_result = result;
+      return result;
+    },
+  );
 
   // ── Sessions ─────────────────────────────────────────────────────────
   ipcMain.handle(ch.LIST_SESSIONS, async () => {
@@ -169,7 +223,7 @@ export function registerIpcHandlers(): void {
     ch.GET_SESSION_DOCUMENT,
     async (_event, args: { id: string }) => {
       const result = getSessionDocument(args.id);
-      if (!result) throw new Error("Session not found");
+      if (!result) throw new Error("No document for this session");
       return {
         buffer: result.documentBytes.buffer.slice(
           result.documentBytes.byteOffset,
@@ -189,14 +243,13 @@ export function registerIpcHandlers(): void {
         form_url: string;
         form_title: string;
         form_provider: string;
+        display_name?: string;
         form_schema: Record<string, unknown>;
         mapping_result: Record<string, unknown>;
       },
     ) => {
       if (!state.raw_docx_bytes) {
-        throw new Error(
-          "No document in memory. Upload a document first.",
-        );
+        throw new Error("No uploaded document is available for this session.");
       }
       return createSession({
         documentFilename: args.document_filename,
@@ -204,6 +257,7 @@ export function registerIpcHandlers(): void {
         formUrl: args.form_url,
         formTitle: args.form_title,
         formProvider: args.form_provider,
+        displayName: args.display_name,
         formSchema: args.form_schema,
         mappingResult: args.mapping_result,
       });
@@ -217,6 +271,23 @@ export function registerIpcHandlers(): void {
       args: { id: string; mappings: Record<string, unknown>[] },
     ) => {
       if (!updateSessionMappings(args.id, args.mappings)) {
+        throw new Error("Session not found");
+      }
+      return { ok: true };
+    },
+  );
+
+  ipcMain.handle(
+    ch.RENAME_SESSION,
+    async (
+      _event,
+      args: { id: string; display_name: string },
+    ) => {
+      const displayName = args.display_name.trim();
+      if (!displayName) {
+        throw new Error("Display name cannot be empty");
+      }
+      if (!renameSession(args.id, displayName)) {
         throw new Error("Session not found");
       }
       return { ok: true };

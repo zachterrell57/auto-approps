@@ -1,5 +1,9 @@
 import type {
   AppSettings,
+  Client,
+  ClientCreate,
+  ClientUpdate,
+  FieldMapping,
   FormSchema,
   KnowledgeProfile,
   MappingResult,
@@ -18,8 +22,9 @@ export interface ElectronAPI {
   }): Promise<KnowledgeProfile>;
   getSettings(): Promise<AppSettings>;
   putSettings(args: { anthropic_api_key: string }): Promise<AppSettings>;
+  clearLocalData(): Promise<{ ok: boolean }>;
   scrape(args: { url: string }): Promise<FormSchema>;
-  map(): Promise<MappingResult>;
+  map(args?: { client_id?: string }): Promise<MappingResult>;
   listSessions(): Promise<SessionMeta[]>;
   getSession(id: string): Promise<SessionFull>;
   getSessionDocument(
@@ -30,14 +35,21 @@ export interface ElectronAPI {
     form_url: string;
     form_title: string;
     form_provider: string;
+    display_name?: string;
     form_schema: FormSchema;
     mapping_result: MappingResult;
   }): Promise<SessionMeta>;
   updateSessionMappings(
     id: string,
-    mappings: unknown[],
+    mappings: FieldMapping[],
   ): Promise<void>;
+  renameSession(id: string, displayName: string): Promise<void>;
   deleteSession(id: string): Promise<void>;
+  listClients(): Promise<Client[]>;
+  getClient(id: string): Promise<Client>;
+  createClient(data: ClientCreate): Promise<Client>;
+  updateClient(id: string, data: ClientUpdate): Promise<Client>;
+  deleteClient(id: string): Promise<void>;
 }
 
 declare global {

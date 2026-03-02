@@ -4,6 +4,7 @@ import type { Client } from "@/lib/types";
 
 interface UploadStepProps {
   loading: boolean;
+  apiKeySet: boolean;
   clients?: Client[];
   onProcess: (file: File, formUrl: string, clientId?: string) => void;
   onLoadDebug?: () => void;
@@ -11,6 +12,7 @@ interface UploadStepProps {
 
 export function UploadStep({
   loading,
+  apiKeySet,
   clients = [],
   onProcess,
   onLoadDebug,
@@ -24,7 +26,7 @@ export function UploadStep({
     e.preventDefault();
     setDragOver(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped?.name.endsWith(".docx")) {
+    if (dropped && /\.docx$/i.test(dropped.name)) {
       setFile(dropped);
     }
   }, []);
@@ -61,7 +63,38 @@ export function UploadStep({
       </div>
 
       <div className="space-y-10">
-        {/* Step 1 — Document */}
+        {/* Step 1 — Form URL */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <span
+              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold transition-all duration-300 ${
+                isValid
+                  ? "bg-emerald-500 text-white"
+                  : "bg-amber-600/10 text-amber-700"
+              }`}
+            >
+              {isValid ? <Check className="w-3 h-3" strokeWidth={3} /> : "1"}
+            </span>
+            <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
+              Form URL
+            </span>
+          </div>
+
+          <div className="relative group">
+            <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-foreground/20 transition-colors group-focus-within:text-amber-500">
+              <Link className="w-4 h-4" />
+            </div>
+            <input
+              type="url"
+              placeholder="Paste any web form URL..."
+              value={formUrl}
+              onChange={(e) => setFormUrl(e.target.value)}
+              className="w-full h-12 pl-11 pr-4 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"
+            />
+          </div>
+        </section>
+
+        {/* Step 2 — Document */}
         <section>
           <div className="flex items-center gap-3 mb-4">
             <span
@@ -71,7 +104,7 @@ export function UploadStep({
                   : "bg-amber-600/10 text-amber-700"
               }`}
             >
-              {file ? <Check className="w-3 h-3" strokeWidth={3} /> : "1"}
+              {file ? <Check className="w-3 h-3" strokeWidth={3} /> : "2"}
             </span>
             <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
               Document
@@ -157,37 +190,6 @@ export function UploadStep({
           </div>
         </section>
 
-        {/* Step 2 — Form URL */}
-        <section>
-          <div className="flex items-center gap-3 mb-4">
-            <span
-              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold transition-all duration-300 ${
-                isValid
-                  ? "bg-emerald-500 text-white"
-                  : "bg-amber-600/10 text-amber-700"
-              }`}
-            >
-              {isValid ? <Check className="w-3 h-3" strokeWidth={3} /> : "2"}
-            </span>
-            <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
-              Form URL
-            </span>
-          </div>
-
-          <div className="relative group">
-            <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-foreground/20 transition-colors group-focus-within:text-amber-500">
-              <Link className="w-4 h-4" />
-            </div>
-            <input
-              type="url"
-              placeholder="Paste any web form URL..."
-              value={formUrl}
-              onChange={(e) => setFormUrl(e.target.value)}
-              className="w-full h-12 pl-11 pr-4 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"
-            />
-          </div>
-        </section>
-
         {/* Step 3 — Client (optional) */}
         {clients.length > 0 && (
           <section>
@@ -223,8 +225,11 @@ export function UploadStep({
         {/* Action */}
         <div className="pt-2">
           <button
-            disabled={!isValid || loading}
-            onClick={() => file && onProcess(file, formUrl, selectedClientId || undefined)}
+            disabled={!isValid || loading || !apiKeySet}
+            onClick={() => {
+              if (!file) return;
+              onProcess(file, formUrl, selectedClientId || undefined);
+            }}
             className="group w-full h-[52px] rounded-2xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 flex items-center justify-center gap-2.5"
           >
             {loading ? (
@@ -239,6 +244,16 @@ export function UploadStep({
               </>
             )}
           </button>
+          {!apiKeySet && (
+            <p className="text-xs text-amber-600 mt-3">
+              Set an Anthropic API key in Settings before processing.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] px-3 py-2 text-[12px] leading-relaxed text-foreground/50">
+          Preflight note: only publicly accessible forms are supported.
+          Login-gated forms may fail scraping.
         </div>
 
         {/* Debug (dev only) */}

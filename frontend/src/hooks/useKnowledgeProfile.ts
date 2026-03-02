@@ -63,6 +63,20 @@ export function useKnowledgeProfile({ onLoaded, onSaved }: UseKnowledgeProfileOp
     }
   }, [knowledgeProfile.user_context, knowledgeProfile.firm_context, onSaved]);
 
+  const reloadKnowledgeProfile = useCallback(async () => {
+    setProfileError(null);
+    try {
+      const loaded = await api.getKnowledgeProfile();
+      setKnowledgeProfile(loaded);
+      setProfileDirty(false);
+      onLoaded?.(loaded);
+    } catch (e: unknown) {
+      setProfileError(
+        e instanceof Error ? e.message : "Failed to load knowledge profile",
+      );
+    }
+  }, [onLoaded]);
+
   return {
     knowledgeProfile,
     profileDirty,
@@ -70,5 +84,6 @@ export function useKnowledgeProfile({ onLoaded, onSaved }: UseKnowledgeProfileOp
     profileError,
     updateKnowledgeProfile,
     saveKnowledgeProfile,
+    reloadKnowledgeProfile,
   };
 }

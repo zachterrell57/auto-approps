@@ -7,6 +7,7 @@ interface AnswerSheetStepProps {
   formSchema: FormSchema;
   mappings: FieldMapping[];
   loading: boolean;
+  hasDocument: boolean;
   debugDocBlobUrl?: string | null;
   isHistorical?: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
@@ -60,6 +61,7 @@ export function AnswerSheetStep({
   formSchema,
   mappings,
   loading,
+  hasDocument,
   debugDocBlobUrl,
   isHistorical,
   onUpdate,
@@ -121,7 +123,9 @@ export function AnswerSheetStep({
               </h1>
               <p className="mt-3 text-[15px] text-muted-foreground leading-relaxed max-w-lg">
                 Edit mappings, then copy each response into the form manually.
-                Click a field to see its source in the document.
+                {hasDocument
+                  ? " Click a field to see its source in the document."
+                  : " Source citations are based on selected knowledge context."}
               </p>
               <p className="mt-2 text-sm text-foreground/35">
                 {activeCount} field{activeCount !== 1 ? "s" : ""} ready to copy.
@@ -299,11 +303,19 @@ export function AnswerSheetStep({
             Document Source
           </h2>
           <p className="text-xs text-foreground/35 mt-1">
-            The uploaded source document.
+            {hasDocument
+              ? "The uploaded source document."
+              : "No document uploaded. Answers came from client and/or profile knowledge."}
           </p>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
-          <DocumentViewer blobUrl={debugDocBlobUrl} sourceChunks={selectedSourceChunks} />
+          {hasDocument ? (
+            <DocumentViewer blobUrl={debugDocBlobUrl} sourceChunks={selectedSourceChunks} />
+          ) : (
+            <div className="h-full flex items-center justify-center px-6 text-center text-sm text-foreground/40 bg-foreground/[0.02]">
+              Upload a document to enable source highlighting and in-document navigation.
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   putSettings: (args: { anthropic_api_key: string }) =>
     ipcRenderer.invoke(ch.PUT_SETTINGS, args),
 
+  clearLocalData: () =>
+    ipcRenderer.invoke(ch.CLEAR_LOCAL_DATA),
+
   scrape: (args: { url: string }) =>
     ipcRenderer.invoke(ch.SCRAPE, args),
 
@@ -39,12 +42,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
     form_url: string;
     form_title: string;
     form_provider: string;
+    display_name?: string;
     form_schema: unknown;
     mapping_result: unknown;
   }) => ipcRenderer.invoke(ch.CREATE_SESSION, args),
 
   updateSessionMappings: (id: string, mappings: unknown[]) =>
     ipcRenderer.invoke(ch.UPDATE_SESSION_MAPPINGS, { id, mappings }),
+
+  renameSession: (id: string, displayName: string) =>
+    ipcRenderer.invoke(ch.RENAME_SESSION, {
+      id,
+      display_name: displayName,
+    }),
 
   deleteSession: (id: string) =>
     ipcRenderer.invoke(ch.DELETE_SESSION, { id }),
