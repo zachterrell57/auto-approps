@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeTheme } from "electron";
+import { app, BrowserWindow, nativeTheme, screen } from "electron";
 import path from "node:path";
 import { setUserDataPath } from "./services/config.js";
 import { readApiKey } from "./services/settings-store.js";
@@ -18,9 +18,10 @@ declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
 function createWindow(): void {
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width,
+    height,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -28,6 +29,7 @@ function createWindow(): void {
       sandbox: true,
     },
   });
+  mainWindow.maximize();
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 
