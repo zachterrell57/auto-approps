@@ -102,6 +102,7 @@ export default function App() {
             formSchema={formFiller.formSchema}
             mappings={formFiller.mappings}
             loading={formFiller.loading}
+            apiKeyConfigured={formFiller.apiKeyConfigured}
             debugDocBlobUrl={formFiller.debugDocBlobUrl}
             isHistorical={formFiller.isHistorical}
             onUpdate={formFiller.updateMapping}
@@ -142,8 +143,10 @@ export default function App() {
               loading={formFiller.loading}
               processingStage={formFiller.processingStage}
               clients={clientManager.clients}
+              apiKeyConfigured={formFiller.apiKeyConfigured}
               onProcess={formFiller.process}
               onLoadDebug={formFiller.loadDebugData}
+              onOpenSettings={() => setPage("settings")}
             />
           )}
         </div>

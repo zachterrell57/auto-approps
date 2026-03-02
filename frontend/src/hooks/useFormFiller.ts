@@ -26,7 +26,21 @@ export interface MappingCompleteData {
   mapping_result: MappingResult;
 }
 
+const MISSING_API_KEY_MESSAGE =
+  "Add your Anthropic API key in Settings before processing forms.";
+
+function isMissingApiKeyError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("anthropic_api_key") ||
+    message.includes("anthropic api key") ||
+    message.includes("missing_api_key")
+  );
+}
+
 function errorMessage(error: unknown, fallback: string): string {
+  if (isMissingApiKeyError(error)) return MISSING_API_KEY_MESSAGE;
   return error instanceof Error ? error.message : fallback;
 }
 
@@ -71,6 +85,10 @@ export function useFormFiller(options?: {
   }, []);
 
   const process = useCallback(async (file: File, formUrl: string, clientId?: string) => {
+    if (!appSettings.anthropic_api_key_set) {
+      setError(MISSING_API_KEY_MESSAGE);
+      return;
+    }
     setLoading(true);
     setError(null);
     setDebugDocBlobUrl(null);
@@ -104,9 +122,13 @@ export function useFormFiller(options?: {
       setLoading(false);
       setProcessingStage(null);
     }
-  }, []);
+  }, [appSettings.anthropic_api_key_set]);
 
   const remap = useCallback(async (clientId?: string) => {
+    if (!appSettings.anthropic_api_key_set) {
+      setError(MISSING_API_KEY_MESSAGE);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -118,7 +140,7 @@ export function useFormFiller(options?: {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [appSettings.anthropic_api_key_set]);
 
   const saveAppSettings = useCallback(async (apiKey: string) => {
     setSettingsSaving(true);
@@ -184,6 +206,7 @@ export function useFormFiller(options?: {
     processingStage,
     settingsSaving,
     error,
+    apiKeyConfigured: appSettings.anthropic_api_key_set,
     uploadResult,
     formSchema,
     mappingResult,

@@ -7,8 +7,10 @@ interface UploadStepProps {
   loading: boolean;
   processingStage?: ProcessingStage;
   clients?: Client[];
+  apiKeyConfigured?: boolean;
   onProcess: (file: File, formUrl: string, clientId?: string) => void;
   onLoadDebug?: () => void;
+  onOpenSettings?: () => void;
 }
 
 const STAGES = [
@@ -26,8 +28,10 @@ export function UploadStep({
   loading,
   processingStage,
   clients = [],
+  apiKeyConfigured = true,
   onProcess,
   onLoadDebug,
+  onOpenSettings,
 }: UploadStepProps) {
   const [file, setFile] = useState<File | null>(null);
   const [formUrl, setFormUrl] = useState("");
@@ -330,10 +334,27 @@ export function UploadStep({
           </section>
         )}
 
+        {!apiKeyConfigured && (
+          <div className="rounded-2xl border border-amber-300/50 bg-amber-50/40 p-4">
+            <p className="text-sm text-amber-800">
+              Add your Anthropic API key before processing documents.
+            </p>
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className="mt-3 h-9 px-3 rounded-lg border border-amber-300/60 text-xs font-semibold tracking-[0.06em] uppercase text-amber-800 hover:bg-amber-100/60 transition-colors"
+              >
+                Open Settings
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Action */}
         <div className="pt-2">
           <button
-            disabled={!isValid || loading}
+            disabled={!isValid || loading || !apiKeyConfigured}
             onClick={() => file && onProcess(file, formUrl, selectedClientId || undefined)}
             className="group w-full h-[52px] rounded-2xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 flex items-center justify-center gap-2.5"
           >
