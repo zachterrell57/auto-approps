@@ -168,7 +168,8 @@ export function registerIpcHandlers(): void {
   // ── Map fields ───────────────────────────────────────────────────────
   ipcMain.handle(
     ch.MAP,
-    async (_event, args?: { client_id?: string }) => {
+    async (_event, args?: { client_id?: string; include_document?: boolean }) => {
+      const includeDocument = args?.include_document ?? true;
       if (!state.form_schema) {
         throw new Error("No form scraped. Scrape a form first.");
       }
@@ -186,7 +187,7 @@ export function registerIpcHandlers(): void {
         }
       }
 
-      const hasDocument = Boolean(state.parsed_doc);
+      const hasDocument = includeDocument && Boolean(state.parsed_doc);
       const hasClientKnowledge = Boolean(clientKnowledge?.trim());
       const hasProfileKnowledge = Boolean(
         knowledgeProfile?.user_context.trim() || knowledgeProfile?.firm_context.trim(),
@@ -239,7 +240,7 @@ export function registerIpcHandlers(): void {
     async (
       _event,
       args: {
-        document_filename: string;
+        document_filename: string | null;
         form_url: string;
         form_title: string;
         form_provider: string;
@@ -248,12 +249,13 @@ export function registerIpcHandlers(): void {
         mapping_result: Record<string, unknown>;
       },
     ) => {
-      if (!state.raw_docx_bytes) {
-        throw new Error("No uploaded document is available for this session.");
+      const includeDocument = Boolean(args.document_filename);
+      if (includeDocument && !state.raw_docx_bytes) {
+        throw new Error("Document metadata was provided, but no document is loaded.");
       }
       return createSession({
         documentFilename: args.document_filename,
-        documentBytes: state.raw_docx_bytes,
+        documentBytes: includeDocument ? state.raw_docx_bytes : null,
         formUrl: args.form_url,
         formTitle: args.form_title,
         formProvider: args.form_provider,

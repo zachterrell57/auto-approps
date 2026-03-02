@@ -117,12 +117,30 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
   return handleResponse(res);
 }
 
-export async function mapFields(clientId?: string): Promise<MappingResult> {
+export async function mapFields(args?: {
+  clientId?: string;
+  includeDocument?: boolean;
+}): Promise<MappingResult> {
   const api = electron();
-  if (api) return api.map(clientId ? { client_id: clientId } : undefined);
-  const url = clientId
-    ? `${BASE}/api/map?client_id=${encodeURIComponent(clientId)}`
-    : `${BASE}/api/map`;
+  if (api) {
+    return api.map(
+      args
+        ? {
+            client_id: args.clientId,
+            include_document: args.includeDocument,
+          }
+        : undefined,
+    );
+  }
+  const params = new URLSearchParams();
+  if (args?.clientId) {
+    params.set("client_id", args.clientId);
+  }
+  if (typeof args?.includeDocument === "boolean") {
+    params.set("include_document", String(args.includeDocument));
+  }
+  const query = params.toString();
+  const url = query ? `${BASE}/api/map?${query}` : `${BASE}/api/map`;
   const res = await fetch(url, { method: "POST" });
   return handleResponse(res);
 }
@@ -190,7 +208,7 @@ export async function getSession(id: string): Promise<SessionFull> {
 }
 
 export async function createSession(data: {
-  document_filename: string;
+  document_filename: string | null;
   form_url: string;
   form_title: string;
   form_provider: string;

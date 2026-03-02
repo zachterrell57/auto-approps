@@ -24,14 +24,17 @@ export interface ElectronAPI {
   putSettings(args: { anthropic_api_key: string }): Promise<AppSettings>;
   clearLocalData(): Promise<{ ok: boolean }>;
   scrape(args: { url: string }): Promise<FormSchema>;
-  map(args?: { client_id?: string }): Promise<MappingResult>;
+  map(args?: {
+    client_id?: string;
+    include_document?: boolean;
+  }): Promise<MappingResult>;
   listSessions(): Promise<SessionMeta[]>;
   getSession(id: string): Promise<SessionFull>;
   getSessionDocument(
     id: string,
   ): Promise<{ buffer: ArrayBuffer; filename: string }>;
   createSession(args: {
-    document_filename: string;
+    document_filename: string | null;
     form_url: string;
     form_title: string;
     form_provider: string;

@@ -28,7 +28,7 @@ export function useSessions() {
 
   const saveSession = useCallback(
     async (data: {
-      document_filename: string;
+      document_filename: string | null;
       form_url: string;
       form_title: string;
       form_provider: string;

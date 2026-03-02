@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   scrape: (args: { url: string }) =>
     ipcRenderer.invoke(ch.SCRAPE, args),
 
-  map: (args?: { client_id?: string }) =>
+  map: (args?: { client_id?: string; include_document?: boolean }) =>
     ipcRenderer.invoke(ch.MAP, args),
 
   listSessions: () => ipcRenderer.invoke(ch.LIST_SESSIONS),
@@ -38,7 +38,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke(ch.GET_SESSION_DOCUMENT, { id }),
 
   createSession: (args: {
-    document_filename: string;
+    document_filename: string | null;
     form_url: string;
     form_title: string;
     form_provider: string;
