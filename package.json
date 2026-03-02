@@ -15,7 +15,7 @@
     "check:electron-ts": "npx tsc -p tsconfig.electron.json",
     "check": "npm run check:frontend-lint && npm run check:frontend-build && npm run check:electron-ts",
     "postinstall": "electron-rebuild",
-    "premake": "node scripts/download-playwright-browser.js"
+    "premake": "node scripts/clean-db.js && node scripts/download-playwright-browser.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
