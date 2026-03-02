@@ -1,5 +1,6 @@
+import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Plus, Settings, Trash2, User } from "lucide-react";
+import { Check, Pencil, Plus, Settings, Trash2, User, X } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +20,7 @@ interface SessionSidebarProps {
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
+  onRenameSession: (id: string, name: string) => void;
   onNavigate: (page: "profile" | "settings") => void;
   activePage: string;
 }
@@ -31,15 +33,47 @@ function timeAgo(isoDate: string): string {
   }
 }
 
+function sessionDisplayName(session: SessionMeta): string {
+  return session.display_name || session.form_title || "Untitled Session";
+}
+
 export function SessionSidebar({
   sessions,
   currentSessionId,
   onSelectSession,
   onNewSession,
   onDeleteSession,
+  onRenameSession,
   onNavigate,
   activePage,
 }: SessionSidebarProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingId]);
+
+  const startRename = (session: SessionMeta) => {
+    setEditingId(session.id);
+    setEditValue(sessionDisplayName(session));
+  };
+
+  const commitRename = () => {
+    if (editingId && editValue.trim()) {
+      onRenameSession(editingId, editValue.trim());
+    }
+    setEditingId(null);
+  };
+
+  const cancelRename = () => {
+    setEditingId(null);
+  };
+
   return (
     <Sidebar>
       <SidebarHeader className="!p-0 !pl-5 !flex-row !gap-0 items-center h-12 border-b border-foreground/8">
@@ -73,27 +107,81 @@ export function SessionSidebar({
               <SidebarMenuItem key={session.id}>
                 <SidebarMenuButton
                   isActive={currentSessionId === session.id}
-                  onClick={() => onSelectSession(session.id)}
+                  onClick={() => {
+                    if (editingId !== session.id) {
+                      onSelectSession(session.id);
+                    }
+                  }}
                   className="h-auto py-2.5 items-start"
                 >
                   <div className="flex-1 min-w-0 space-y-1">
-                    <p className="text-sm font-medium truncate leading-tight">
-                      {session.form_title || "Untitled Form"}
-                    </p>
+                    {editingId === session.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          ref={inputRef}
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") commitRename();
+                            if (e.key === "Escape") cancelRename();
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 min-w-0 text-sm font-medium bg-background border border-foreground/15 rounded px-1.5 py-0.5 outline-none focus:border-foreground/30"
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            commitRename();
+                          }}
+                          className="text-foreground/40 hover:text-emerald-600 transition-colors p-0.5"
+                          title="Save"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            cancelRename();
+                          }}
+                          className="text-foreground/40 hover:text-rose-500 transition-colors p-0.5"
+                          title="Cancel"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-medium truncate leading-tight">
+                        {sessionDisplayName(session)}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] text-foreground/30">
                         {timeAgo(session.created_at)}
                       </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteSession(session.id);
-                        }}
-                        className="text-foreground/15 hover:text-rose-500 transition-colors p-0.5"
-                        title="Delete session"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {editingId !== session.id && (
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startRename(session);
+                            }}
+                            className="text-foreground/15 hover:text-foreground/50 transition-colors p-0.5"
+                            title="Rename session"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteSession(session.id);
+                            }}
+                            className="text-foreground/15 hover:text-rose-500 transition-colors p-0.5"
+                            title="Delete session"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </SidebarMenuButton>

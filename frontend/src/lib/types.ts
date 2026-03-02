@@ -82,6 +82,7 @@ export interface SessionMeta {
   form_url: string;
   form_title: string;
   form_provider: string;
+  display_name: string;
 }
 
 export interface SessionFull extends SessionMeta {

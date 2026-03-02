@@ -80,6 +80,7 @@ export default function App() {
         onSelectSession={handleSelectSession}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
+        onRenameSession={sessionManager.renameSession}
         onNavigate={(p) => setPage(p)}
         activePage={page}
       />
