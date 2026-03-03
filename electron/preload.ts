@@ -2,10 +2,11 @@ import { contextBridge, ipcRenderer } from "electron";
 import * as ch from "./ipc-channels.js";
 
 contextBridge.exposeInMainWorld("electronAPI", {
-  upload: (buffer: ArrayBuffer, filename: string) =>
-    ipcRenderer.invoke(ch.UPLOAD, { buffer, filename }),
+  upload: (buffer: ArrayBuffer, filename: string, workflowId: string) =>
+    ipcRenderer.invoke(ch.UPLOAD, { buffer, filename, workflow_id: workflowId }),
 
-  getDocument: () => ipcRenderer.invoke(ch.GET_DOCUMENT),
+  getDocument: (workflowId: string) =>
+    ipcRenderer.invoke(ch.GET_DOCUMENT, { workflow_id: workflowId }),
 
   getKnowledgeProfile: () =>
     ipcRenderer.invoke(ch.GET_KNOWLEDGE_PROFILE),
@@ -23,13 +24,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
   clearLocalData: () =>
     ipcRenderer.invoke(ch.CLEAR_LOCAL_DATA),
 
-  scrape: (args: { url: string }) =>
+  scrape: (args: { url: string; workflow_id: string }) =>
     ipcRenderer.invoke(ch.SCRAPE, args),
 
-  map: (args?: { client_id?: string; include_document?: boolean }) =>
+  map: (args: { workflow_id: string; client_id?: string; include_document?: boolean }) =>
     ipcRenderer.invoke(ch.MAP, args),
 
   hydrateState: (args: {
+    workflow_id: string;
     form_schema: unknown;
     document_bytes?: ArrayBuffer | null;
     document_filename?: string | null;
@@ -44,6 +46,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke(ch.GET_SESSION_DOCUMENT, { id }),
 
   createSession: (args: {
+    workflow_id: string;
     document_filename: string | null;
     form_url: string;
     form_title: string;
@@ -52,6 +55,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     form_schema: unknown;
     mapping_result: unknown;
   }) => ipcRenderer.invoke(ch.CREATE_SESSION, args),
+
+  deleteWorkflow: (workflowId: string) =>
+    ipcRenderer.invoke(ch.DELETE_WORKFLOW, { workflow_id: workflowId }),
 
   updateSessionMappings: (id: string, mappings: unknown[]) =>
     ipcRenderer.invoke(ch.UPDATE_SESSION_MAPPINGS, { id, mappings }),

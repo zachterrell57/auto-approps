@@ -41,6 +41,10 @@ export const MAP = "app:form:map" as const;
 /** Restore form_schema (and optionally doc) into transient state for re-mapping historical sessions */
 export const HYDRATE_STATE = "app:form:hydrate-state" as const;
 
+// ── Workflow lifecycle ──────────────────────────────────────────────────
+/** Takes { workflow_id: string }, cleans up transient in-memory state */
+export const DELETE_WORKFLOW = "app:workflow:delete" as const;
+
 // ── Sessions ───────────────────────────────────────────────────────────────
 /** Returns SessionMeta[] */
 export const LIST_SESSIONS = "app:sessions:list" as const;
@@ -93,6 +97,7 @@ export const IPC_CHANNELS = {
   SCRAPE,
   MAP,
   HYDRATE_STATE,
+  DELETE_WORKFLOW,
   LIST_SESSIONS,
   GET_SESSION,
   CREATE_SESSION,

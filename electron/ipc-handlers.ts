@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import * as ch from "./ipc-channels.js";
-import state, { resetState } from "./services/state.js";
+import { getWorkflow, deleteWorkflow, resetAllWorkflows } from "./services/state.js";
 import { settings } from "./services/config.js";
 import {
   readApiKey,
@@ -72,14 +72,15 @@ export function registerIpcHandlers(): void {
   // ── Upload document ──────────────────────────────────────────────────
   ipcMain.handle(
     ch.UPLOAD,
-    async (_event, args: { buffer: ArrayBuffer; filename: string }) => {
+    async (_event, args: { buffer: ArrayBuffer; filename: string; workflow_id: string }) => {
       const buf = Buffer.from(args.buffer);
       if (!args.filename.toLowerCase().endsWith(".docx")) {
         throw new Error("Only .docx files are supported");
       }
       const parsed = await parseDocx(buf, args.filename);
-      state.parsed_doc = parsed;
-      state.raw_docx_bytes = buf;
+      const wf = getWorkflow(args.workflow_id);
+      wf.parsed_doc = parsed;
+      wf.raw_docx_bytes = buf;
       return {
         filename: parsed.filename,
         chunk_count: parsed.chunks.length,
@@ -89,16 +90,17 @@ export function registerIpcHandlers(): void {
   );
 
   // ── Get document bytes ───────────────────────────────────────────────
-  ipcMain.handle(ch.GET_DOCUMENT, async () => {
-    if (!state.raw_docx_bytes) {
+  ipcMain.handle(ch.GET_DOCUMENT, async (_event, args: { workflow_id: string }) => {
+    const wf = getWorkflow(args.workflow_id);
+    if (!wf.raw_docx_bytes) {
       throw new Error("No document uploaded");
     }
     return {
-      buffer: state.raw_docx_bytes.buffer.slice(
-        state.raw_docx_bytes.byteOffset,
-        state.raw_docx_bytes.byteOffset + state.raw_docx_bytes.byteLength,
+      buffer: wf.raw_docx_bytes.buffer.slice(
+        wf.raw_docx_bytes.byteOffset,
+        wf.raw_docx_bytes.byteOffset + wf.raw_docx_bytes.byteLength,
       ),
-      filename: state.parsed_doc?.filename ?? "document.docx",
+      filename: wf.parsed_doc?.filename ?? "document.docx",
     };
   });
 
@@ -144,13 +146,13 @@ export function registerIpcHandlers(): void {
     clearKnowledgeProfile();
     clearClients();
     clearSessions();
-    resetState();
+    resetAllWorkflows();
     settings.anthropic_api_key = "";
     return { ok: true };
   });
 
   // ── Scrape form ──────────────────────────────────────────────────────
-  ipcMain.handle(ch.SCRAPE, async (_event, args: { url: string }) => {
+  ipcMain.handle(ch.SCRAPE, async (_event, args: { url: string; workflow_id: string }) => {
     const normalizedUrl = normalizeAndValidateFormUrl(args.url);
     const provider = detectProvider(normalizedUrl);
     let schema;
@@ -162,16 +164,18 @@ export function registerIpcHandlers(): void {
       schema = await scrapeForm(normalizedUrl);
       schema.provider = "google";
     }
-    state.form_schema = schema;
+    const wf = getWorkflow(args.workflow_id);
+    wf.form_schema = schema;
     return schema;
   });
 
   // ── Map fields ───────────────────────────────────────────────────────
   ipcMain.handle(
     ch.MAP,
-    async (_event, args?: { client_id?: string; include_document?: boolean }) => {
-      const includeDocument = args?.include_document ?? true;
-      if (!state.form_schema) {
+    async (_event, args: { workflow_id: string; client_id?: string; include_document?: boolean }) => {
+      const wf = getWorkflow(args.workflow_id);
+      const includeDocument = args.include_document ?? true;
+      if (!wf.form_schema) {
         throw new Error("No form scraped. Scrape a form first.");
       }
 
@@ -181,14 +185,14 @@ export function registerIpcHandlers(): void {
         : undefined;
 
       let clientKnowledge: string | undefined;
-      if (args?.client_id) {
+      if (args.client_id) {
         const client = getClient(args.client_id);
         if (client && client.knowledge.trim()) {
           clientKnowledge = client.knowledge;
         }
       }
 
-      const hasDocument = includeDocument && Boolean(state.parsed_doc);
+      const hasDocument = includeDocument && Boolean(wf.parsed_doc);
       const hasClientKnowledge = Boolean(clientKnowledge?.trim());
       const hasProfileKnowledge = Boolean(
         knowledgeProfile?.user_context.trim() || knowledgeProfile?.firm_context.trim(),
@@ -200,12 +204,12 @@ export function registerIpcHandlers(): void {
       }
 
       const result = await mapFields(
-        hasDocument ? state.parsed_doc : null,
-        state.form_schema,
+        hasDocument ? wf.parsed_doc : null,
+        wf.form_schema,
         knowledgeProfile,
         clientKnowledge,
       );
-      state.mapping_result = result;
+      wf.mapping_result = result;
       return result;
     },
   );
@@ -216,17 +220,19 @@ export function registerIpcHandlers(): void {
     async (
       _event,
       args: {
+        workflow_id: string;
         form_schema: Record<string, unknown>;
         document_bytes?: ArrayBuffer | null;
         document_filename?: string | null;
       },
     ) => {
+      const wf = getWorkflow(args.workflow_id);
       const { FormSchemaSchema } = await import("./services/models.js");
-      state.form_schema = FormSchemaSchema.parse(args.form_schema);
+      wf.form_schema = FormSchemaSchema.parse(args.form_schema);
       if (args.document_bytes) {
         const buf = Buffer.from(args.document_bytes);
-        state.raw_docx_bytes = buf;
-        state.parsed_doc = await parseDocx(buf, args.document_filename ?? "document.docx");
+        wf.raw_docx_bytes = buf;
+        wf.parsed_doc = await parseDocx(buf, args.document_filename ?? "document.docx");
       }
       return { ok: true };
     },
@@ -263,6 +269,7 @@ export function registerIpcHandlers(): void {
     async (
       _event,
       args: {
+        workflow_id: string;
         document_filename: string | null;
         form_url: string;
         form_title: string;
@@ -272,8 +279,9 @@ export function registerIpcHandlers(): void {
         mapping_result: Record<string, unknown>;
       },
     ) => {
+      const wf = getWorkflow(args.workflow_id);
       const includeDocument = Boolean(args.document_filename);
-      if (includeDocument && !state.raw_docx_bytes) {
+      if (includeDocument && !wf.raw_docx_bytes) {
         throw new Error("Document metadata was provided, but no document is loaded.");
       }
 
@@ -292,9 +300,9 @@ export function registerIpcHandlers(): void {
         });
       }
 
-      return createSession({
+      const session = createSession({
         documentFilename: args.document_filename,
-        documentBytes: includeDocument ? state.raw_docx_bytes : null,
+        documentBytes: includeDocument ? wf.raw_docx_bytes : null,
         formUrl: args.form_url,
         formTitle: args.form_title,
         formProvider: args.form_provider,
@@ -302,6 +310,11 @@ export function registerIpcHandlers(): void {
         formSchema: args.form_schema,
         mappingResult: args.mapping_result,
       });
+
+      // Clean up transient workflow state now that it's persisted
+      deleteWorkflow(args.workflow_id);
+
+      return session;
     },
   );
 
@@ -341,6 +354,15 @@ export function registerIpcHandlers(): void {
       if (!deleteSession(args.id)) {
         throw new Error("Session not found");
       }
+      return { ok: true };
+    },
+  );
+
+  // ── Workflow cleanup ──────────────────────────────────────────────────
+  ipcMain.handle(
+    ch.DELETE_WORKFLOW,
+    async (_event, args: { workflow_id: string }) => {
+      deleteWorkflow(args.workflow_id);
       return { ok: true };
     },
   );

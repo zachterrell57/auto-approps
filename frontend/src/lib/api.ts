@@ -31,11 +31,11 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json();
 }
 
-export async function uploadDocument(file: File): Promise<UploadResponse> {
+export async function uploadDocument(file: File, workflowId: string): Promise<UploadResponse> {
   const api = electron();
   if (api) {
     const buffer = await file.arrayBuffer();
-    return api.upload(buffer, file.name);
+    return api.upload(buffer, file.name, workflowId);
   }
   const form = new FormData();
   form.append("file", file);
@@ -43,10 +43,10 @@ export async function uploadDocument(file: File): Promise<UploadResponse> {
   return handleResponse(res);
 }
 
-export async function fetchDocumentBlob(): Promise<ArrayBuffer> {
+export async function fetchDocumentBlob(workflowId: string): Promise<ArrayBuffer> {
   const api = electron();
   if (api) {
-    const result = await api.getDocument();
+    const result = await api.getDocument(workflowId);
     return result.buffer;
   }
   const res = await fetch(`${BASE}/api/document`);
@@ -106,9 +106,9 @@ export async function clearLocalData(): Promise<void> {
   await handleResponse(res);
 }
 
-export async function scrapeForm(url: string): Promise<FormSchema> {
+export async function scrapeForm(url: string, workflowId: string): Promise<FormSchema> {
   const api = electron();
-  if (api) return api.scrape({ url });
+  if (api) return api.scrape({ url, workflow_id: workflowId });
   const res = await fetch(`${BASE}/api/scrape`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -117,26 +117,24 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
   return handleResponse(res);
 }
 
-export async function mapFields(args?: {
+export async function mapFields(args: {
+  workflowId: string;
   clientId?: string;
   includeDocument?: boolean;
 }): Promise<MappingResult> {
   const api = electron();
   if (api) {
-    return api.map(
-      args
-        ? {
-            client_id: args.clientId,
-            include_document: args.includeDocument,
-          }
-        : undefined,
-    );
+    return api.map({
+      workflow_id: args.workflowId,
+      client_id: args.clientId,
+      include_document: args.includeDocument,
+    });
   }
   const params = new URLSearchParams();
-  if (args?.clientId) {
+  if (args.clientId) {
     params.set("client_id", args.clientId);
   }
-  if (typeof args?.includeDocument === "boolean") {
+  if (typeof args.includeDocument === "boolean") {
     params.set("include_document", String(args.includeDocument));
   }
   const query = params.toString();
@@ -146,6 +144,7 @@ export async function mapFields(args?: {
 }
 
 export async function hydrateState(args: {
+  workflowId: string;
   formSchema: FormSchema;
   documentBytes?: ArrayBuffer | null;
   documentFilename?: string | null;
@@ -153,6 +152,7 @@ export async function hydrateState(args: {
   const api = electron();
   if (api) {
     await api.hydrateState({
+      workflow_id: args.workflowId,
       form_schema: args.formSchema,
       document_bytes: args.documentBytes,
       document_filename: args.documentFilename,
@@ -160,6 +160,15 @@ export async function hydrateState(args: {
     return;
   }
   // fetch fallback not needed — hydration is Electron-only
+}
+
+export async function deleteWorkflow(workflowId: string): Promise<void> {
+  const api = electron();
+  if (api) {
+    await api.deleteWorkflow(workflowId);
+    return;
+  }
+  // fetch fallback not needed — workflow cleanup is Electron-only
 }
 
 export async function listClients(): Promise<Client[]> {
@@ -225,6 +234,7 @@ export async function getSession(id: string): Promise<SessionFull> {
 }
 
 export async function createSession(data: {
+  workflow_id: string;
   document_filename: string | null;
   form_url: string;
   form_title: string;

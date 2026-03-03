@@ -13,8 +13,8 @@ import type {
 } from "./lib/types";
 
 export interface ElectronAPI {
-  upload(buffer: ArrayBuffer, filename: string): Promise<UploadResponse>;
-  getDocument(): Promise<{ buffer: ArrayBuffer; filename: string }>;
+  upload(buffer: ArrayBuffer, filename: string, workflowId: string): Promise<UploadResponse>;
+  getDocument(workflowId: string): Promise<{ buffer: ArrayBuffer; filename: string }>;
   getKnowledgeProfile(): Promise<KnowledgeProfile>;
   putKnowledgeProfile(args: {
     user_context: string;
@@ -23,12 +23,14 @@ export interface ElectronAPI {
   getSettings(): Promise<AppSettings>;
   putSettings(args: { anthropic_api_key: string }): Promise<AppSettings>;
   clearLocalData(): Promise<{ ok: boolean }>;
-  scrape(args: { url: string }): Promise<FormSchema>;
-  map(args?: {
+  scrape(args: { url: string; workflow_id: string }): Promise<FormSchema>;
+  map(args: {
+    workflow_id: string;
     client_id?: string;
     include_document?: boolean;
   }): Promise<MappingResult>;
   hydrateState(args: {
+    workflow_id: string;
     form_schema: unknown;
     document_bytes?: ArrayBuffer | null;
     document_filename?: string | null;
@@ -39,6 +41,7 @@ export interface ElectronAPI {
     id: string,
   ): Promise<{ buffer: ArrayBuffer; filename: string }>;
   createSession(args: {
+    workflow_id: string;
     document_filename: string | null;
     form_url: string;
     form_title: string;
@@ -53,6 +56,7 @@ export interface ElectronAPI {
   ): Promise<void>;
   renameSession(id: string, displayName: string): Promise<void>;
   deleteSession(id: string): Promise<void>;
+  deleteWorkflow(workflowId: string): Promise<{ ok: boolean }>;
   listClients(): Promise<Client[]>;
   getClient(id: string): Promise<Client>;
   createClient(data: ClientCreate): Promise<Client>;
