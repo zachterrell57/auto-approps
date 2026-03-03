@@ -123,3 +123,17 @@ export interface AppSettings {
 export interface SettingsUpdate {
   anthropic_api_key: string;
 }
+
+// ── Auto-update ────────────────────────────────────────────────────────
+export type UpdateStatusType =
+  | "checking"
+  | "available"
+  | "downloaded"
+  | "not-available"
+  | "error";
+
+export interface UpdateStatus {
+  status: UpdateStatusType;
+  releaseName?: string;
+  error?: string;
+}

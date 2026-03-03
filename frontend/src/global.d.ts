@@ -64,6 +64,11 @@ export interface ElectronAPI {
   createClient(data: ClientCreate): Promise<Client>;
   updateClient(id: string, data: ClientUpdate): Promise<Client>;
   deleteClient(id: string): Promise<void>;
+
+  // App updates
+  onUpdateStatus(callback: (status: unknown) => void): () => void;
+  installUpdate(): Promise<void>;
+  getAppVersion(): Promise<{ version: string }>;
 }
 
 declare global {

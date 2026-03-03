@@ -4,6 +4,7 @@ import { setUserDataPath } from "./services/config.js";
 import { readApiKey } from "./services/settings-store.js";
 import { settings } from "./services/config.js";
 import { registerIpcHandlers } from "./ipc-handlers.js";
+import { initAutoUpdater } from "./services/auto-updater.js";
 
 // When running as a packaged app, point Playwright at the bundled Chromium
 // in Contents/Resources/playwright-browsers (macOS).
@@ -56,6 +57,9 @@ app.whenReady().then(() => {
   nativeTheme.themeSource = "light";
 
   createWindow();
+
+  // Start auto-updater (no-ops in dev mode internally)
+  initAutoUpdater();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

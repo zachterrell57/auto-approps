@@ -12,6 +12,7 @@ import type {
   SessionFull,
   SessionMeta,
   SettingsUpdate,
+  UpdateStatus,
   UploadResponse,
 } from "./types";
 
@@ -162,4 +163,23 @@ export async function renameSession(
 
 export async function deleteSession(id: string): Promise<void> {
   return api.deleteSession(id);
+}
+
+// ── Auto-update ──────────────────────────────────────────────────────────
+
+/** Subscribe to update status events pushed from the main process.
+ *  Returns an unsubscribe function. */
+export function onUpdateStatus(
+  callback: (status: UpdateStatus) => void,
+): () => void {
+  return api.onUpdateStatus(callback as (s: unknown) => void);
+}
+
+export async function installUpdate(): Promise<void> {
+  await api.installUpdate();
+}
+
+export async function getAppVersion(): Promise<string> {
+  const result = await api.getAppVersion();
+  return result.version;
 }
