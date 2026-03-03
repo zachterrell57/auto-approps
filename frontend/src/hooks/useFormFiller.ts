@@ -55,6 +55,7 @@ export function useFormFiller(options?: {
   const [step, setStep] = useState<Step>("upload");
   const [loading, setLoading] = useState(false);
   const [processingStage, setProcessingStage] = useState<ProcessingStage>(null);
+  const [processingFormUrl, setProcessingFormUrl] = useState<string | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +125,7 @@ export function useFormFiller(options?: {
       const shouldIncludeDocument = Boolean(file);
       setLoading(true);
       setProcessingStage(shouldIncludeDocument ? "uploading" : "scraping");
+      setProcessingFormUrl(formUrl);
       setError(null);
       replaceDocumentBlobUrl(null);
       setIsHistorical(false);
@@ -153,19 +155,25 @@ export function useFormFiller(options?: {
         setMappings(result.mappings);
         setStep("answers");
 
-        onMappingCompleteRef.current?.({
-          document_filename: uploaded?.filename ?? null,
-          form_url: schema.url || formUrl,
-          form_title: schema.title,
-          form_provider: schema.provider,
-          form_schema: schema,
-          mapping_result: result,
-        });
+        // Wait for session persistence before clearing the processing indicator
+        try {
+          await onMappingCompleteRef.current?.({
+            document_filename: uploaded?.filename ?? null,
+            form_url: schema.url || formUrl,
+            form_title: schema.title,
+            form_provider: schema.provider,
+            form_schema: schema,
+            mapping_result: result,
+          });
+        } catch {
+          // Session save errors are handled by the caller
+        }
       } catch (err: unknown) {
         setError(errorMessage(err, "An error occurred"));
       } finally {
         setLoading(false);
         setProcessingStage(null);
+        setProcessingFormUrl(null);
       }
     },
     [appSettings.anthropic_api_key_set, replaceDocumentBlobUrl],
@@ -226,6 +234,7 @@ export function useFormFiller(options?: {
       setActiveClientId(undefined);
       setIncludeDocument(false);
       setProcessingStage(null);
+      setProcessingFormUrl(null);
       setAppSettings({
         anthropic_api_key_set: false,
         anthropic_api_key_preview: "",
@@ -250,6 +259,7 @@ export function useFormFiller(options?: {
     setStep("upload");
     setLoading(false);
     setProcessingStage(null);
+    setProcessingFormUrl(null);
     setError(null);
     setUploadResult(null);
     setFormSchema(null);
@@ -324,6 +334,7 @@ export function useFormFiller(options?: {
     step,
     loading,
     processingStage,
+    processingFormUrl,
     settingsSaving,
     settingsLoaded,
     error,

@@ -77,12 +77,14 @@ export default function App() {
   const [onboardingForcedOpen, setOnboardingForcedOpen] = useState(false);
 
   const handleMappingComplete = useCallback(
-    (data: MappingCompleteData) => {
-      saveSession(data).catch((err) => {
+    async (data: MappingCompleteData) => {
+      try {
+        await saveSession(data);
+      } catch (err) {
         setSessionSaveError(
           `Failed to save session: ${err instanceof Error ? err.message : String(err)}`,
         );
-      });
+      }
     },
     [saveSession],
   );
@@ -91,6 +93,7 @@ export default function App() {
     step,
     loading,
     processingStage,
+    processingFormUrl,
     settingsSaving,
     settingsLoaded,
     error: formError,
@@ -218,6 +221,8 @@ export default function App() {
         onRenameSession={renameSession}
         onNavigate={(p) => setPage(p)}
         activePage={page}
+        processingStage={processingStage}
+        processingLabel={processingFormUrl}
       />
       <SidebarInset>
         <header className="flex items-center gap-2 border-b border-foreground/8 px-5 h-12">

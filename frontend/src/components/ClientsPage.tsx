@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { Plus, Trash2, ChevronDown, ChevronRight, Save } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Plus, Trash2, ChevronDown, ChevronRight, Save, Check } from "lucide-react";
 import type { Client, ClientCreate, ClientUpdate } from "@/lib/types";
 
 interface ClientsPageProps {
@@ -30,17 +30,29 @@ function ClientRow({
   const [name, setName] = useState(client.name);
   const [knowledge, setKnowledge] = useState(client.knowledge);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    };
+  }, []);
 
   const dirty = name !== client.name || knowledge !== client.knowledge;
 
   const handleSave = useCallback(async () => {
     setSaving(true);
+    setSaved(false);
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
     try {
       const updated = await onUpdate(client.id, { name, knowledge });
       setName(updated.name);
       setKnowledge(updated.knowledge);
+      setSaved(true);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
     } finally {
       setSaving(false);
     }
@@ -138,11 +150,24 @@ function ClientRow({
 
             <button
               onClick={handleSave}
-              disabled={saving || !dirty || !name.trim()}
-              className="flex items-center gap-2 h-9 px-4 rounded-lg bg-foreground text-background text-sm font-medium transition-all duration-200 hover:shadow-md disabled:opacity-20 disabled:cursor-not-allowed"
+              disabled={saving || (!dirty && !saved) || !name.trim()}
+              className={`flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed ${
+                saved
+                  ? "bg-emerald-600 text-white"
+                  : "bg-foreground text-background hover:shadow-md disabled:opacity-20"
+              }`}
             >
-              <Save className="w-3.5 h-3.5" />
-              {saving ? "Saving..." : "Save"}
+              {saved ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  Saved
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5" />
+                  {saving ? "Saving..." : "Save"}
+                </>
+              )}
             </button>
           </div>
         </div>

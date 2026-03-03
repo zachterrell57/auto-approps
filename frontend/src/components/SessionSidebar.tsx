@@ -13,6 +13,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import type { SessionMeta } from "@/lib/types";
+import type { ProcessingStage } from "@/hooks/useFormFiller";
+
+const STAGE_LABELS: Record<Exclude<ProcessingStage, null>, string> = {
+  uploading: "Reading document\u2026",
+  scraping: "Scraping form\u2026",
+  mapping: "Mapping fields\u2026",
+};
 
 interface SessionSidebarProps {
   sessions: SessionMeta[];
@@ -23,6 +30,8 @@ interface SessionSidebarProps {
   onRenameSession: (id: string, name: string) => void;
   onNavigate: (page: "profile" | "settings" | "clients") => void;
   activePage: string;
+  processingStage?: ProcessingStage;
+  processingLabel?: string | null;
 }
 
 function timeAgo(isoDate: string): string {
@@ -46,6 +55,8 @@ export function SessionSidebar({
   onRenameSession,
   onNavigate,
   activePage,
+  processingStage,
+  processingLabel,
 }: SessionSidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -99,7 +110,29 @@ export function SessionSidebar({
             Session History
           </SidebarGroupLabel>
           <SidebarMenu>
-            {sessions.length === 0 && (
+            {processingStage && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive
+                  className="h-auto py-2.5 items-start cursor-default"
+                >
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="h-3.5 w-3.5 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin block flex-shrink-0" />
+                      <p className="text-sm font-medium truncate leading-tight text-amber-700">
+                        {STAGE_LABELS[processingStage]}
+                      </p>
+                    </div>
+                    {processingLabel && (
+                      <p className="text-[11px] text-foreground/30 truncate">
+                        {processingLabel}
+                      </p>
+                    )}
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+            {sessions.length === 0 && !processingStage && (
               <p className="px-3 py-4 text-xs text-foreground/30 leading-relaxed">
                 No sessions yet. Process a form to get started.
               </p>
