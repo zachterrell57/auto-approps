@@ -28,6 +28,7 @@ import { scrapeMsForm } from "./services/ms-form-scraper.js";
 import { mapFields } from "./services/mapper.js";
 import { knowledgeProfileHasContent } from "./services/models.js";
 import {
+  listSavedForms,
   listSessions,
   getSession,
   getSessionDocument,
@@ -231,6 +232,11 @@ export function registerIpcHandlers(): void {
       return { ok: true };
     },
   );
+
+  // ── Saved forms ──────────────────────────────────────────────────────
+  ipcMain.handle(ch.LIST_SAVED_FORMS, async () => {
+    return listSavedForms();
+  });
 
   // ── Sessions ─────────────────────────────────────────────────────────
   ipcMain.handle(ch.LIST_SESSIONS, async () => {

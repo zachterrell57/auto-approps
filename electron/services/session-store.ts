@@ -4,7 +4,7 @@ import Database from "better-sqlite3";
 import type BetterSqlite3 from "better-sqlite3";
 import { v4 as uuidv4 } from "uuid";
 import { getUserDataPath } from "./config.js";
-import type { SessionMeta, SessionFull } from "./models.js";
+import type { SessionMeta, SessionFull, SavedForm } from "./models.js";
 
 // ---------------------------------------------------------------------------
 // Singleton DB handle
@@ -65,6 +65,29 @@ function getDb(): BetterSqlite3.Database {
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
+
+/**
+ * Return unique forms (grouped by URL) with the most recent session for each.
+ */
+export function listSavedForms(): SavedForm[] {
+  const conn = getDb();
+  const rows = conn
+    .prepare(
+      `SELECT s.id AS session_id, s.form_url, s.form_title, s.form_provider,
+              s.display_name, s.created_at AS last_used, cnt.submission_count
+       FROM sessions s
+       INNER JOIN (
+         SELECT form_url, MAX(created_at) AS max_created, COUNT(*) AS submission_count
+         FROM sessions
+         WHERE form_url != ''
+         GROUP BY form_url
+       ) cnt ON s.form_url = cnt.form_url AND s.created_at = cnt.max_created
+       ORDER BY s.created_at DESC`
+    )
+    .all() as SavedForm[];
+
+  return rows;
+}
 
 /**
  * Return lightweight metadata for every session, newest first.

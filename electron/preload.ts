@@ -35,6 +35,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     document_filename?: string | null;
   }) => ipcRenderer.invoke(ch.HYDRATE_STATE, args),
 
+  listSavedForms: () => ipcRenderer.invoke(ch.LIST_SAVED_FORMS),
+
   listSessions: () => ipcRenderer.invoke(ch.LIST_SESSIONS),
 
   getSession: (id: string) =>

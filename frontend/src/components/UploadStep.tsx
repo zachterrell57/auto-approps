@@ -10,16 +10,20 @@ import {
   FileUp,
   Globe,
   Sparkles,
+  Clock,
 } from "lucide-react";
-import type { Client } from "@/lib/types";
+import { formatDistanceToNow } from "date-fns";
+import type { Client, SavedForm } from "@/lib/types";
 import type { ProcessingStage } from "@/hooks/useFormFiller";
 
 interface UploadStepProps {
   loading: boolean;
   processingStage?: ProcessingStage;
   clients?: Client[];
+  savedForms?: SavedForm[];
   apiKeyConfigured?: boolean;
   onProcess: (file: File | null, formUrl: string, clientId?: string) => void;
+  onLoadSavedForm?: (sessionId: string) => void;
   onLoadDebug?: () => void;
   onOpenSettings?: () => void;
 }
@@ -38,12 +42,22 @@ function getStageIndex(
   return stages.findIndex((s) => s.key === stage);
 }
 
+function timeAgo(isoDate: string): string {
+  try {
+    return formatDistanceToNow(new Date(isoDate), { addSuffix: true });
+  } catch {
+    return isoDate;
+  }
+}
+
 export function UploadStep({
   loading,
   processingStage,
   clients = [],
+  savedForms = [],
   apiKeyConfigured = true,
   onProcess,
+  onLoadSavedForm,
   onLoadDebug,
   onOpenSettings,
 }: UploadStepProps) {
@@ -386,6 +400,45 @@ export function UploadStep({
           >
             Load Debug Data
           </button>
+        )}
+
+        {savedForms.length > 0 && (
+          <section>
+            <div className="flex items-center gap-3 mb-4">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-foreground/[0.06] text-foreground/40">
+                <Clock className="w-3 h-3" />
+              </span>
+              <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
+                Recent Forms
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {savedForms.map((form) => (
+                <button
+                  key={form.session_id}
+                  onClick={() => onLoadSavedForm?.(form.session_id)}
+                  className="w-full flex items-center gap-3 rounded-xl border border-foreground/8 px-4 py-3 text-left hover:border-foreground/15 hover:bg-foreground/[0.02] transition-all duration-200 group"
+                >
+                  <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <Globe className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {form.form_title || form.display_name || "Untitled Form"}
+                    </p>
+                    <p className="text-[11px] text-foreground/35 mt-0.5 truncate">
+                      {timeAgo(form.last_used)}
+                      {form.submission_count > 1 && (
+                        <span> &middot; {form.submission_count} submissions</span>
+                      )}
+                    </p>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-foreground/15 group-hover:text-foreground/40 transition-colors flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          </section>
         )}
       </div>
     </div>
