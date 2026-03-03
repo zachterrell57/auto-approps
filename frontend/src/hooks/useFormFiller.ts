@@ -76,6 +76,9 @@ export function useFormFiller(options?: {
   );
   const [includeDocument, setIncludeDocument] = useState(false);
 
+  // Generation counter: incremented on reset() so in-flight process() calls bail out.
+  const generationRef = useRef(0);
+
   const replaceDocumentBlobUrl = useCallback((nextUrl: string | null) => {
     if (documentBlobUrlRef.current?.startsWith("blob:")) {
       URL.revokeObjectURL(documentBlobUrlRef.current);
@@ -123,6 +126,7 @@ export function useFormFiller(options?: {
       }
 
       const shouldIncludeDocument = Boolean(file);
+      const gen = ++generationRef.current;
       setLoading(true);
       setProcessingStage(shouldIncludeDocument ? "uploading" : "scraping");
       setProcessingFormUrl(formUrl);
@@ -135,10 +139,12 @@ export function useFormFiller(options?: {
 
       try {
         const uploaded = file ? await api.uploadDocument(file) : null;
+        if (generationRef.current !== gen) return;
         setUploadResult(uploaded);
 
         setProcessingStage("scraping");
         const schema = await api.scrapeForm(formUrl);
+        if (generationRef.current !== gen) return;
         if (schema.fields.length === 0) {
           throw new Error(
             "No form fields detected. The form may require login, be expired, or have an unsupported structure.",
@@ -151,6 +157,7 @@ export function useFormFiller(options?: {
           clientId,
           includeDocument: shouldIncludeDocument,
         });
+        if (generationRef.current !== gen) return;
         setMappingResult(result);
         setMappings(result.mappings);
         setStep("answers");
@@ -169,11 +176,14 @@ export function useFormFiller(options?: {
           // Session save errors are handled by the caller
         }
       } catch (err: unknown) {
+        if (generationRef.current !== gen) return;
         setError(errorMessage(err, "An error occurred"));
       } finally {
-        setLoading(false);
-        setProcessingStage(null);
-        setProcessingFormUrl(null);
+        if (generationRef.current === gen) {
+          setLoading(false);
+          setProcessingStage(null);
+          setProcessingFormUrl(null);
+        }
       }
     },
     [appSettings.anthropic_api_key_set, replaceDocumentBlobUrl],
@@ -185,6 +195,7 @@ export function useFormFiller(options?: {
       return;
     }
 
+    const gen = ++generationRef.current;
     setLoading(true);
     setProcessingStage("mapping");
     setError(null);
@@ -193,13 +204,17 @@ export function useFormFiller(options?: {
         clientId: activeClientId,
         includeDocument,
       });
+      if (generationRef.current !== gen) return;
       setMappingResult(result);
       setMappings(result.mappings);
     } catch (err: unknown) {
+      if (generationRef.current !== gen) return;
       setError(errorMessage(err, "Re-mapping failed"));
     } finally {
-      setLoading(false);
-      setProcessingStage(null);
+      if (generationRef.current === gen) {
+        setLoading(false);
+        setProcessingStage(null);
+      }
     }
   }, [appSettings.anthropic_api_key_set, activeClientId, includeDocument]);
 
@@ -256,6 +271,7 @@ export function useFormFiller(options?: {
   );
 
   const reset = useCallback(() => {
+    generationRef.current++;
     setStep("upload");
     setLoading(false);
     setProcessingStage(null);
