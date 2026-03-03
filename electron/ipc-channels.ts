@@ -83,6 +83,16 @@ export const UPDATE_CLIENT = "app:clients:update" as const;
 /** Takes { id: string }, returns void */
 export const DELETE_CLIENT = "app:clients:delete" as const;
 
+// ── App updates ──────────────────────────────────────────────────────────
+/** Main → Renderer push: update status changed */
+export const UPDATE_STATUS = "app:update:status" as const;
+
+/** Renderer → Main: install downloaded update and restart */
+export const INSTALL_UPDATE = "app:update:install" as const;
+
+/** Renderer → Main: returns { version: string } */
+export const GET_APP_VERSION = "app:update:get-version" as const;
+
 // ── Aggregate type for type-safe handler registration ──────────────────────
 
 export const IPC_CHANNELS = {
@@ -109,6 +119,9 @@ export const IPC_CHANNELS = {
   GET_CLIENT,
   UPDATE_CLIENT,
   DELETE_CLIENT,
+  UPDATE_STATUS,
+  INSTALL_UPDATE,
+  GET_APP_VERSION,
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

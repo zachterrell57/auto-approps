@@ -4,6 +4,7 @@ import { setUserDataPath } from "./services/config.js";
 import { readApiKey } from "./services/settings-store.js";
 import { settings } from "./services/config.js";
 import { registerIpcHandlers } from "./ipc-handlers.js";
+import { initAutoUpdater } from "./services/auto-updater.js";
 
 // When running as a packaged app, point Playwright at the bundled Chromium
 // in Contents/Resources/playwright-browsers (macOS).
@@ -17,7 +18,7 @@ if (app.isPackaged) {
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -38,6 +39,8 @@ function createWindow(): void {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
+
+  return mainWindow;
 }
 
 app.whenReady().then(() => {
@@ -55,7 +58,10 @@ app.whenReady().then(() => {
 
   nativeTheme.themeSource = "light";
 
-  createWindow();
+  const mainWindow = createWindow();
+
+  // Start auto-updater (no-ops in dev mode internally)
+  initAutoUpdater(mainWindow);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -10,6 +10,7 @@ import { ClientsPage } from "@/components/ClientsPage";
 import { SettingsPage } from "@/components/SettingsPage";
 import { ProfilePage } from "@/components/ProfilePage";
 import { OnboardingPage } from "@/components/OnboardingPage";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { SessionSidebar } from "@/components/SessionSidebar";
 import {
   SidebarProvider,
@@ -17,7 +18,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import * as api from "@/lib/api";
-import type { SavedForm } from "@/lib/types";
+import type { SavedForm, UpdateStatus } from "@/lib/types";
 import type { MappingCompleteData } from "@/hooks/useFormFiller";
 
 type Page = "main" | "profile" | "settings" | "clients";
@@ -51,6 +52,20 @@ export default function App() {
     clearCurrentSession,
     refreshList,
   } = useSessions();
+
+  // ── Auto-update listener ───────────────────────────────────────────
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = api.onUpdateStatus((status) => {
+      setUpdateStatus(status);
+      if (status.status === "downloaded") {
+        setUpdateDismissed(false);
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const [savedForms, setSavedForms] = useState<SavedForm[]>([]);
   const refreshSavedForms = useCallback(async () => {
@@ -223,6 +238,13 @@ export default function App() {
         <header className="flex items-center gap-2 border-b border-foreground/8 px-5 h-12">
           <SidebarTrigger />
         </header>
+        {updateStatus?.status === "downloaded" && !updateDismissed && (
+          <UpdateBanner
+            releaseName={updateStatus.releaseName}
+            onInstall={() => void api.installUpdate()}
+            onDismiss={() => setUpdateDismissed(true)}
+          />
+        )}
         {error && (
           <div className="max-w-xl mx-auto mb-6 mt-4 px-4 py-3 rounded-xl border border-rose-200/60 bg-rose-50/50 text-sm text-rose-700 flex items-start gap-2">
             <span className="flex-1">{error}</span>

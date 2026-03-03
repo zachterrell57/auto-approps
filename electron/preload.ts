@@ -80,4 +80,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   deleteClient: (id: string) =>
     ipcRenderer.invoke(ch.DELETE_CLIENT, { id }),
+
+  // ── App updates ─────────────────────────────────────────────────────
+  onUpdateStatus: (callback: (status: unknown) => void) => {
+    const handler = (_event: unknown, status: unknown) => callback(status);
+    ipcRenderer.on(ch.UPDATE_STATUS, handler);
+    return () => {
+      ipcRenderer.removeListener(ch.UPDATE_STATUS, handler);
+    };
+  },
+
+  installUpdate: () => ipcRenderer.invoke(ch.INSTALL_UPDATE),
+
+  getAppVersion: () =>
+    ipcRenderer.invoke(ch.GET_APP_VERSION) as Promise<{ version: string }>,
 });

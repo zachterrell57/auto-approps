@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { app, autoUpdater, ipcMain } from "electron";
 import * as ch from "./ipc-channels.js";
 import state, { resetState } from "./services/state.js";
 import { settings } from "./services/config.js";
@@ -393,4 +393,13 @@ export function registerIpcHandlers(): void {
       return { ok: true };
     },
   );
+
+  // ── App updates ──────────────────────────────────────────────────────
+  ipcMain.handle(ch.GET_APP_VERSION, () => {
+    return { version: app.getVersion() };
+  });
+
+  ipcMain.handle(ch.INSTALL_UPDATE, () => {
+    autoUpdater.quitAndInstall();
+  });
 }
