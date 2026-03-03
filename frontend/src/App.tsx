@@ -135,6 +135,13 @@ export default function App() {
     refreshList,
   } = useSessions();
 
+  // ── App version ────────────────────────────────────────────────────
+  const [appVersion, setAppVersion] = useState<string>("");
+
+  useEffect(() => {
+    api.getAppVersion().then((v) => setAppVersion(v)).catch(() => {});
+  }, []);
+
   // ── Auto-update listener ───────────────────────────────────────────
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
@@ -147,6 +154,10 @@ export default function App() {
       }
     });
     return unsubscribe;
+  }, []);
+
+  const handleCheckForUpdate = useCallback(async () => {
+    await api.checkForUpdate();
   }, []);
 
   // ── Workflows ───────────────────────────────────────────────────────
@@ -472,6 +483,10 @@ export default function App() {
               onSave={saveAppSettings}
               onShowOnboarding={handleShowOnboarding}
               onClearLocalData={handleClearLocalData}
+              appVersion={appVersion}
+              updateStatus={updateStatus}
+              onCheckForUpdate={handleCheckForUpdate}
+              onInstallUpdate={() => void api.installUpdate()}
             />
           )}
 

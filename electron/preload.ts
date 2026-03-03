@@ -98,6 +98,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   installUpdate: () => ipcRenderer.invoke(ch.INSTALL_UPDATE),
 
+  checkForUpdate: () => ipcRenderer.invoke(ch.CHECK_FOR_UPDATE),
+
   getAppVersion: () =>
     ipcRenderer.invoke(ch.GET_APP_VERSION) as Promise<{ version: string }>,
 });

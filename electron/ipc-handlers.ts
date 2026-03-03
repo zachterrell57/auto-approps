@@ -418,6 +418,10 @@ export function registerIpcHandlers(): void {
     return { version: app.getVersion() };
   });
 
+  ipcMain.handle(ch.CHECK_FOR_UPDATE, () => {
+    autoUpdater.checkForUpdates();
+  });
+
   ipcMain.handle(ch.INSTALL_UPDATE, () => {
     autoUpdater.quitAndInstall();
   });

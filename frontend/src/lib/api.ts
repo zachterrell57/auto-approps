@@ -179,6 +179,10 @@ export async function installUpdate(): Promise<void> {
   await api.installUpdate();
 }
 
+export async function checkForUpdate(): Promise<void> {
+  await api.checkForUpdate();
+}
+
 export async function getAppVersion(): Promise<string> {
   const result = await api.getAppVersion();
   return result.version;

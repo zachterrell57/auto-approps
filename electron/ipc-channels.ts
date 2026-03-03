@@ -94,6 +94,9 @@ export const UPDATE_STATUS = "app:update:status" as const;
 /** Renderer → Main: install downloaded update and restart */
 export const INSTALL_UPDATE = "app:update:install" as const;
 
+/** Renderer → Main: trigger a manual update check */
+export const CHECK_FOR_UPDATE = "app:update:check" as const;
+
 /** Renderer → Main: returns { version: string } */
 export const GET_APP_VERSION = "app:update:get-version" as const;
 
@@ -126,6 +129,7 @@ export const IPC_CHANNELS = {
   DELETE_CLIENT,
   UPDATE_STATUS,
   INSTALL_UPDATE,
+  CHECK_FOR_UPDATE,
   GET_APP_VERSION,
 } as const;
 

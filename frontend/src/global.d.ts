@@ -68,6 +68,7 @@ export interface ElectronAPI {
   // App updates
   onUpdateStatus(callback: (status: unknown) => void): () => void;
   installUpdate(): Promise<void>;
+  checkForUpdate(): Promise<void>;
   getAppVersion(): Promise<{ version: string }>;
 }
 
