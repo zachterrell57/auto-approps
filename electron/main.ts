@@ -18,7 +18,7 @@ if (app.isPackaged) {
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
-function createWindow(): BrowserWindow {
+function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -39,8 +39,6 @@ function createWindow(): BrowserWindow {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
-
-  return mainWindow;
 }
 
 app.whenReady().then(() => {
@@ -58,10 +56,10 @@ app.whenReady().then(() => {
 
   nativeTheme.themeSource = "light";
 
-  const mainWindow = createWindow();
+  createWindow();
 
   // Start auto-updater (no-ops in dev mode internally)
-  initAutoUpdater(mainWindow);
+  initAutoUpdater();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

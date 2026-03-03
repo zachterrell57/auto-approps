@@ -1,4 +1,4 @@
-import { autoUpdater, type BrowserWindow } from "electron";
+import { autoUpdater, BrowserWindow } from "electron";
 import { updateElectronApp } from "update-electron-app";
 import { UPDATE_STATUS } from "../ipc-channels.js";
 
@@ -9,11 +9,10 @@ export type UpdateStatusPayload = {
 };
 
 /**
- * Initialise the auto-updater.  Call once after the main BrowserWindow is
- * created.  In dev mode (`!app.isPackaged`) `updateElectronApp` noops
- * internally so no guard is needed here.
+ * Initialise the auto-updater.  Call once after the app is ready.
+ * In dev mode (`!app.isPackaged`) `updateElectronApp` no-ops internally.
  */
-export function initAutoUpdater(mainWindow: BrowserWindow): void {
+export function initAutoUpdater(): void {
   // Configure update-electron-app to check update.electronjs.org every
   // 10 minutes.  Disable its built-in native dialog — we push status to the
   // renderer and show an in-app banner instead.
@@ -22,30 +21,34 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
     notifyUser: false,
   });
 
-  // Forward autoUpdater events to the renderer via IPC.
-  const send = (payload: UpdateStatusPayload) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(UPDATE_STATUS, payload);
+  // Forward autoUpdater events to every open renderer via IPC.
+  // We resolve the window list at send-time so that windows reopened via
+  // app.on("activate") on macOS still receive events.
+  const broadcast = (payload: UpdateStatusPayload) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send(UPDATE_STATUS, payload);
+      }
     }
   };
 
   autoUpdater.on("checking-for-update", () => {
-    send({ status: "checking" });
+    broadcast({ status: "checking" });
   });
 
   autoUpdater.on("update-available", () => {
-    send({ status: "available" });
+    broadcast({ status: "available" });
   });
 
   autoUpdater.on("update-not-available", () => {
-    send({ status: "not-available" });
+    broadcast({ status: "not-available" });
   });
 
   autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
-    send({ status: "downloaded", releaseName: releaseName || undefined });
+    broadcast({ status: "downloaded", releaseName: releaseName || undefined });
   });
 
   autoUpdater.on("error", (err) => {
-    send({ status: "error", error: err?.message });
+    broadcast({ status: "error", error: err?.message });
   });
 }
