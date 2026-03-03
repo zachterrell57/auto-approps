@@ -1,7 +1,6 @@
 // ---------------------------------------------------------------------------
 // namer.ts — AI-powered session naming via Haiku
 //
-// Port of backend/src/auto_approps/namer.py.
 // Calls claude-haiku-4-5-20251001 to generate a short, descriptive session
 // name from the document filename, form title, and field labels.
 // ---------------------------------------------------------------------------

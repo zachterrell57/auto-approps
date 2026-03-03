@@ -6,7 +6,7 @@ import type { DocChunk, ParsedDocument } from "./models.js";
  * Parse a .docx file buffer into a structured ParsedDocument.
  *
  * Uses mammoth to convert the docx to HTML, then cheerio to walk the HTML
- * in document order, mirroring the Python iter_block_items approach:
+ * in document order:
  *   - Headings (h1-h6) become "heading" chunks
  *   - Paragraphs (p)   become "paragraph" chunks
  *   - Table rows (tr)  become "table_row" chunks, with the first row treated

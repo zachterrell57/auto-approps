@@ -1,7 +1,6 @@
 // ---------------------------------------------------------------------------
 // nav-engine.ts — AI-guided page navigation engine for Microsoft Forms
 //
-// Port of backend/src/auto_approps/nav_engine.py.
 // Orchestrates forward navigation through multi-page forms by filtering
 // candidate controls, delegating to the AI decision maker, clicking the
 // chosen element, and waiting for a page transition.

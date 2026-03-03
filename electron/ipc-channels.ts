@@ -1,7 +1,6 @@
 /**
  * IPC channel name constants for communication between the renderer and main
- * processes. Each channel corresponds to a FastAPI endpoint from the original
- * Python backend.
+ * processes.
  *
  * Naming convention: "app:<resource>:<verb>" keeps channels scannable and
  * avoids collisions with Electron built-in channels.

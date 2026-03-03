@@ -1,7 +1,6 @@
 // ---------------------------------------------------------------------------
 // page-model.ts — Page snapshot and navigation element extraction
 //
-// Port of backend/src/auto_approps/page_model.py.
 // Evaluates JavaScript in a Playwright browser context to capture the current
 // state of a Microsoft Forms page: visible questions, navigation controls,
 // page indicators, and a DOM text excerpt.

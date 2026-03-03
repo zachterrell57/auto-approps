@@ -2,7 +2,7 @@ import type { ParsedDocument, FormSchema, MappingResult } from "./models.js";
 
 /**
  * Transient in-memory state that lives for the duration of a single
- * upload-scrape-map workflow.  Replaces the Python backend's `_state` dict.
+ * upload-scrape-map workflow.
  *
  * This module is intentionally a plain object rather than a class so that
  * every module that imports it shares the same singleton reference.

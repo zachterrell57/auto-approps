@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Google Forms scraper  (ported from Python backend)
+// Google Forms scraper
 // ---------------------------------------------------------------------------
 
 import type { FieldType, FormField, FormSchema } from "./models";

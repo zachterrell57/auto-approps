@@ -14,7 +14,6 @@ module.exports = {
     appBundleId: "com.autoapprops.app",
     extraResource: ["./playwright-browsers"],
     ignore: [
-      /^\/backend/,
       /^\/\.git/,
       /^\/scripts/,
       /^\/playwright-browsers/,
