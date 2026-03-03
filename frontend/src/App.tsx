@@ -16,6 +16,8 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import * as api from "@/lib/api";
+import type { SavedForm } from "@/lib/types";
 import type { MappingCompleteData } from "@/hooks/useFormFiller";
 
 type Page = "main" | "profile" | "settings" | "clients";
@@ -49,6 +51,25 @@ export default function App() {
     clearCurrentSession,
     refreshList,
   } = useSessions();
+
+  const [savedForms, setSavedForms] = useState<SavedForm[]>([]);
+  const refreshSavedForms = useCallback(async () => {
+    try {
+      const forms = await api.listSavedForms();
+      setSavedForms(forms);
+    } catch {
+      // Non-fatal — saved forms are a convenience feature
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSavedForms();
+  }, [refreshSavedForms]);
+
+  // Refresh saved forms whenever sessions list changes
+  useEffect(() => {
+    void refreshSavedForms();
+  }, [sessions, refreshSavedForms]);
 
   const [sessionSaveError, setSessionSaveError] = useState<string | null>(null);
   const [onboardingDismissedForSession, setOnboardingDismissedForSession] =
@@ -273,8 +294,10 @@ export default function App() {
               loading={loading}
               processingStage={processingStage}
               clients={clients}
+              savedForms={savedForms}
               apiKeyConfigured={apiKeyConfigured}
               onProcess={process}
+              onLoadSavedForm={handleSelectSession}
               onLoadDebug={loadDebugData}
               onOpenSettings={() => setPage("settings")}
             />

@@ -8,6 +8,7 @@ import type {
   KnowledgeProfile,
   KnowledgeProfileUpdate,
   MappingResult,
+  SavedForm,
   SessionFull,
   SessionMeta,
   SettingsUpdate,
@@ -101,6 +102,13 @@ export async function updateClient(
 
 export async function deleteClient(id: string): Promise<void> {
   return api.deleteClient(id);
+}
+
+export async function listSavedForms(): Promise<SavedForm[]> {
+  const api = electron();
+  if (api) return api.listSavedForms();
+  const res = await fetch(`${BASE}/api/forms/saved`);
+  return handleResponse(res);
 }
 
 export async function listSessions(): Promise<SessionMeta[]> {

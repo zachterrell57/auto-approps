@@ -7,6 +7,7 @@ import type {
   FormSchema,
   KnowledgeProfile,
   MappingResult,
+  SavedForm,
   SessionFull,
   SessionMeta,
   UploadResponse,
@@ -33,6 +34,7 @@ export interface ElectronAPI {
     document_bytes?: ArrayBuffer | null;
     document_filename?: string | null;
   }): Promise<{ ok: boolean }>;
+  listSavedForms(): Promise<SavedForm[]>;
   listSessions(): Promise<SessionMeta[]>;
   getSession(id: string): Promise<SessionFull>;
   getSessionDocument(
