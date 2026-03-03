@@ -28,6 +28,7 @@ export function useSessions() {
 
   const saveSession = useCallback(
     async (data: {
+      workflow_id: string;
       document_filename: string | null;
       form_url: string;
       form_title: string;

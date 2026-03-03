@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Check, Pencil, Plus, Settings, Trash2, User, Users, X } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Settings, Trash2, User, Users, X } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,16 +13,30 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import type { SessionMeta } from "@/lib/types";
+import type { WorkflowDescriptor } from "@/App";
+import type { ProcessingStage } from "@/hooks/useFormFiller";
+
+const STAGE_LABELS: Record<Exclude<ProcessingStage, null>, string> = {
+  uploading: "Reading document\u2026",
+  scraping: "Scraping form\u2026",
+  mapping: "Mapping fields\u2026",
+};
 
 interface SessionSidebarProps {
   sessions: SessionMeta[];
   currentSessionId: string | null;
+  workflows: WorkflowDescriptor[];
+  activeWorkflowId: string;
+  onSelectWorkflow: (id: string) => void;
+  onDiscardWorkflow: (id: string) => void;
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
   onRenameSession: (id: string, name: string) => void;
   onNavigate: (page: "profile" | "settings" | "clients") => void;
   activePage: string;
+  processingStage?: ProcessingStage;
+  processingLabel?: string | null;
 }
 
 function timeAgo(isoDate: string): string {
@@ -37,15 +51,34 @@ function sessionDisplayName(session: SessionMeta): string {
   return session.display_name || session.form_title || "Untitled Session";
 }
 
+function workflowStatusLabel(wf: WorkflowDescriptor): string {
+  const { processingStage } = wf.status;
+  if (processingStage === "uploading") return "Uploading...";
+  if (processingStage === "scraping") return "Scraping...";
+  if (processingStage === "mapping") return "Mapping...";
+  if (wf.status.step === "answers") return "Review";
+  return "Ready";
+}
+
+function workflowIsProcessing(wf: WorkflowDescriptor): boolean {
+  return wf.status.processingStage !== null;
+}
+
 export function SessionSidebar({
   sessions,
   currentSessionId,
+  workflows,
+  activeWorkflowId,
+  onSelectWorkflow,
+  onDiscardWorkflow,
   onSelectSession,
   onNewSession,
   onDeleteSession,
   onRenameSession,
   onNavigate,
   activePage,
+  processingStage,
+  processingLabel,
 }: SessionSidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -94,12 +127,81 @@ export function SessionSidebar({
           </button>
         </div>
 
+        {/* ── Active workflows ─────────────────────────────────────── */}
+        {workflows.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/30">
+              In Progress
+            </SidebarGroupLabel>
+            <SidebarMenu>
+              {workflows.map((wf) => (
+                <SidebarMenuItem key={wf.id}>
+                  <SidebarMenuButton
+                    isActive={activePage === "main" && activeWorkflowId === wf.id}
+                    onClick={() => onSelectWorkflow(wf.id)}
+                    className="h-auto py-2.5 items-start"
+                  >
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <p className="text-sm font-medium truncate leading-tight">
+                        {wf.label}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-foreground/30 flex items-center gap-1">
+                          {workflowIsProcessing(wf) && (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          )}
+                          {workflowStatusLabel(wf)}
+                        </span>
+                        {!workflowIsProcessing(wf) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDiscardWorkflow(wf.id);
+                            }}
+                            className="text-foreground/15 hover:text-rose-500 transition-colors p-0.5"
+                            title="Discard workflow"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
+
+        {/* ── Session history ──────────────────────────────────────── */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/30">
             Session History
           </SidebarGroupLabel>
           <SidebarMenu>
-            {sessions.length === 0 && (
+            {processingStage && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive
+                  className="h-auto py-2.5 items-start cursor-default"
+                >
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="h-3.5 w-3.5 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin block flex-shrink-0" />
+                      <p className="text-sm font-medium truncate leading-tight text-amber-700">
+                        {STAGE_LABELS[processingStage]}
+                      </p>
+                    </div>
+                    {processingLabel && (
+                      <p className="text-[11px] text-foreground/30 truncate">
+                        {processingLabel}
+                      </p>
+                    )}
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+            {sessions.length === 0 && !processingStage && (
               <p className="px-3 py-4 text-xs text-foreground/30 leading-relaxed">
                 No sessions yet. Process a form to get started.
               </p>
