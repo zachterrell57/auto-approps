@@ -4,6 +4,18 @@
 
 export type FormProvider = "google" | "microsoft" | "generic";
 
+function isMicrosoftFormsHost(host: string): boolean {
+  const normalized = host.toLowerCase();
+  return (
+    normalized === "forms.office.com" ||
+    normalized.endsWith(".forms.office.com") ||
+    normalized === "forms.microsoft.com" ||
+    normalized.endsWith(".forms.microsoft.com") ||
+    normalized === "forms.cloud.microsoft" ||
+    normalized.endsWith(".forms.cloud.microsoft")
+  );
+}
+
 /**
  * Detect the form provider from a URL.
  * Falls back to "generic" for unrecognised domains.
@@ -25,7 +37,8 @@ export function detectProvider(url: string): FormProvider {
     }
     if (
       lower.includes("forms.office.com") ||
-      lower.includes("forms.microsoft.com")
+      lower.includes("forms.microsoft.com") ||
+      lower.includes("forms.cloud.microsoft")
     ) {
       return "microsoft";
     }
@@ -49,7 +62,7 @@ export function detectProvider(url: string): FormProvider {
     return "google";
   }
 
-  if (host === "forms.office.com" || host === "forms.microsoft.com") {
+  if (isMicrosoftFormsHost(host)) {
     return "microsoft";
   }
   return "generic";
