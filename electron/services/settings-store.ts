@@ -1,10 +1,9 @@
 // ---------------------------------------------------------------------------
 // settings-store.ts — Read / write the API key in settings.json
 //
-// Port of backend/src/auto_approps/settings_store.py.
-// Instead of parsing a .env file, this module reads and writes a JSON file
-// located at `<userData>/settings.json`.  Writes are atomic (write to a .tmp
-// file then rename) so a crash mid-write cannot corrupt the file.
+// Reads and writes a JSON file located at `<userData>/settings.json`.  Writes
+// are atomic (write to a .tmp file then rename) so a crash mid-write cannot
+// corrupt the file.
 // ---------------------------------------------------------------------------
 
 import fs from "node:fs";

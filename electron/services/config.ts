@@ -1,10 +1,8 @@
 // ---------------------------------------------------------------------------
 // config.ts — Application settings and userData path management
 //
-// Port of backend/src/auto_approps/config.py.
-// Instead of reading from .env via pydantic-settings, this module exposes a
-// plain mutable settings object with the same defaults and a pair of functions
-// to set / get the Electron userData path at runtime.
+// Exposes a plain mutable settings object with sensible defaults and a pair of
+// functions to set / get the Electron userData path at runtime.
 // ---------------------------------------------------------------------------
 
 let _userDataPath: string | null = null;
@@ -36,8 +34,7 @@ export function getUserDataPath(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Settings object — mirrors the Python Settings(BaseSettings) class.
-// Values here are sensible defaults; the API key is typically loaded from
+// Settings object — sensible defaults; the API key is typically loaded from
 // settings.json via the settings-store module.
 // ---------------------------------------------------------------------------
 

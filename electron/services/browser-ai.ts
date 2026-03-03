@@ -1,7 +1,6 @@
 // ---------------------------------------------------------------------------
 // browser-ai.ts — AI-guided navigation control selection
 //
-// Port of backend/src/auto_approps/browser_ai.py.
 // Uses the Anthropic Node SDK to ask Claude which navigation control should
 // be clicked to advance to the next page of a Microsoft Form.
 // ---------------------------------------------------------------------------

@@ -1,7 +1,6 @@
 // ---------------------------------------------------------------------------
 // ms-form-scraper.ts — Microsoft Forms scraper via Playwright
 //
-// Port of backend/src/auto_approps/ms_form_scraper.py (484 lines).
 // Launches a headless Chromium browser, navigates through multi-page
 // Microsoft Forms, extracts question metadata (label, type, options,
 // required), and returns a structured FormSchema.
