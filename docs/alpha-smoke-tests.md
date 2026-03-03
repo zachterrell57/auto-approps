@@ -39,6 +39,16 @@ Use this checklist before cutting an alpha build.
 - [ ] Use a form with a checkbox field containing multiple valid options.
 - [ ] Confirm mapped answer preserves multiple selections (normalized format).
 
+### 5) Multi-Session In-Progress Persistence
+
+- [ ] Start mapping in Session A and confirm sidebar shows `Mapping...`.
+- [ ] Create Session B, start mapping, then switch back to Session A before either mapping completes.
+- [ ] Confirm Session A still shows processing UI (not blank `Map Form` page) and sidebar status remains `Mapping...`.
+- [ ] Keep Session B active until Session A finishes in background.
+- [ ] Confirm app stays on Session B; Session A status updates to `Review`; selecting Session A opens the answer sheet.
+- [ ] While a workflow is mapping, navigate to Settings, Profile, and Clients, then return.
+- [ ] Confirm the workflow resumes prior in-progress/completed UI state with no reset.
+
 ## Failure Path Checks
 
 - [ ] Invalid URL shows actionable error.

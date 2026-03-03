@@ -4,6 +4,7 @@ import { DocumentViewer } from "@/components/DocumentViewer";
 import type { FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types";
 
 interface AnswerSheetStepProps {
+  workflowId: string;
   formSchema: FormSchema;
   mappings: FieldMapping[];
   loading: boolean;
@@ -59,6 +60,7 @@ async function copyToClipboard(value: string): Promise<boolean> {
 }
 
 export function AnswerSheetStep({
+  workflowId,
   formSchema,
   mappings,
   loading,
@@ -348,7 +350,11 @@ export function AnswerSheetStep({
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
           {hasDocument ? (
-            <DocumentViewer blobUrl={debugDocBlobUrl} sourceChunks={selectedSourceChunks} />
+            <DocumentViewer
+              workflowId={workflowId}
+              blobUrl={debugDocBlobUrl}
+              sourceChunks={selectedSourceChunks}
+            />
           ) : (
             <div className="h-full flex items-center justify-center px-6 text-center text-sm text-foreground/40 bg-foreground/[0.02]">
               No document uploaded; answers sourced from knowledge context.

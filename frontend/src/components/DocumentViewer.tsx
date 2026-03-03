@@ -10,6 +10,8 @@ const HIGHLIGHT_CLASS = "source-highlight";
 const ACTIVE_HIGHLIGHT_CLASS = "source-highlight-active";
 
 interface DocumentViewerProps {
+  /** Workflow ID used to fetch the in-memory uploaded document when no blob URL is provided. */
+  workflowId?: string;
   /** When set, fetch the .docx from this URL instead of the backend API. */
   blobUrl?: string | null;
   /** Source chunks to highlight and navigate in the rendered document. */
@@ -17,6 +19,7 @@ interface DocumentViewerProps {
 }
 
 export function DocumentViewer({
+  workflowId,
   blobUrl,
   sourceChunks = [],
 }: DocumentViewerProps) {
@@ -39,7 +42,13 @@ export function DocumentViewer({
         setError(null);
         const buffer = blobUrl
           ? await fetch(blobUrl).then((r) => r.arrayBuffer())
-          : await fetchDocumentBlob();
+          : workflowId
+            ? await fetchDocumentBlob(workflowId)
+            : (() => {
+                throw new Error(
+                  "Missing workflow context for document preview."
+                );
+              })();
         if (cancelled || !containerRef.current) return;
         await renderAsync(buffer, containerRef.current, undefined, {
           className: "docx-viewer",
@@ -63,7 +72,7 @@ export function DocumentViewer({
     return () => {
       cancelled = true;
     };
-  }, [blobUrl]);
+  }, [blobUrl, workflowId]);
 
   // Match source chunks to DOM elements and highlight
   useEffect(() => {
