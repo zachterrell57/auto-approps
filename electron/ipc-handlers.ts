@@ -317,9 +317,6 @@ export function registerIpcHandlers(): void {
         mappingResult: args.mapping_result,
       });
 
-      // Clean up transient workflow state now that it's persisted
-      deleteWorkflow(args.workflow_id);
-
       return session;
     },
   );

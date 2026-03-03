@@ -4,6 +4,7 @@ import { useFormFiller } from "@/hooks/useFormFiller";
 import type { MappingCompleteData, ProcessingStage, Step } from "@/hooks/useFormFiller";
 import { UploadStep } from "@/components/UploadStep";
 import { AnswerSheetStep } from "@/components/AnswerSheetStep";
+import * as api from "@/lib/api";
 import type { Client, SavedForm, SessionFull } from "@/lib/types";
 
 export interface WorkflowStatus {
@@ -14,6 +15,8 @@ export interface WorkflowStatus {
 
 interface WorkflowPanelProps {
   workflowId: string;
+  /** Persisted session ID — enables autosave of mapping edits. */
+  sessionId?: string;
   apiKeyConfigured: boolean;
   clients: Client[];
   savedForms?: SavedForm[];
@@ -26,6 +29,7 @@ interface WorkflowPanelProps {
 
 export function WorkflowPanel({
   workflowId,
+  sessionId,
   apiKeyConfigured,
   clients,
   savedForms,
@@ -75,6 +79,25 @@ export function WorkflowPanel({
       formTitle: formSchema?.title ?? null,
     });
   }, [workflowId, step, processingStage, formSchema?.title]);
+
+  // Debounced autosave of mapping edits when a session is persisted
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
+  const initialMappingsRef = useRef(true);
+
+  useEffect(() => {
+    // Skip the first render (initial load / hydration)
+    if (initialMappingsRef.current) {
+      initialMappingsRef.current = false;
+      return;
+    }
+    if (!sessionIdRef.current || !mappings || mappings.length === 0) return;
+    const sid = sessionIdRef.current;
+    const timer = setTimeout(() => {
+      void api.updateSessionMappings(sid, mappings);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [mappings]);
 
   const [dismissedError, setDismissedError] = useState<string | null>(null);
   const visibleError = error && error !== dismissedError ? error : null;

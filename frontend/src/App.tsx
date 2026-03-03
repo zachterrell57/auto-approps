@@ -29,6 +29,8 @@ export interface WorkflowDescriptor {
   id: string;
   label: string;
   status: WorkflowStatus;
+  /** Persisted session ID (set after save or when hydrating from history). */
+  sessionId?: string;
   /** If set, the WorkflowPanel hydrates this session on mount. */
   initialSession?: SessionFull;
 }
@@ -176,7 +178,15 @@ export default function App() {
   const handleMappingComplete = useCallback(
     async (data: MappingCompleteData) => {
       try {
-        await saveSession(data);
+        const sessionId = await saveSession(data);
+        // Track the persisted session ID so edits can be autosaved
+        if (sessionId) {
+          setWorkflows((prev) =>
+            prev.map((w) =>
+              w.id === data.workflow_id ? { ...w, sessionId } : w,
+            ),
+          );
+        }
       } catch (err) {
         setSessionSaveError(
           `Failed to save session: ${err instanceof Error ? err.message : String(err)}`,
@@ -238,6 +248,7 @@ export default function App() {
         id: newWorkflowId(),
         label: session.display_name || session.form_title || "Session",
         status: { step: "answers", processingStage: null, formTitle: session.form_title },
+        sessionId: session.id,
         initialSession: session,
       };
       setWorkflows((prev) => [wf, ...prev]);
@@ -347,6 +358,7 @@ export default function App() {
           <WorkflowPanel
             key={activeWorkflow.id}
             workflowId={activeWorkflow.id}
+            sessionId={activeWorkflow.sessionId}
             apiKeyConfigured={apiKeyConfigured}
             clients={clients}
             savedForms={savedForms}
