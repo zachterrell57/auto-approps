@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Eye, EyeOff, Key, Check } from "lucide-react";
+import { Eye, EyeOff, Key, Check, RefreshCw, Download } from "lucide-react";
 import { validateAnthropicApiKey } from "@/lib/apiKey";
-import type { AppSettings } from "@/lib/types";
+import type { AppSettings, UpdateStatus } from "@/lib/types";
 
 interface SettingsPageProps {
   settings: AppSettings;
@@ -9,6 +9,10 @@ interface SettingsPageProps {
   onSave: (apiKey: string) => boolean | Promise<boolean>;
   onShowOnboarding?: () => void | Promise<void>;
   onClearLocalData?: () => void | Promise<void>;
+  appVersion?: string;
+  updateStatus?: UpdateStatus | null;
+  onCheckForUpdate?: () => void | Promise<void>;
+  onInstallUpdate?: () => void;
 }
 
 export function SettingsPage({
@@ -17,6 +21,10 @@ export function SettingsPage({
   onSave,
   onShowOnboarding,
   onClearLocalData,
+  appVersion,
+  updateStatus,
+  onCheckForUpdate,
+  onInstallUpdate,
 }: SettingsPageProps) {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -153,6 +161,62 @@ export function SettingsPage({
               >
                 Show onboarding again
               </button>
+            </div>
+          </section>
+        )}
+
+        {appVersion && (
+          <section>
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
+                Version
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-foreground/10 bg-foreground/[0.015] p-4">
+              <div>
+                <p className="text-sm font-medium text-foreground tabular-nums">
+                  v{appVersion}
+                </p>
+                <p className="text-xs text-foreground/60 mt-1">
+                  {updateStatus?.status === "checking"
+                    ? "Checking for updates..."
+                    : updateStatus?.status === "available"
+                      ? "A new update is available. Downloading..."
+                      : updateStatus?.status === "downloaded"
+                        ? `Update${updateStatus.releaseName ? ` ${updateStatus.releaseName}` : ""} ready to install.`
+                        : updateStatus?.status === "error"
+                          ? "Update check failed. Try again later."
+                          : "You're on the latest version."}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {updateStatus?.status === "downloaded" && onInstallUpdate ? (
+                  <button
+                    type="button"
+                    onClick={onInstallUpdate}
+                    className="h-10 px-4 rounded-lg bg-amber-600 text-sm font-medium text-white hover:bg-amber-700 transition-colors flex items-center gap-2"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Restart & Update
+                  </button>
+                ) : (
+                  onCheckForUpdate && (
+                    <button
+                      type="button"
+                      disabled={updateStatus?.status === "checking"}
+                      onClick={() => {
+                        void onCheckForUpdate();
+                      }}
+                      className="h-10 px-4 rounded-lg border border-foreground/15 text-sm font-medium text-foreground/70 hover:bg-foreground/[0.03] transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 ${updateStatus?.status === "checking" ? "animate-spin" : ""}`}
+                      />
+                      Check for Updates
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           </section>
         )}

@@ -1,5 +1,6 @@
-import { app, autoUpdater, ipcMain } from "electron";
+import { app, autoUpdater, BrowserWindow, ipcMain } from "electron";
 import * as ch from "./ipc-channels.js";
+import { UPDATE_STATUS } from "./ipc-channels.js";
 import { getWorkflow, deleteWorkflow, resetAllWorkflows } from "./services/state.js";
 import { settings } from "./services/config.js";
 import {
@@ -416,6 +417,29 @@ export function registerIpcHandlers(): void {
   // ── App updates ──────────────────────────────────────────────────────
   ipcMain.handle(ch.GET_APP_VERSION, () => {
     return { version: app.getVersion() };
+  });
+
+  ipcMain.handle(ch.CHECK_FOR_UPDATE, () => {
+    if (!app.isPackaged) {
+      // In dev / unpackaged builds autoUpdater has no feed URL and will throw.
+      // Broadcast a not-available status so the UI stays consistent.
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) {
+          win.webContents.send(UPDATE_STATUS, { status: "not-available" });
+        }
+      }
+      return;
+    }
+    try {
+      autoUpdater.checkForUpdates();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) {
+          win.webContents.send(UPDATE_STATUS, { status: "error", error: message });
+        }
+      }
+    }
   });
 
   ipcMain.handle(ch.INSTALL_UPDATE, () => {
