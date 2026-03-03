@@ -1,9 +1,8 @@
 // ---------------------------------------------------------------------------
 // mapper.ts — AI-powered field mapping via Claude tool-use
 //
-// Port of backend/src/auto_approps/mapper.py (442 lines).
 // Uses the Anthropic Node SDK (async by default) and fastest-levenshtein
-// for fuzzy string matching (replacing Python's difflib.get_close_matches).
+// for fuzzy string matching.
 // ---------------------------------------------------------------------------
 
 import Anthropic from "@anthropic-ai/sdk";

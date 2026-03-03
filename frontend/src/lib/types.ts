@@ -91,6 +91,12 @@ export interface SessionFull extends SessionMeta {
   edited_mappings: FieldMapping[] | null;
 }
 
+export interface SavedForm {
+  form_url: string;
+  form_title: string;
+  display_name: string;
+}
+
 export interface Client {
   id: string;
   name: string;

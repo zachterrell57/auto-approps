@@ -132,6 +132,18 @@ export const SessionFullSchema = SessionMetaSchema.extend({
 export type SessionFull = z.infer<typeof SessionFullSchema>;
 
 // ---------------------------------------------------------------------------
+// SavedForm (unique form grouped by URL)
+// ---------------------------------------------------------------------------
+
+export const SavedFormSchema = z.object({
+  form_url: z.string(),
+  form_title: z.string().default(""),
+  display_name: z.string().default(""),
+});
+
+export type SavedForm = z.infer<typeof SavedFormSchema>;
+
+// ---------------------------------------------------------------------------
 // SessionCreate
 // ---------------------------------------------------------------------------
 

@@ -1,7 +1,6 @@
 // ---------------------------------------------------------------------------
 // knowledge-store.ts — Load / save the knowledge profile
 //
-// Port of backend/src/auto_approps/knowledge_profile_store.py.
 // The profile is persisted as `<userData>/knowledge_profile.json`.  Writes
 // are atomic (write to .tmp then rename).
 // ---------------------------------------------------------------------------

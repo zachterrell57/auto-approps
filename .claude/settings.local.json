@@ -22,7 +22,22 @@
       "Bash(cd frontend && npx vite build 2>&1 | tail -20)",
       "Bash(ls *.json)",
       "Bash(npx tsc -p tsconfig.node.json --noEmit 2>&1 | head -20)",
-      "Bash(npx tsc -p tsconfig.app.json --noEmit 2>&1 | head -20)"
+      "Bash(npx tsc -p tsconfig.app.json --noEmit 2>&1 | head -20)",
+      "Bash(gh repo view --json nameWithOwner,url -q '.nameWithOwner + \" \" + .url')",
+      "Bash(ls -la dist/*.dmg 2>/dev/null || ls -la out/**/*.dmg 2>/dev/null || find . -name \"*.dmg\" -maxdepth 3 2>/dev/null)",
+      "Bash(gh release list --repo zachterrell57/auto-approps --limit 5 2>/dev/null || echo \"No releases found\")",
+      "Bash(gh release list --repo zachterrell57/auto-approps --limit 10)",
+      "Bash(gh api repos/zachterrell57/auto-approps/git/refs/tags --jq '.[].ref')",
+      "Bash(gh release edit v0.0.1 --repo zachterrell57/auto-approps --prerelease=false --latest)",
+      "Bash(gh release delete-asset v0.0.1 AutoApprops-1.0.0-arm64.dmg --repo zachterrell57/auto-approps --yes)",
+      "Bash(gh release upload v0.0.1 /tmp/AutoApprops-0.0.1-arm64.dmg --repo zachterrell57/auto-approps)",
+      "Bash(npm run make 2>&1)",
+      "Bash(git -C /Users/zachterrell/Developer/form-filler log --all --oneline | grep -i \"release\\\\|sign\\\\|build\\\\|package\" | head -20)",
+      "Bash(git -C /Users/zachterrell/Developer/form-filler log --all --oneline | head -30)",
+      "Bash(git -C /Users/zachterrell/Developer/form-filler remote -v)",
+      "Bash(gh api repos/zachterrell57/auto-approps/contents/.github/workflows/release.yml --jq '.name' 2>&1)",
+      "Bash(gh api repos/zachterrell57/auto-approps/actions/permissions 2>&1)",
+      "Bash(git push origin :refs/tags/v0.0.3 && git tag -d v0.0.3 && git tag v0.0.3 && git push origin v0.0.3)"
     ]
   }
 }

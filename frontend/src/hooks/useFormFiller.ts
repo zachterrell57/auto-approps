@@ -58,6 +58,7 @@ export function useFormFiller(options: {
   const [step, setStep] = useState<Step>("upload");
   const [loading, setLoading] = useState(false);
   const [processingStage, setProcessingStage] = useState<ProcessingStage>(null);
+  const [processingFormUrl, setProcessingFormUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
@@ -98,6 +99,7 @@ export function useFormFiller(options: {
       const shouldIncludeDocument = Boolean(file);
       setLoading(true);
       setProcessingStage(shouldIncludeDocument ? "uploading" : "scraping");
+      setProcessingFormUrl(formUrl);
       setError(null);
       replaceDocumentBlobUrl(null);
       setIsHistorical(false);
@@ -130,20 +132,26 @@ export function useFormFiller(options: {
         setMappings(result.mappings);
         setStep("answers");
 
-        onMappingCompleteRef.current?.({
-          workflow_id: workflowId,
-          document_filename: uploaded?.filename ?? null,
-          form_url: schema.url || formUrl,
-          form_title: schema.title,
-          form_provider: schema.provider,
-          form_schema: schema,
-          mapping_result: result,
-        });
+        // Wait for session persistence before clearing the processing indicator
+        try {
+          await onMappingCompleteRef.current?.({
+            workflow_id: workflowId,
+            document_filename: uploaded?.filename ?? null,
+            form_url: schema.url || formUrl,
+            form_title: schema.title,
+            form_provider: schema.provider,
+            form_schema: schema,
+            mapping_result: result,
+          });
+        } catch {
+          // Session save errors are handled by the caller
+        }
       } catch (err: unknown) {
         setError(errorMessage(err, "An error occurred"));
       } finally {
         setLoading(false);
         setProcessingStage(null);
+        setProcessingFormUrl(null);
       }
     },
     [apiKeyConfigured, replaceDocumentBlobUrl, workflowId],
@@ -187,6 +195,7 @@ export function useFormFiller(options: {
     setStep("upload");
     setLoading(false);
     setProcessingStage(null);
+    setProcessingFormUrl(null);
     setError(null);
     setUploadResult(null);
     setFormSchema(null);
@@ -260,6 +269,7 @@ export function useFormFiller(options: {
     step,
     loading,
     processingStage,
+    processingFormUrl,
     error,
     apiKeyConfigured,
     uploadResult,

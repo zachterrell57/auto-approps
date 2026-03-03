@@ -1,7 +1,6 @@
 /**
  * IPC channel name constants for communication between the renderer and main
- * processes. Each channel corresponds to a FastAPI endpoint from the original
- * Python backend.
+ * processes.
  *
  * Naming convention: "app:<resource>:<verb>" keeps channels scannable and
  * avoids collisions with Electron built-in channels.
@@ -44,6 +43,10 @@ export const HYDRATE_STATE = "app:form:hydrate-state" as const;
 // ── Workflow lifecycle ──────────────────────────────────────────────────
 /** Takes { workflow_id: string }, cleans up transient in-memory state */
 export const DELETE_WORKFLOW = "app:workflow:delete" as const;
+
+// ── Saved forms (unique by URL) ───────────────────────────────────────────
+/** Returns SavedForm[] – one entry per unique form_url */
+export const LIST_SAVED_FORMS = "app:forms:list-saved" as const;
 
 // ── Sessions ───────────────────────────────────────────────────────────────
 /** Returns SessionMeta[] */
@@ -98,6 +101,7 @@ export const IPC_CHANNELS = {
   MAP,
   HYDRATE_STATE,
   DELETE_WORKFLOW,
+  LIST_SAVED_FORMS,
   LIST_SESSIONS,
   GET_SESSION,
   CREATE_SESSION,

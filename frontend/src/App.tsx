@@ -17,7 +17,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import type { MappingCompleteData } from "@/hooks/useFormFiller";
-import type { AppSettings, SessionFull } from "@/lib/types";
+import type { AppSettings, SavedForm, SessionFull } from "@/lib/types";
 
 type Page = "main" | "profile" | "settings" | "clients";
 
@@ -132,6 +132,28 @@ export default function App() {
     () => workflows[0].id,
   );
 
+  // ── Saved forms (convenience feature from session history) ─────────
+  const [savedForms, setSavedForms] = useState<SavedForm[]>([]);
+  const refreshSavedForms = useCallback(async () => {
+    try {
+      const forms = await api.listSavedForms();
+      setSavedForms(forms);
+    } catch {
+      // Non-fatal — saved forms are a convenience feature
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSavedForms();
+  }, [refreshSavedForms]);
+
+  // Refresh saved forms whenever sessions list changes
+  useEffect(() => {
+    void refreshSavedForms();
+  }, [sessions, refreshSavedForms]);
+
+  const [sessionSaveError, setSessionSaveError] = useState<string | null>(null);
+
   // Update a workflow's status (called by WorkflowPanel via onStatusChange)
   const handleWorkflowStatusChange = useCallback(
     (wfId: string, status: WorkflowStatus) => {
@@ -152,18 +174,14 @@ export default function App() {
 
   // When a workflow completes mapping → save as a session
   const handleMappingComplete = useCallback(
-    (data: MappingCompleteData) => {
-      saveSession({
-        workflow_id: data.workflow_id,
-        document_filename: data.document_filename,
-        form_url: data.form_url,
-        form_title: data.form_title,
-        form_provider: data.form_provider,
-        form_schema: data.form_schema,
-        mapping_result: data.mapping_result,
-      }).catch((err) => {
-        console.error("Failed to save session", err);
-      });
+    async (data: MappingCompleteData) => {
+      try {
+        await saveSession(data);
+      } catch (err) {
+        setSessionSaveError(
+          `Failed to save session: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
     },
     [saveSession],
   );
@@ -245,11 +263,11 @@ export default function App() {
     setWorkflows([fresh]);
     setActiveWorkflowId(fresh.id);
     clearCurrentSession();
-    await Promise.all([refreshList(), refreshClients(), reloadKnowledgeProfile()]);
+    await Promise.all([refreshList(), refreshClients(), reloadKnowledgeProfile(), refreshSavedForms()]);
     setOnboardingDismissedForSession(false);
     setOnboardingForcedOpen(false);
     setPage("main");
-  }, [clearCurrentSession, refreshClients, refreshList, reloadKnowledgeProfile]);
+  }, [clearCurrentSession, refreshClients, refreshList, reloadKnowledgeProfile, refreshSavedForms]);
 
   // ── Onboarding ──────────────────────────────────────────────────────
   const [onboardingDismissedForSession, setOnboardingDismissedForSession] =
@@ -279,16 +297,8 @@ export default function App() {
     [saveAppSettings],
   );
 
-  // ── Auto-save edited mappings (debounced) ───────────────────────────
-  // NOTE: We need the active workflow's mappings for debounced save.
-  // The WorkflowPanel owns the mappings internally, so for session editing
-  // we rely on the session-save that happens on mapping complete.
-  // For ongoing edits of a historical session, the useSessions hook handles it.
-  // This is a simplification — edits to historical sessions' mappings are
-  // saved when the user switches away.
-
   // ── Error display ───────────────────────────────────────────────────
-  const rawError = profileError;
+  const rawError = profileError || sessionSaveError;
   const [dismissedError, setDismissedError] = useState<string | null>(null);
   const error = rawError && rawError !== dismissedError ? rawError : null;
 
@@ -339,6 +349,7 @@ export default function App() {
             workflowId={activeWorkflow.id}
             apiKeyConfigured={apiKeyConfigured}
             clients={clients}
+            savedForms={savedForms}
             initialSession={activeWorkflow.initialSession}
             onStatusChange={handleWorkflowStatusChange}
             onMappingComplete={handleMappingComplete}

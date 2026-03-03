@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   FileText,
   Link,
@@ -10,14 +10,16 @@ import {
   FileUp,
   Globe,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
-import type { Client } from "@/lib/types";
+import type { Client, SavedForm } from "@/lib/types";
 import type { ProcessingStage } from "@/hooks/useFormFiller";
 
 interface UploadStepProps {
   loading: boolean;
   processingStage?: ProcessingStage;
   clients?: Client[];
+  savedForms?: SavedForm[];
   apiKeyConfigured?: boolean;
   onProcess: (file: File | null, formUrl: string, clientId?: string) => void;
   onLoadDebug?: () => void;
@@ -42,6 +44,7 @@ export function UploadStep({
   loading,
   processingStage,
   clients = [],
+  savedForms = [],
   apiKeyConfigured = true,
   onProcess,
   onLoadDebug,
@@ -51,6 +54,47 @@ export function UploadStep({
   const [formUrl, setFormUrl] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [showUrlSuggestions, setShowUrlSuggestions] = useState(false);
+  const formUrlPickerRef = useRef<HTMLDivElement | null>(null);
+
+  const recentFormOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const deduped: SavedForm[] = [];
+    for (const form of savedForms) {
+      const url = form.form_url.trim();
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      deduped.push(form);
+      if (deduped.length >= 8) break;
+    }
+    return deduped;
+  }, [savedForms]);
+
+  const filteredRecentFormOptions = useMemo(() => {
+    const query = formUrl.trim().toLowerCase();
+    if (!query) return recentFormOptions;
+    return recentFormOptions.filter((form) => {
+      const title = (form.form_title || form.display_name || "").toLowerCase();
+      return (
+        form.form_url.toLowerCase().includes(query) ||
+        title.includes(query)
+      );
+    });
+  }, [recentFormOptions, formUrl]);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!formUrlPickerRef.current) return;
+      if (!formUrlPickerRef.current.contains(event.target as Node)) {
+        setShowUrlSuggestions(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -199,18 +243,86 @@ export function UploadStep({
             </span>
           </div>
 
-          <div className="relative group">
+          <div ref={formUrlPickerRef} className="relative group">
             <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-foreground/20 transition-colors group-focus-within:text-amber-500">
               <Link className="w-4 h-4" />
             </div>
             <input
               type="url"
-              placeholder="Paste any web form URL..."
+              placeholder="Paste or choose a recent form URL..."
               value={formUrl}
-              onChange={(e) => setFormUrl(e.target.value)}
-              className="w-full h-12 pl-11 pr-4 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"
+              onChange={(e) => {
+                setFormUrl(e.target.value);
+                if (recentFormOptions.length > 0) {
+                  setShowUrlSuggestions(true);
+                }
+              }}
+              onFocus={() => {
+                if (recentFormOptions.length > 0) {
+                  setShowUrlSuggestions(true);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setShowUrlSuggestions(false);
+                } else if (e.key === "ArrowDown" && !showUrlSuggestions) {
+                  setShowUrlSuggestions(true);
+                }
+              }}
+              className="w-full h-12 pl-11 pr-11 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"
             />
+            {recentFormOptions.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowUrlSuggestions((prev) => !prev)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg flex items-center justify-center text-foreground/35 hover:text-foreground/60 hover:bg-foreground/[0.04] transition-colors"
+                aria-label="Toggle recent form URLs"
+              >
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${
+                    showUrlSuggestions ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+            )}
+
+            {showUrlSuggestions && recentFormOptions.length > 0 && (
+              <div className="absolute z-30 mt-2 w-full rounded-xl border border-foreground/10 bg-background shadow-xl overflow-hidden">
+                {filteredRecentFormOptions.length > 0 ? (
+                  <div className="max-h-56 overflow-y-auto py-1">
+                    {filteredRecentFormOptions.map((form) => (
+                      <button
+                        key={form.form_url}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setFormUrl(form.form_url);
+                          setShowUrlSuggestions(false);
+                        }}
+                        className="w-full px-3 py-2.5 text-left hover:bg-foreground/[0.03] transition-colors"
+                      >
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {form.form_title || form.display_name || "Recent form"}
+                        </p>
+                        <p className="text-[11px] text-foreground/40 truncate mt-0.5">
+                          {form.form_url}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="px-3 py-2.5 text-xs text-foreground/40">
+                    No recent form URLs match your input.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
+          {recentFormOptions.length > 0 && (
+            <p className="mt-2 text-xs text-foreground/35">
+              Start typing to filter recent form URLs.
+            </p>
+          )}
         </section>
 
         <section>

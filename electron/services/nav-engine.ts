@@ -1,7 +1,6 @@
 // ---------------------------------------------------------------------------
 // nav-engine.ts — AI-guided page navigation engine for Microsoft Forms
 //
-// Port of backend/src/auto_approps/nav_engine.py.
 // Orchestrates forward navigation through multi-page forms by filtering
 // candidate controls, delegating to the AI decision maker, clicking the
 // chosen element, and waiting for a page transition.
@@ -28,6 +27,9 @@ import {
 const FORWARD_TOKENS = ["next", "continue", "proceed", "review", "ok"];
 const STOP_TOKENS = ["back", "previous", "cancel"];
 const SUBMIT_TOKENS = ["submit", "send", "done", "finish"];
+
+const WORD_BOUNDARY = "(^|[^a-z0-9])";
+const WORD_BOUNDARY_END = "($|[^a-z0-9])";
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -75,6 +77,20 @@ function _candidateBlob(item: NavigationElement): string {
     .toLowerCase();
 }
 
+function _containsToken(value: string, token: string): boolean {
+  if (!value) return false;
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(
+    `${WORD_BOUNDARY}${escaped}${WORD_BOUNDARY_END}`,
+    "i",
+  );
+  return re.test(value);
+}
+
+function _fieldHasForwardToken(value: string): boolean {
+  return FORWARD_TOKENS.some((token) => _containsToken(value, token));
+}
+
 function _isStopOrSubmitCandidate(item: NavigationElement): boolean {
   const blob = _candidateBlob(item);
   const allTokens = [...STOP_TOKENS, ...SUBMIT_TOKENS];
@@ -110,6 +126,49 @@ function _actionableCandidates(
     (item) =>
       item.visible && !item.disabled && !_isStopOrSubmitCandidate(item),
   );
+}
+
+function _forwardScore(item: NavigationElement): number {
+  const text = item.text.toLowerCase();
+  const aria = item.aria_label.toLowerCase();
+  const title = item.title_attr.toLowerCase();
+  const dataId = item.data_automation_id.toLowerCase();
+
+  let score = 0;
+  if (dataId === "nextbutton") score += 150;
+  if (_fieldHasForwardToken(dataId)) score += 120;
+  if (FORWARD_TOKENS.some((token) => text === token)) score += 100;
+  if (FORWARD_TOKENS.some((token) => aria === token)) score += 100;
+  if (FORWARD_TOKENS.some((token) => title === token)) score += 80;
+  if (_fieldHasForwardToken(text)) score += 70;
+  if (_fieldHasForwardToken(aria)) score += 70;
+  if (_fieldHasForwardToken(title)) score += 50;
+
+  if (item.tag === "button" || item.role === "button") score += 12;
+  if (item.tag === "a" && item.role !== "button") score -= 20;
+
+  return score;
+}
+
+function _pickDeterministicForward(
+  candidates: NavigationElement[],
+): NavigationElement | null {
+  const scored = candidates
+    .map((item) => ({ item, score: _forwardScore(item) }))
+    .filter((rec) => rec.score >= 70)
+    .sort((a, b) => {
+      if (a.score !== b.score) return b.score - a.score;
+      if (a.item.y !== b.item.y) return b.item.y - a.item.y;
+      if (a.item.x !== b.item.x) return b.item.x - a.item.x;
+      return a.item.index - b.item.index;
+    });
+  return scored[0]?.item ?? null;
+}
+
+function _likelyForwardCandidates(
+  candidates: NavigationElement[],
+): NavigationElement[] {
+  return candidates.filter((item) => _forwardScore(item) >= 70);
 }
 
 async function _waitForTransition(
@@ -162,6 +221,7 @@ export async function navigateToNextPage(
   void context; // reserved for future provider- or form-specific behavior
   const current = snapshot ?? (await getPageSnapshot(page));
   const candidates = _actionableCandidates(current);
+  const forwardCandidates = _likelyForwardCandidates(candidates);
 
   if (candidates.length === 0) {
     if (_hasDisabledForwardControl(current)) {
@@ -197,13 +257,90 @@ export async function navigateToNextPage(
     };
   }
 
+  if (forwardCandidates.length === 0) {
+    if (_hasDisabledForwardControl(current)) {
+      return {
+        moved: false,
+        snapshot: current,
+        source: "ai",
+        should_stop: false,
+        reason_code: "forward_control_disabled",
+        reason_detail:
+          "Forward navigation appears disabled by required unanswered fields.",
+      };
+    }
+    if (_hasSubmitControl(current)) {
+      return {
+        moved: false,
+        snapshot: current,
+        source: "ai",
+        should_stop: true,
+        reason_code: "no_forward_control",
+        reason_detail:
+          "Submit control detected and no forward navigation is available.",
+      };
+    }
+    return {
+      moved: false,
+      snapshot: current,
+      source: "ai",
+      should_stop: false,
+      reason_code: "no_forward_candidates",
+      reason_detail:
+        "No navigation controls looked like forward actions.",
+    };
+  }
+
+  const heuristicCandidate = _pickDeterministicForward(forwardCandidates);
+  if (heuristicCandidate) {
+    try {
+      const clicked = await clickNavigationByDomIndex(
+        page,
+        heuristicCandidate.dom_index,
+      );
+      if (clicked) {
+        const transitioned = await _waitForTransition(
+          page,
+          current.signature,
+        );
+        if (transitioned) {
+          return {
+            moved: true,
+            snapshot: transitioned,
+            source: "heuristic",
+            should_stop: false,
+            reason_code: "",
+            reason_detail: "",
+          };
+        }
+      }
+    } catch {
+      // If deterministic click fails, continue to AI selection.
+    }
+  }
+
+  if (!settings.anthropic_api_key) {
+    return {
+      moved: false,
+      snapshot: current,
+      source: "heuristic",
+      should_stop: false,
+      reason_code: heuristicCandidate
+        ? "forward_click_no_transition"
+        : "ai_unavailable",
+      reason_detail: heuristicCandidate
+        ? "Clicked likely forward navigation but page did not transition."
+        : "AI navigation unavailable because ANTHROPIC_API_KEY is not configured.",
+    };
+  }
+
   const maxAttempts = Math.max(1, settings.ms_nav_ai_retries + 1);
   let retryContext = "";
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     let decision = await chooseNextWithAI(
       current,
-      candidates,
+      forwardCandidates,
       retryContext,
     );
 
@@ -231,7 +368,7 @@ export async function navigateToNextPage(
       return _invalidOutcome(current, decision);
     }
 
-    const candidate = candidates.find(
+    const candidate = forwardCandidates.find(
       (item) => item.index === decision.index,
     );
     if (!candidate) {

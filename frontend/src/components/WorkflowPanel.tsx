@@ -4,7 +4,7 @@ import { useFormFiller } from "@/hooks/useFormFiller";
 import type { MappingCompleteData, ProcessingStage, Step } from "@/hooks/useFormFiller";
 import { UploadStep } from "@/components/UploadStep";
 import { AnswerSheetStep } from "@/components/AnswerSheetStep";
-import type { Client, SessionFull } from "@/lib/types";
+import type { Client, SavedForm, SessionFull } from "@/lib/types";
 
 export interface WorkflowStatus {
   step: Step;
@@ -16,6 +16,7 @@ interface WorkflowPanelProps {
   workflowId: string;
   apiKeyConfigured: boolean;
   clients: Client[];
+  savedForms?: SavedForm[];
   /** If provided, the panel hydrates this session on mount (for viewing historical sessions). */
   initialSession?: SessionFull;
   onStatusChange: (workflowId: string, status: WorkflowStatus) => void;
@@ -27,6 +28,7 @@ export function WorkflowPanel({
   workflowId,
   apiKeyConfigured,
   clients,
+  savedForms,
   initialSession,
   onStatusChange,
   onMappingComplete,
@@ -112,6 +114,7 @@ export function WorkflowPanel({
             loading={loading}
             processingStage={processingStage}
             clients={clients}
+            savedForms={savedForms}
             apiKeyConfigured={apiKeyConfigured}
             onProcess={process}
             onLoadDebug={loadDebugData}
