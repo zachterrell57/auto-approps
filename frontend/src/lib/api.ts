@@ -105,10 +105,7 @@ export async function deleteClient(id: string): Promise<void> {
 }
 
 export async function listSavedForms(): Promise<SavedForm[]> {
-  const api = electron();
-  if (api) return api.listSavedForms();
-  const res = await fetch(`${BASE}/api/forms/saved`);
-  return handleResponse(res);
+  return api.listSavedForms();
 }
 
 export async function listSessions(): Promise<SessionMeta[]> {

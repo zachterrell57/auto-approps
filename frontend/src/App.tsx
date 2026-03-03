@@ -297,7 +297,6 @@ export default function App() {
               savedForms={savedForms}
               apiKeyConfigured={apiKeyConfigured}
               onProcess={process}
-              onLoadSavedForm={handleSelectSession}
               onLoadDebug={loadDebugData}
               onOpenSettings={() => setPage("settings")}
             />

@@ -73,11 +73,10 @@ export function listSavedForms(): SavedForm[] {
   const conn = getDb();
   const rows = conn
     .prepare(
-      `SELECT s.id AS session_id, s.form_url, s.form_title, s.form_provider,
-              s.display_name, s.created_at AS last_used, cnt.submission_count
+      `SELECT s.form_url, s.form_title, s.display_name
        FROM sessions s
        INNER JOIN (
-         SELECT form_url, MAX(created_at) AS max_created, COUNT(*) AS submission_count
+         SELECT form_url, MAX(created_at) AS max_created
          FROM sessions
          WHERE form_url != ''
          GROUP BY form_url
