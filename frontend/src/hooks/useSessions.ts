@@ -109,6 +109,10 @@ export function useSessions() {
     setCurrentSessionId(null);
   }, []);
 
+  const setCurrentSession = useCallback((id: string | null) => {
+    setCurrentSessionId(id);
+  }, []);
+
   return {
     sessions,
     currentSessionId,
@@ -119,6 +123,7 @@ export function useSessions() {
     renameSession,
     saveEditedMappings,
     clearCurrentSession,
+    setCurrentSession,
     refreshList,
   };
 }

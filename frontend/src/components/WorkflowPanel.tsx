@@ -24,6 +24,7 @@ interface WorkflowPanelProps {
   initialSession?: SessionFull;
   onStatusChange: (workflowId: string, status: WorkflowStatus) => void;
   onMappingComplete: (data: MappingCompleteData) => void;
+  onSessionMappingsSaved?: () => void;
   onOpenSettings: () => void;
 }
 
@@ -36,11 +37,9 @@ export function WorkflowPanel({
   initialSession,
   onStatusChange,
   onMappingComplete,
+  onSessionMappingsSaved,
   onOpenSettings,
 }: WorkflowPanelProps) {
-  const onStatusChangeRef = useRef(onStatusChange);
-  onStatusChangeRef.current = onStatusChange;
-
   const {
     step,
     loading,
@@ -73,31 +72,45 @@ export function WorkflowPanel({
 
   // Report status changes to parent for sidebar display
   useEffect(() => {
-    onStatusChangeRef.current(workflowId, {
+    onStatusChange(workflowId, {
       step,
       processingStage,
       formTitle: formSchema?.title ?? null,
     });
-  }, [workflowId, step, processingStage, formSchema?.title]);
+  }, [workflowId, step, processingStage, formSchema?.title, onStatusChange]);
 
-  // Debounced autosave of mapping edits when a session is persisted
-  const sessionIdRef = useRef(sessionId);
-  sessionIdRef.current = sessionId;
-  const initialMappingsRef = useRef(true);
+  // Debounced autosave of mapping edits when a session is persisted.
+  // For each session, skip the first non-empty mappings snapshot so opening/hydrating
+  // a historical session does not count as an edit.
+  const autosaveSessionRef = useRef<string | null>(null);
+  const skipNextAutosaveRef = useRef(true);
 
   useEffect(() => {
-    // Skip the first render (initial load / hydration)
-    if (initialMappingsRef.current) {
-      initialMappingsRef.current = false;
+    if (sessionId !== autosaveSessionRef.current) {
+      autosaveSessionRef.current = sessionId ?? null;
+      skipNextAutosaveRef.current = true;
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId || !mappings || mappings.length === 0) return;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
       return;
     }
-    if (!sessionIdRef.current || !mappings || mappings.length === 0) return;
-    const sid = sessionIdRef.current;
+    const sid = sessionId;
     const timer = setTimeout(() => {
-      void api.updateSessionMappings(sid, mappings);
+      void (async () => {
+        try {
+          await api.updateSessionMappings(sid, mappings);
+          onSessionMappingsSaved?.();
+        } catch (err) {
+          console.error("Failed to autosave session mappings", err);
+        }
+      })();
     }, 1000);
     return () => clearTimeout(timer);
-  }, [mappings]);
+  }, [mappings, onSessionMappingsSaved, sessionId]);
 
   const [dismissedError, setDismissedError] = useState<string | null>(null);
   const visibleError = error && error !== dismissedError ? error : null;
@@ -119,6 +132,7 @@ export function WorkflowPanel({
 
       {step === "answers" && formSchema && (
         <AnswerSheetStep
+          workflowId={workflowId}
           formSchema={formSchema}
           mappings={mappings}
           loading={loading}

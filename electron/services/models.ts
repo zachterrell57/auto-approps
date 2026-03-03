@@ -110,6 +110,7 @@ export type MappingResult = z.infer<typeof MappingResultSchema>;
 export const SessionMetaSchema = z.object({
   id: z.string(),
   created_at: z.string(),
+  last_updated_at: z.string(),
   document_filename: z.string().nullable().default(null),
   form_url: z.string().default(""),
   form_title: z.string().default(""),

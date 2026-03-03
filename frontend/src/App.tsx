@@ -48,6 +48,14 @@ function createEmptyWorkflow(): WorkflowDescriptor {
   };
 }
 
+function workflowStatusEquals(a: WorkflowStatus, b: WorkflowStatus): boolean {
+  return (
+    a.step === b.step &&
+    a.processingStage === b.processingStage &&
+    a.formTitle === b.formTitle
+  );
+}
+
 // ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
@@ -122,8 +130,8 @@ export default function App() {
     loadSession,
     removeSession,
     renameSession,
-    saveEditedMappings,
     clearCurrentSession,
+    setCurrentSession,
     refreshList,
   } = useSessions();
 
@@ -174,17 +182,26 @@ export default function App() {
   // Update a workflow's status (called by WorkflowPanel via onStatusChange)
   const handleWorkflowStatusChange = useCallback(
     (wfId: string, status: WorkflowStatus) => {
-      setWorkflows((prev) =>
-        prev.map((w) =>
-          w.id === wfId
-            ? {
-                ...w,
-                status,
-                label: status.formTitle || w.label,
-              }
-            : w,
-        ),
-      );
+      setWorkflows((prev) => {
+        let changed = false;
+        const next = prev.map((w) => {
+          if (w.id !== wfId) return w;
+
+          const nextLabel = status.formTitle || w.label;
+          if (workflowStatusEquals(w.status, status) && w.label === nextLabel) {
+            return w;
+          }
+
+          changed = true;
+          return {
+            ...w,
+            status,
+            label: nextLabel,
+          };
+        });
+
+        return changed ? next : prev;
+      });
     },
     [],
   );
@@ -256,6 +273,14 @@ export default function App() {
   // ── Sidebar: select a historical session ────────────────────────────
   const handleSelectSession = useCallback(
     async (id: string) => {
+      const existingWorkflow = workflows.find((workflow) => workflow.sessionId === id);
+      if (existingWorkflow) {
+        setCurrentSession(id);
+        setActiveWorkflowId(existingWorkflow.id);
+        setPage("main");
+        return;
+      }
+
       const session = await loadSession(id);
       if (!session) return;
       // Create a new workflow that hydrates from this session
@@ -270,15 +295,53 @@ export default function App() {
       setActiveWorkflowId(wf.id);
       setPage("main");
     },
-    [loadSession],
+    [loadSession, setCurrentSession, workflows],
   );
 
   const handleDeleteSession = useCallback(
     async (id: string) => {
       await removeSession(id);
+      const removedWorkflowIds = workflows
+        .filter((workflow) => workflow.sessionId === id)
+        .map((workflow) => workflow.id);
+
+      for (const workflowId of removedWorkflowIds) {
+        void api.deleteWorkflow(workflowId);
+      }
+
+      setWorkflows((prev) => {
+        const next = prev.filter((workflow) => workflow.sessionId !== id);
+        if (next.length === 0) {
+          const fresh = createEmptyWorkflow();
+          setActiveWorkflowId(fresh.id);
+          clearCurrentSession();
+          return [fresh];
+        }
+
+        if (removedWorkflowIds.includes(activeWorkflowId)) {
+          setActiveWorkflowId(next[0].id);
+          if (next[0].sessionId) {
+            setCurrentSession(next[0].sessionId);
+          } else {
+            clearCurrentSession();
+          }
+        }
+
+        return next;
+      });
     },
-    [removeSession],
+    [
+      activeWorkflowId,
+      clearCurrentSession,
+      removeSession,
+      setCurrentSession,
+      workflows,
+    ],
   );
+
+  const handleSessionMappingsSaved = useCallback(() => {
+    void refreshList();
+  }, [refreshList]);
 
   // ── Settings: clear all local data ──────────────────────────────────
   const handleClearLocalData = useCallback(async () => {
@@ -334,9 +397,6 @@ export default function App() {
     (onboardingForcedOpen ||
       (!apiKeyConfigured && !onboardingDismissedForSession));
 
-  // Find the active workflow descriptor
-  const activeWorkflow = workflows.find((w) => w.id === activeWorkflowId);
-
   return (
     <SidebarProvider>
       <SessionSidebar
@@ -376,20 +436,33 @@ export default function App() {
           </div>
         )}
 
-        {page === "main" && !showOnboarding && activeWorkflow && (
-          <WorkflowPanel
-            key={activeWorkflow.id}
-            workflowId={activeWorkflow.id}
-            sessionId={activeWorkflow.sessionId}
-            apiKeyConfigured={apiKeyConfigured}
-            clients={clients}
-            savedForms={savedForms}
-            initialSession={activeWorkflow.initialSession}
-            onStatusChange={handleWorkflowStatusChange}
-            onMappingComplete={handleMappingComplete}
-            onOpenSettings={() => setPage("settings")}
-          />
-        )}
+        {workflows.map((workflow) => {
+          const isVisible =
+            page === "main" &&
+            !showOnboarding &&
+            workflow.id === activeWorkflowId;
+
+          return (
+            <div
+              key={workflow.id}
+              className={isVisible ? "" : "hidden"}
+              aria-hidden={!isVisible}
+            >
+              <WorkflowPanel
+                workflowId={workflow.id}
+                sessionId={workflow.sessionId}
+                apiKeyConfigured={apiKeyConfigured}
+                clients={clients}
+                savedForms={savedForms}
+                initialSession={workflow.initialSession}
+                onStatusChange={handleWorkflowStatusChange}
+                onMappingComplete={handleMappingComplete}
+                onSessionMappingsSaved={handleSessionMappingsSaved}
+                onOpenSettings={() => setPage("settings")}
+              />
+            </div>
+          );
+        })}
 
         <div className="py-8 px-6">
           {page === "settings" && (

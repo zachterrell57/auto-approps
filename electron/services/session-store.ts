@@ -40,6 +40,7 @@ function getDb(): BetterSqlite3.Database {
     CREATE TABLE IF NOT EXISTS sessions (
       id                TEXT PRIMARY KEY,
       created_at        TEXT NOT NULL,
+      last_updated_at   TEXT NOT NULL,
       document_filename TEXT,
       document_bytes    BLOB,
       form_url          TEXT NOT NULL DEFAULT '',
@@ -57,6 +58,18 @@ function getDb(): BetterSqlite3.Database {
       "ALTER TABLE sessions ADD COLUMN display_name TEXT NOT NULL DEFAULT ''",
     );
   }
+
+  if (!hasColumn(conn, "sessions", "last_updated_at")) {
+    conn.exec(
+      "ALTER TABLE sessions ADD COLUMN last_updated_at TEXT NOT NULL DEFAULT ''",
+    );
+  }
+
+  conn.exec(`
+    UPDATE sessions
+    SET last_updated_at = created_at
+    WHERE last_updated_at IS NULL OR last_updated_at = ''
+  `);
 
   db = conn;
   return db;
@@ -95,9 +108,9 @@ export function listSessions(): SessionMeta[] {
   const conn = getDb();
   const rows = conn
     .prepare(
-      `SELECT id, created_at, document_filename, form_url, form_title, form_provider, display_name
+      `SELECT id, created_at, last_updated_at, document_filename, form_url, form_title, form_provider, display_name
        FROM sessions
-       ORDER BY created_at DESC`
+       ORDER BY last_updated_at DESC, created_at DESC`
     )
     .all() as SessionMeta[];
 
@@ -112,7 +125,7 @@ export function getSession(sessionId: string): SessionFull | null {
   const conn = getDb();
   const row = conn
     .prepare(
-      `SELECT id, created_at, document_filename, form_url, form_title, form_provider, display_name,
+      `SELECT id, created_at, last_updated_at, document_filename, form_url, form_title, form_provider, display_name,
               form_schema, mapping_result, edited_mappings
        FROM sessions
        WHERE id = ?`
@@ -121,6 +134,7 @@ export function getSession(sessionId: string): SessionFull | null {
     | {
         id: string;
         created_at: string;
+        last_updated_at: string;
         document_filename: string | null;
         form_url: string;
         form_title: string;
@@ -139,6 +153,7 @@ export function getSession(sessionId: string): SessionFull | null {
   return {
     id: row.id,
     created_at: row.created_at,
+    last_updated_at: row.last_updated_at,
     document_filename: row.document_filename,
     form_url: row.form_url,
     form_title: row.form_title,
@@ -200,12 +215,13 @@ export function createSession(params: {
   conn
     .prepare(
       `INSERT INTO sessions
-         (id, created_at, document_filename, document_bytes, form_url, form_title,
+         (id, created_at, last_updated_at, document_filename, document_bytes, form_url, form_title,
           form_provider, display_name, form_schema, mapping_result)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
+      createdAt,
       createdAt,
       params.documentFilename ?? null,
       params.documentBytes ?? null,
@@ -220,6 +236,7 @@ export function createSession(params: {
   return {
     id,
     created_at: createdAt,
+    last_updated_at: createdAt,
     document_filename: params.documentFilename ?? null,
     form_url: params.formUrl ?? "",
     form_title: params.formTitle ?? "",
@@ -252,9 +269,12 @@ export function updateSessionMappings(
   mappings: Record<string, unknown>[]
 ): boolean {
   const conn = getDb();
+  const lastUpdatedAt = new Date().toISOString();
   const result = conn
-    .prepare("UPDATE sessions SET edited_mappings = ? WHERE id = ?")
-    .run(JSON.stringify(mappings), sessionId);
+    .prepare(
+      "UPDATE sessions SET edited_mappings = ?, last_updated_at = ? WHERE id = ?",
+    )
+    .run(JSON.stringify(mappings), lastUpdatedAt, sessionId);
 
   return result.changes > 0;
 }

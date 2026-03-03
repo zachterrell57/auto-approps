@@ -78,6 +78,7 @@ export interface KnowledgeProfileUpdate {
 export interface SessionMeta {
   id: string;
   created_at: string;
+  last_updated_at: string;
   document_filename: string | null;
   form_url: string;
   form_title: string;

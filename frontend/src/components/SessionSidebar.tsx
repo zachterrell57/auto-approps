@@ -84,6 +84,15 @@ export function SessionSidebar({
   const [editValue, setEditValue] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const draftWorkflows = workflows.filter((wf) => !wf.sessionId);
+  const workflowsBySessionId = new Map(
+    workflows
+      .filter(
+        (wf): wf is WorkflowDescriptor & { sessionId: string } =>
+          Boolean(wf.sessionId),
+      )
+      .map((wf) => [wf.sessionId, wf] as const),
+  );
 
   useEffect(() => {
     if (editingId && inputRef.current) {
@@ -127,56 +136,9 @@ export function SessionSidebar({
           </button>
         </div>
 
-        {/* ── Active workflows ─────────────────────────────────────── */}
-        {workflows.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/30">
-              In Progress
-            </SidebarGroupLabel>
-            <SidebarMenu>
-              {workflows.map((wf) => (
-                <SidebarMenuItem key={wf.id}>
-                  <SidebarMenuButton
-                    isActive={activePage === "main" && activeWorkflowId === wf.id}
-                    onClick={() => onSelectWorkflow(wf.id)}
-                    className="h-auto py-2.5 items-start"
-                  >
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <p className="text-sm font-medium truncate leading-tight">
-                        {wf.label}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-foreground/30 flex items-center gap-1">
-                          {workflowIsProcessing(wf) && (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          )}
-                          {workflowStatusLabel(wf)}
-                        </span>
-                        {!workflowIsProcessing(wf) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDiscardWorkflow(wf.id);
-                            }}
-                            className="text-foreground/15 hover:text-rose-500 transition-colors p-0.5"
-                            title="Discard workflow"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
-        )}
-
-        {/* ── Session history ──────────────────────────────────────── */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/30">
-            Session History
+            Sessions
           </SidebarGroupLabel>
           <SidebarMenu>
             {processingStage && (
@@ -201,122 +163,168 @@ export function SessionSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )}
-            {sessions.length === 0 && !processingStage && (
-              <p className="px-3 py-4 text-xs text-foreground/30 leading-relaxed">
-                No sessions yet. Process a form to get started.
-              </p>
-            )}
-            {sessions.map((session) => (
-              <SidebarMenuItem key={session.id}>
+            {draftWorkflows.map((wf) => (
+              <SidebarMenuItem key={`workflow-${wf.id}`}>
                 <SidebarMenuButton
-                  isActive={currentSessionId === session.id}
-                  onClick={() => {
-                    if (editingId !== session.id) {
-                      onSelectSession(session.id);
-                    }
-                  }}
+                  isActive={activePage === "main" && activeWorkflowId === wf.id}
+                  onClick={() => onSelectWorkflow(wf.id)}
                   className="h-auto py-2.5 items-start"
                 >
                   <div className="flex-1 min-w-0 space-y-1">
-                    {editingId === session.id ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          ref={inputRef}
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") commitRename();
-                            if (e.key === "Escape") cancelRename();
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex-1 min-w-0 text-sm font-medium bg-background border border-foreground/15 rounded px-1.5 py-0.5 outline-none focus:border-foreground/30"
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            commitRename();
-                          }}
-                          className="text-foreground/40 hover:text-emerald-600 transition-colors p-0.5"
-                          title="Save"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            cancelRename();
-                          }}
-                          className="text-foreground/40 hover:text-rose-500 transition-colors p-0.5"
-                          title="Cancel"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-sm font-medium truncate leading-tight">
-                        {sessionDisplayName(session)}
-                      </p>
-                    )}
+                    <p className="text-sm font-medium truncate leading-tight">
+                      {wf.label}
+                    </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-foreground/30">
-                        {timeAgo(session.created_at)}
+                      <span className="text-[11px] text-foreground/30 flex items-center gap-1">
+                        {workflowIsProcessing(wf) && (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        )}
+                        {workflowStatusLabel(wf)}
                       </span>
-                      {editingId !== session.id && (
-                        <div className="flex items-center gap-0.5">
-                          {confirmDeleteId === session.id ? (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDeleteSession(session.id);
-                                  setConfirmDeleteId(null);
-                                }}
-                                className="text-[10px] font-medium text-rose-600 hover:text-rose-700 transition-colors px-1"
-                              >
-                                Delete
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setConfirmDeleteId(null);
-                                }}
-                                className="text-foreground/30 hover:text-foreground/50 transition-colors p-0.5"
-                                title="Cancel"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startRename(session);
-                                }}
-                                className="text-foreground/15 hover:text-foreground/50 transition-colors p-0.5"
-                                title="Rename session"
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setConfirmDeleteId(session.id);
-                                }}
-                                className="text-foreground/15 hover:text-rose-500 transition-colors p-0.5"
-                                title="Delete session"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </>
-                          )}
-                        </div>
+                      {!workflowIsProcessing(wf) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDiscardWorkflow(wf.id);
+                          }}
+                          className="text-foreground/15 hover:text-rose-500 transition-colors p-0.5"
+                          title="Discard workflow"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       )}
                     </div>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
+            {sessions.length === 0 && draftWorkflows.length === 0 && !processingStage && (
+              <p className="px-3 py-4 text-xs text-foreground/30 leading-relaxed">
+                No sessions yet. Process a form to get started.
+              </p>
+            )}
+            {sessions.map((session) => {
+              const linkedWorkflow = workflowsBySessionId.get(session.id);
+              const sessionStatus =
+                linkedWorkflow && workflowIsProcessing(linkedWorkflow)
+                  ? workflowStatusLabel(linkedWorkflow)
+                  : "Done";
+              const sessionIsActive =
+                currentSessionId === session.id ||
+                (activePage === "main" && linkedWorkflow?.id === activeWorkflowId);
+
+              return (
+                <SidebarMenuItem key={`session-${session.id}`}>
+                  <SidebarMenuButton
+                    isActive={sessionIsActive}
+                    onClick={() => {
+                      if (editingId !== session.id) {
+                        onSelectSession(session.id);
+                      }
+                    }}
+                    className="h-auto py-2.5 items-start"
+                  >
+                    <div className="flex-1 min-w-0 space-y-1">
+                      {editingId === session.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            ref={inputRef}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") commitRename();
+                              if (e.key === "Escape") cancelRename();
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-1 min-w-0 text-sm font-medium bg-background border border-foreground/15 rounded px-1.5 py-0.5 outline-none focus:border-foreground/30"
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              commitRename();
+                            }}
+                            className="text-foreground/40 hover:text-emerald-600 transition-colors p-0.5"
+                            title="Save"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              cancelRename();
+                            }}
+                            className="text-foreground/40 hover:text-rose-500 transition-colors p-0.5"
+                            title="Cancel"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm font-medium truncate leading-tight">
+                          {sessionDisplayName(session)}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-foreground/30">
+                          {sessionStatus} · {timeAgo(session.last_updated_at)}
+                        </span>
+                        {editingId !== session.id && (
+                          <div className="flex items-center gap-0.5">
+                            {confirmDeleteId === session.id ? (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteSession(session.id);
+                                    setConfirmDeleteId(null);
+                                  }}
+                                  className="text-[10px] font-medium text-rose-600 hover:text-rose-700 transition-colors px-1"
+                                >
+                                  Delete
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmDeleteId(null);
+                                  }}
+                                  className="text-foreground/30 hover:text-foreground/50 transition-colors p-0.5"
+                                  title="Cancel"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startRename(session);
+                                  }}
+                                  className="text-foreground/15 hover:text-foreground/50 transition-colors p-0.5"
+                                  title="Rename session"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmDeleteId(session.id);
+                                  }}
+                                  className="text-foreground/15 hover:text-rose-500 transition-colors p-0.5"
+                                  title="Delete session"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
