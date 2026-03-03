@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { X } from "lucide-react";
+import * as api from "@/lib/api";
 import { useClients } from "@/hooks/useClients";
 import { useKnowledgeProfile } from "@/hooks/useKnowledgeProfile";
-import { useFormFiller } from "@/hooks/useFormFiller";
 import { useSessions } from "@/hooks/useSessions";
-import { UploadStep } from "@/components/UploadStep";
-import { AnswerSheetStep } from "@/components/AnswerSheetStep";
+import { WorkflowPanel } from "@/components/WorkflowPanel";
+import type { WorkflowStatus } from "@/components/WorkflowPanel";
 import { ClientsPage } from "@/components/ClientsPage";
 import { SettingsPage } from "@/components/SettingsPage";
 import { ProfilePage } from "@/components/ProfilePage";
@@ -16,14 +16,84 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import * as api from "@/lib/api";
-import type { SavedForm } from "@/lib/types";
 import type { MappingCompleteData } from "@/hooks/useFormFiller";
+import type { AppSettings, SavedForm, SessionFull } from "@/lib/types";
 
 type Page = "main" | "profile" | "settings" | "clients";
 
+// ---------------------------------------------------------------------------
+// Workflow descriptor — tracked by App, displayed in the sidebar
+// ---------------------------------------------------------------------------
+
+export interface WorkflowDescriptor {
+  id: string;
+  label: string;
+  status: WorkflowStatus;
+  /** Persisted session ID (set after save or when hydrating from history). */
+  sessionId?: string;
+  /** If set, the WorkflowPanel hydrates this session on mount. */
+  initialSession?: SessionFull;
+}
+
+function newWorkflowId(): string {
+  return crypto.randomUUID();
+}
+
+function createEmptyWorkflow(): WorkflowDescriptor {
+  return {
+    id: newWorkflowId(),
+    label: "New Session",
+    status: { step: "upload", processingStage: null, formTitle: null },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// App
+// ---------------------------------------------------------------------------
+
 export default function App() {
   const [page, setPage] = useState<Page>("main");
+
+  // ── Settings (global, not per-workflow) ─────────────────────────────
+  const [appSettings, setAppSettings] = useState<AppSettings>({
+    anthropic_api_key_set: false,
+    anthropic_api_key_preview: "",
+  });
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getSettings()
+      .then((s) => {
+        if (!cancelled) setAppSettings(s);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setSettingsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const apiKeyConfigured = appSettings.anthropic_api_key_set;
+
+  const saveAppSettings = useCallback(async (apiKey: string) => {
+    setSettingsSaving(true);
+    try {
+      const saved = await api.saveSettings({ anthropic_api_key: apiKey });
+      setAppSettings(saved);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setSettingsSaving(false);
+    }
+  }, []);
+
+  // ── Knowledge profile ───────────────────────────────────────────────
   const {
     knowledgeProfile,
     profileDirty,
@@ -33,6 +103,8 @@ export default function App() {
     saveKnowledgeProfile,
     reloadKnowledgeProfile,
   } = useKnowledgeProfile();
+
+  // ── Clients ─────────────────────────────────────────────────────────
   const {
     clients,
     addClient,
@@ -40,6 +112,8 @@ export default function App() {
     removeClient,
     refresh: refreshClients,
   } = useClients();
+
+  // ── Sessions ────────────────────────────────────────────────────────
   const {
     sessions,
     currentSessionId,
@@ -52,6 +126,15 @@ export default function App() {
     refreshList,
   } = useSessions();
 
+  // ── Workflows ───────────────────────────────────────────────────────
+  const [workflows, setWorkflows] = useState<WorkflowDescriptor[]>(() => [
+    createEmptyWorkflow(),
+  ]);
+  const [activeWorkflowId, setActiveWorkflowId] = useState<string>(
+    () => workflows[0].id,
+  );
+
+  // ── Saved forms (convenience feature from session history) ─────────
   const [savedForms, setSavedForms] = useState<SavedForm[]>([]);
   const refreshSavedForms = useCallback(async () => {
     try {
@@ -72,14 +155,38 @@ export default function App() {
   }, [sessions, refreshSavedForms]);
 
   const [sessionSaveError, setSessionSaveError] = useState<string | null>(null);
-  const [onboardingDismissedForSession, setOnboardingDismissedForSession] =
-    useState(false);
-  const [onboardingForcedOpen, setOnboardingForcedOpen] = useState(false);
 
+  // Update a workflow's status (called by WorkflowPanel via onStatusChange)
+  const handleWorkflowStatusChange = useCallback(
+    (wfId: string, status: WorkflowStatus) => {
+      setWorkflows((prev) =>
+        prev.map((w) =>
+          w.id === wfId
+            ? {
+                ...w,
+                status,
+                label: status.formTitle || w.label,
+              }
+            : w,
+        ),
+      );
+    },
+    [],
+  );
+
+  // When a workflow completes mapping → save as a session
   const handleMappingComplete = useCallback(
     async (data: MappingCompleteData) => {
       try {
-        await saveSession(data);
+        const sessionId = await saveSession(data);
+        // Track the persisted session ID so edits can be autosaved
+        if (sessionId) {
+          setWorkflows((prev) =>
+            prev.map((w) =>
+              w.id === data.workflow_id ? { ...w, sessionId } : w,
+            ),
+          );
+        }
       } catch (err) {
         setSessionSaveError(
           `Failed to save session: ${err instanceof Error ? err.message : String(err)}`,
@@ -89,78 +196,94 @@ export default function App() {
     [saveSession],
   );
 
-  const {
-    step,
-    loading,
-    processingStage,
-    processingFormUrl,
-    settingsSaving,
-    settingsLoaded,
-    error: formError,
-    apiKeyConfigured,
-    formSchema,
-    mappings,
-    appSettings,
-    debugDocBlobUrl,
-    isHistorical,
-    hasDocument,
-    process,
-    remap,
-    updateMapping,
-    saveAppSettings,
-    clearAllLocalData,
-    reset,
-    hydrateSession,
-    loadDebugData,
-  } = useFormFiller({
-    onMappingComplete: handleMappingComplete,
-  });
+  // ── Sidebar: new session ────────────────────────────────────────────
+  const handleNewSession = useCallback(() => {
+    const wf = createEmptyWorkflow();
+    setWorkflows((prev) => [wf, ...prev]);
+    setActiveWorkflowId(wf.id);
+    clearCurrentSession();
+    setPage("main");
+  }, [clearCurrentSession]);
 
+  // ── Sidebar: select an in-progress workflow ─────────────────────────
+  const handleSelectWorkflow = useCallback(
+    (wfId: string) => {
+      setActiveWorkflowId(wfId);
+      clearCurrentSession();
+      setPage("main");
+    },
+    [clearCurrentSession],
+  );
+
+  // ── Sidebar: discard an in-progress workflow ────────────────────────
+  const handleDiscardWorkflow = useCallback(
+    (wfId: string) => {
+      // Clean up backend state
+      void api.deleteWorkflow(wfId);
+      setWorkflows((prev) => {
+        const next = prev.filter((w) => w.id !== wfId);
+        // If we removed the active one, switch to another or create new
+        if (wfId === activeWorkflowId) {
+          if (next.length > 0) {
+            setActiveWorkflowId(next[0].id);
+          } else {
+            const fresh = createEmptyWorkflow();
+            next.push(fresh);
+            setActiveWorkflowId(fresh.id);
+          }
+        }
+        return next;
+      });
+    },
+    [activeWorkflowId],
+  );
+
+  // ── Sidebar: select a historical session ────────────────────────────
   const handleSelectSession = useCallback(
     async (id: string) => {
       const session = await loadSession(id);
-      if (session) {
-        await hydrateSession(session);
-        setPage("main");
-      }
+      if (!session) return;
+      // Create a new workflow that hydrates from this session
+      const wf: WorkflowDescriptor = {
+        id: newWorkflowId(),
+        label: session.display_name || session.form_title || "Session",
+        status: { step: "answers", processingStage: null, formTitle: session.form_title },
+        sessionId: session.id,
+        initialSession: session,
+      };
+      setWorkflows((prev) => [wf, ...prev]);
+      setActiveWorkflowId(wf.id);
+      setPage("main");
     },
-    [loadSession, hydrateSession],
+    [loadSession],
   );
-
-  const handleNewSession = useCallback(() => {
-    reset();
-    clearCurrentSession();
-    setPage("main");
-  }, [reset, clearCurrentSession]);
 
   const handleDeleteSession = useCallback(
     async (id: string) => {
       await removeSession(id);
-      if (currentSessionId === id) {
-        reset();
-      }
     },
-    [removeSession, currentSessionId, reset],
+    [removeSession],
   );
 
+  // ── Settings: clear all local data ──────────────────────────────────
   const handleClearLocalData = useCallback(async () => {
-    await clearAllLocalData();
+    await api.clearLocalData();
+    setAppSettings({ anthropic_api_key_set: false, anthropic_api_key_preview: "" });
+    // Reset to single empty workflow
+    const fresh = createEmptyWorkflow();
+    setWorkflows([fresh]);
+    setActiveWorkflowId(fresh.id);
     clearCurrentSession();
-    await Promise.all([
-      refreshList(),
-      refreshClients(),
-      reloadKnowledgeProfile(),
-    ]);
+    await Promise.all([refreshList(), refreshClients(), reloadKnowledgeProfile(), refreshSavedForms()]);
     setOnboardingDismissedForSession(false);
     setOnboardingForcedOpen(false);
     setPage("main");
-  }, [
-    clearAllLocalData,
-    clearCurrentSession,
-    refreshClients,
-    refreshList,
-    reloadKnowledgeProfile,
-  ]);
+  }, [clearCurrentSession, refreshClients, refreshList, reloadKnowledgeProfile, refreshSavedForms]);
+
+  // ── Onboarding ──────────────────────────────────────────────────────
+  const [onboardingDismissedForSession, setOnboardingDismissedForSession] =
+    useState(false);
+  const [onboardingForcedOpen, setOnboardingForcedOpen] = useState(false);
 
   const handleShowOnboarding = useCallback(() => {
     setOnboardingDismissedForSession(false);
@@ -178,51 +301,42 @@ export default function App() {
   const handleOnboardingSave = useCallback(
     async (apiKey: string) => {
       const saved = await saveAppSettings(apiKey);
-      if (!saved) {
-        return;
-      }
+      if (!saved) return;
       setOnboardingDismissedForSession(false);
       setOnboardingForcedOpen(false);
     },
     [saveAppSettings],
   );
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!currentSessionId || step !== "answers") {
-      return;
-    }
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      void saveEditedMappings(mappings);
-    }, 2000);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [currentSessionId, step, mappings, saveEditedMappings]);
-
+  // ── Error display ───────────────────────────────────────────────────
+  const rawError = profileError || sessionSaveError;
   const [dismissedError, setDismissedError] = useState<string | null>(null);
-  const rawError = formError || profileError || sessionSaveError;
   const error = rawError && rawError !== dismissedError ? rawError : null;
+
   const showOnboarding =
     page === "main" &&
     settingsLoaded &&
     (onboardingForcedOpen ||
       (!apiKeyConfigured && !onboardingDismissedForSession));
 
+  // Find the active workflow descriptor
+  const activeWorkflow = workflows.find((w) => w.id === activeWorkflowId);
+
   return (
     <SidebarProvider>
       <SessionSidebar
         sessions={sessions}
         currentSessionId={currentSessionId}
+        workflows={workflows}
+        activeWorkflowId={activeWorkflowId}
+        onSelectWorkflow={handleSelectWorkflow}
+        onDiscardWorkflow={handleDiscardWorkflow}
         onSelectSession={handleSelectSession}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
         onRenameSession={renameSession}
         onNavigate={(p) => setPage(p)}
         activePage={page}
-        processingStage={processingStage}
-        processingLabel={processingFormUrl}
       />
       <SidebarInset>
         <header className="flex items-center gap-2 border-b border-foreground/8 px-5 h-12">
@@ -234,24 +348,24 @@ export default function App() {
             <button
               onClick={() => setDismissedError(rawError)}
               className="shrink-0 text-rose-400 hover:text-rose-600 transition-colors p-0.5"
-              title="Dismiss"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         )}
 
-        {page === "main" && !showOnboarding && step === "answers" && formSchema && (
-          <AnswerSheetStep
-            formSchema={formSchema}
-            mappings={mappings}
-            loading={loading}
+        {page === "main" && !showOnboarding && activeWorkflow && (
+          <WorkflowPanel
+            key={activeWorkflow.id}
+            workflowId={activeWorkflow.id}
+            sessionId={activeWorkflow.sessionId}
             apiKeyConfigured={apiKeyConfigured}
-            hasDocument={hasDocument}
-            debugDocBlobUrl={debugDocBlobUrl}
-            isHistorical={isHistorical}
-            onUpdate={updateMapping}
-            onRemap={remap}
+            clients={clients}
+            savedForms={savedForms}
+            initialSession={activeWorkflow.initialSession}
+            onStatusChange={handleWorkflowStatusChange}
+            onMappingComplete={handleMappingComplete}
+            onOpenSettings={() => setPage("settings")}
           />
         )}
 
@@ -291,19 +405,6 @@ export default function App() {
               apiKeyConfigured={apiKeyConfigured}
               onSave={handleOnboardingSave}
               onClose={handleOnboardingClose}
-            />
-          )}
-
-          {page === "main" && !showOnboarding && step === "upload" && (
-            <UploadStep
-              loading={loading}
-              processingStage={processingStage}
-              clients={clients}
-              savedForms={savedForms}
-              apiKeyConfigured={apiKeyConfigured}
-              onProcess={process}
-              onLoadDebug={loadDebugData}
-              onOpenSettings={() => setPage("settings")}
             />
           )}
         </div>

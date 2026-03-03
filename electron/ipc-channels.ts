@@ -40,6 +40,10 @@ export const MAP = "app:form:map" as const;
 /** Restore form_schema (and optionally doc) into transient state for re-mapping historical sessions */
 export const HYDRATE_STATE = "app:form:hydrate-state" as const;
 
+// ── Workflow lifecycle ──────────────────────────────────────────────────
+/** Takes { workflow_id: string }, cleans up transient in-memory state */
+export const DELETE_WORKFLOW = "app:workflow:delete" as const;
+
 // ── Saved forms (unique by URL) ───────────────────────────────────────────
 /** Returns SavedForm[] – one entry per unique form_url */
 export const LIST_SAVED_FORMS = "app:forms:list-saved" as const;
@@ -96,6 +100,7 @@ export const IPC_CHANNELS = {
   SCRAPE,
   MAP,
   HYDRATE_STATE,
+  DELETE_WORKFLOW,
   LIST_SAVED_FORMS,
   LIST_SESSIONS,
   GET_SESSION,

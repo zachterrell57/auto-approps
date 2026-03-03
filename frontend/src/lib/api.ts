@@ -17,13 +17,13 @@ import type {
 
 const api = window.electronAPI;
 
-export async function uploadDocument(file: File): Promise<UploadResponse> {
+export async function uploadDocument(file: File, workflowId: string): Promise<UploadResponse> {
   const buffer = await file.arrayBuffer();
-  return api.upload(buffer, file.name);
+  return api.upload(buffer, file.name, workflowId);
 }
 
-export async function fetchDocumentBlob(): Promise<ArrayBuffer> {
-  const result = await api.getDocument();
+export async function fetchDocumentBlob(workflowId: string): Promise<ArrayBuffer> {
+  const result = await api.getDocument(workflowId);
   return result.buffer;
 }
 
@@ -51,34 +51,38 @@ export async function clearLocalData(): Promise<void> {
   await api.clearLocalData();
 }
 
-export async function scrapeForm(url: string): Promise<FormSchema> {
-  return api.scrape({ url });
+export async function scrapeForm(url: string, workflowId: string): Promise<FormSchema> {
+  return api.scrape({ url, workflow_id: workflowId });
 }
 
-export async function mapFields(args?: {
+export async function mapFields(args: {
+  workflowId: string;
   clientId?: string;
   includeDocument?: boolean;
 }): Promise<MappingResult> {
-  return api.map(
-    args
-      ? {
-          client_id: args.clientId,
-          include_document: args.includeDocument,
-        }
-      : undefined,
-  );
+  return api.map({
+    workflow_id: args.workflowId,
+    client_id: args.clientId,
+    include_document: args.includeDocument,
+  });
 }
 
 export async function hydrateState(args: {
+  workflowId: string;
   formSchema: FormSchema;
   documentBytes?: ArrayBuffer | null;
   documentFilename?: string | null;
 }): Promise<void> {
   await api.hydrateState({
+    workflow_id: args.workflowId,
     form_schema: args.formSchema,
     document_bytes: args.documentBytes,
     document_filename: args.documentFilename,
   });
+}
+
+export async function deleteWorkflow(workflowId: string): Promise<void> {
+  await api.deleteWorkflow(workflowId);
 }
 
 export async function listClients(): Promise<Client[]> {
@@ -117,6 +121,7 @@ export async function getSession(id: string): Promise<SessionFull> {
 }
 
 export async function createSession(data: {
+  workflow_id: string;
   document_filename: string | null;
   form_url: string;
   form_title: string;

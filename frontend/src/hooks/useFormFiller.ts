@@ -7,7 +7,6 @@ import {
   DEBUG_UPLOAD_RESPONSE,
 } from "@/lib/debug-fixtures";
 import type {
-  AppSettings,
   FieldMapping,
   FormSchema,
   MappingResult,
@@ -18,6 +17,7 @@ import type {
 export type Step = "upload" | "answers";
 
 export interface MappingCompleteData {
+  workflow_id: string;
   document_filename: string | null;
   form_url: string;
   form_title: string;
@@ -46,23 +46,20 @@ function errorMessage(error: unknown, fallback: string): string {
 
 export type ProcessingStage = "uploading" | "scraping" | "mapping" | null;
 
-export function useFormFiller(options?: {
+export function useFormFiller(options: {
+  workflowId: string;
+  apiKeyConfigured: boolean;
   onMappingComplete?: (data: MappingCompleteData) => void;
 }) {
-  const onMappingCompleteRef = useRef(options?.onMappingComplete);
-  onMappingCompleteRef.current = options?.onMappingComplete;
+  const { workflowId, apiKeyConfigured } = options;
+  const onMappingCompleteRef = useRef(options.onMappingComplete);
+  onMappingCompleteRef.current = options.onMappingComplete;
 
   const [step, setStep] = useState<Step>("upload");
   const [loading, setLoading] = useState(false);
   const [processingStage, setProcessingStage] = useState<ProcessingStage>(null);
   const [processingFormUrl, setProcessingFormUrl] = useState<string | null>(null);
-  const [settingsSaving, setSettingsSaving] = useState(false);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-    anthropic_api_key_set: false,
-    anthropic_api_key_preview: "",
-  });
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [mappingResult, setMappingResult] = useState<MappingResult | null>(null);
@@ -85,29 +82,6 @@ export function useFormFiller(options?: {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    async function loadSettings() {
-      try {
-        const loaded = await api.getSettings();
-        if (cancelled) return;
-        setAppSettings(loaded);
-      } catch (err: unknown) {
-        if (cancelled) return;
-        setError(errorMessage(err, "Failed to load settings"));
-      } finally {
-        if (!cancelled) {
-          setSettingsLoaded(true);
-        }
-      }
-    }
-
-    void loadSettings();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
     return () => {
       if (documentBlobUrlRef.current?.startsWith("blob:")) {
         URL.revokeObjectURL(documentBlobUrlRef.current);
@@ -117,7 +91,7 @@ export function useFormFiller(options?: {
 
   const process = useCallback(
     async (file: File | null, formUrl: string, clientId?: string) => {
-      if (!appSettings.anthropic_api_key_set) {
+      if (!apiKeyConfigured) {
         setError(MISSING_API_KEY_MESSAGE);
         return;
       }
@@ -134,11 +108,13 @@ export function useFormFiller(options?: {
       setActiveClientId(clientId);
 
       try {
-        const uploaded = file ? await api.uploadDocument(file) : null;
-        setUploadResult(uploaded);
+        // Run upload and scrape in parallel when both are needed
+        const [uploaded, schema] = await Promise.all([
+          file ? api.uploadDocument(file, workflowId) : Promise.resolve(null),
+          api.scrapeForm(formUrl, workflowId),
+        ]);
 
-        setProcessingStage("scraping");
-        const schema = await api.scrapeForm(formUrl);
+        setUploadResult(uploaded);
         if (schema.fields.length === 0) {
           throw new Error(
             "No form fields detected. The form may require login, be expired, or have an unsupported structure.",
@@ -148,6 +124,7 @@ export function useFormFiller(options?: {
 
         setProcessingStage("mapping");
         const result = await api.mapFields({
+          workflowId,
           clientId,
           includeDocument: shouldIncludeDocument,
         });
@@ -158,6 +135,7 @@ export function useFormFiller(options?: {
         // Wait for session persistence before clearing the processing indicator
         try {
           await onMappingCompleteRef.current?.({
+            workflow_id: workflowId,
             document_filename: uploaded?.filename ?? null,
             form_url: schema.url || formUrl,
             form_title: schema.title,
@@ -176,11 +154,11 @@ export function useFormFiller(options?: {
         setProcessingFormUrl(null);
       }
     },
-    [appSettings.anthropic_api_key_set, replaceDocumentBlobUrl],
+    [apiKeyConfigured, replaceDocumentBlobUrl, workflowId],
   );
 
   const remap = useCallback(async () => {
-    if (!appSettings.anthropic_api_key_set) {
+    if (!apiKeyConfigured) {
       setError(MISSING_API_KEY_MESSAGE);
       return;
     }
@@ -190,6 +168,7 @@ export function useFormFiller(options?: {
     setError(null);
     try {
       const result = await api.mapFields({
+        workflowId,
         clientId: activeClientId,
         includeDocument,
       });
@@ -201,50 +180,7 @@ export function useFormFiller(options?: {
       setLoading(false);
       setProcessingStage(null);
     }
-  }, [appSettings.anthropic_api_key_set, activeClientId, includeDocument]);
-
-  const saveAppSettings = useCallback(async (apiKey: string) => {
-    setSettingsSaving(true);
-    setError(null);
-    try {
-      const saved = await api.saveSettings({ anthropic_api_key: apiKey });
-      setAppSettings(saved);
-      return true;
-    } catch (err: unknown) {
-      setError(errorMessage(err, "Failed to save settings"));
-      return false;
-    } finally {
-      setSettingsSaving(false);
-    }
-  }, []);
-
-  const clearAllLocalData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await api.clearLocalData();
-      setStep("upload");
-      setUploadResult(null);
-      setFormSchema(null);
-      setMappingResult(null);
-      setMappings([]);
-      replaceDocumentBlobUrl(null);
-      setIsHistorical(false);
-      setHasDocument(false);
-      setActiveClientId(undefined);
-      setIncludeDocument(false);
-      setProcessingStage(null);
-      setProcessingFormUrl(null);
-      setAppSettings({
-        anthropic_api_key_set: false,
-        anthropic_api_key_preview: "",
-      });
-    } catch (err: unknown) {
-      setError(errorMessage(err, "Failed to clear local data"));
-    } finally {
-      setLoading(false);
-    }
-  }, [replaceDocumentBlobUrl]);
+  }, [apiKeyConfigured, activeClientId, includeDocument, workflowId]);
 
   const updateMapping = useCallback(
     (index: number, updates: Partial<FieldMapping>) => {
@@ -285,7 +221,6 @@ export function useFormFiller(options?: {
         try {
           const blobUrl = await api.getSessionDocumentBlobUrl(session.id);
           replaceDocumentBlobUrl(blobUrl);
-          // Also fetch raw bytes so the main process can re-parse for re-mapping
           const docResult = await api.getSessionDocumentBytes(session.id);
           docBytes = docResult;
         } catch (err: unknown) {
@@ -296,9 +231,9 @@ export function useFormFiller(options?: {
         replaceDocumentBlobUrl(null);
       }
 
-      // Hydrate the main process transient state so re-map works
       try {
         await api.hydrateState({
+          workflowId,
           formSchema: session.form_schema,
           documentBytes: docBytes,
           documentFilename: session.document_filename,
@@ -313,7 +248,7 @@ export function useFormFiller(options?: {
       setIsHistorical(true);
       setStep("answers");
     },
-    [replaceDocumentBlobUrl],
+    [replaceDocumentBlobUrl, workflowId],
   );
 
   const loadDebugData = useCallback(() => {
@@ -335,23 +270,18 @@ export function useFormFiller(options?: {
     loading,
     processingStage,
     processingFormUrl,
-    settingsSaving,
-    settingsLoaded,
     error,
-    apiKeyConfigured: appSettings.anthropic_api_key_set,
+    apiKeyConfigured,
     uploadResult,
     formSchema,
     mappingResult,
     mappings,
-    appSettings,
     debugDocBlobUrl,
     isHistorical,
     hasDocument,
     process,
     remap,
     updateMapping,
-    saveAppSettings,
-    clearAllLocalData,
     reset,
     hydrateSession,
     loadDebugData,
