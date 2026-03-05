@@ -44,6 +44,13 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
   } finally {
     clearTimeout(timeout);
   }
+  if (resp.status === 401 || resp.status === 403) {
+    const err = new Error(
+      `Failed to fetch form (HTTP ${resp.status}): ${resp.statusText}`,
+    );
+    err.name = "FormAuthError";
+    throw err;
+  }
   if (!resp.ok) {
     throw new Error(
       `Failed to fetch form (HTTP ${resp.status}): ${resp.statusText}`,
@@ -56,9 +63,11 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
     html.includes("accounts.google.com/ServiceLogin") ||
     html.includes("accounts.google.com/v3/signin")
   ) {
-    throw new Error(
+    const err = new Error(
       "This form requires Google login. Only publicly-accessible forms are supported.",
     );
+    err.name = "FormAuthError";
+    throw err;
   }
 
   let fields = parseFbPublicLoadData(html);
