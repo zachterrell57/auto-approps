@@ -1,3 +1,7 @@
+// IMPORTANT: playwright-env must be the very first import so that
+// PLAYWRIGHT_BROWSERS_PATH is set before any module loads `playwright`.
+import "./playwright-env.js";
+
 import { app, BrowserWindow, nativeTheme } from "electron";
 import path from "node:path";
 import { setUserDataPath } from "./services/config.js";
@@ -5,15 +9,6 @@ import { readApiKey } from "./services/settings-store.js";
 import { settings } from "./services/config.js";
 import { registerIpcHandlers } from "./ipc-handlers.js";
 import { initAutoUpdater } from "./services/auto-updater.js";
-
-// When running as a packaged app, point Playwright at the bundled Chromium
-// in Contents/Resources/playwright-browsers (macOS).
-if (app.isPackaged) {
-  process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(
-    process.resourcesPath,
-    "playwright-browsers",
-  );
-}
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
