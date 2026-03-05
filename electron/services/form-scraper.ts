@@ -6,6 +6,11 @@ import type { FieldType, FormField, FormSchema } from "./models";
 import { settings } from "./config";
 
 // Maps the internal Google Forms type code to our FieldType.
+const BROWSER_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
+  "AppleWebKit/537.36 (KHTML, like Gecko) " +
+  "Chrome/124.0.0.0 Safari/537.36";
+
 const TYPE_MAP: Record<number, FieldType> = {
   0: "short_text",
   1: "long_text",
@@ -34,7 +39,15 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
 
   let resp: Response;
   try {
-    resp = await fetch(url, { redirect: "follow", signal: controller.signal });
+    resp = await fetch(url, {
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "User-Agent": BROWSER_USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
   } catch (e) {
     const message =
       e instanceof Error && e.name === "AbortError"
@@ -43,13 +56,6 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
     throw new Error(message);
   } finally {
     clearTimeout(timeout);
-  }
-  if (resp.status === 401 || resp.status === 403) {
-    const err = new Error(
-      `Failed to fetch form (HTTP ${resp.status}): ${resp.statusText}`,
-    );
-    err.name = "FormAuthError";
-    throw err;
   }
   if (!resp.ok) {
     throw new Error(
@@ -63,11 +69,9 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
     html.includes("accounts.google.com/ServiceLogin") ||
     html.includes("accounts.google.com/v3/signin")
   ) {
-    const err = new Error(
+    throw new Error(
       "This form requires Google login. Only publicly-accessible forms are supported.",
     );
-    err.name = "FormAuthError";
-    throw err;
   }
 
   let fields = parseFbPublicLoadData(html);

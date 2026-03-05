@@ -163,18 +163,8 @@ export function registerIpcHandlers(): void {
     } else if (provider === "generic") {
       schema = await scrapeGenericForm(normalizedUrl);
     } else {
-      // Google Forms: try the fast fetch-based scraper first, then fall back
-      // to the generic Playwright scraper if the form requires authentication.
-      try {
-        schema = await scrapeForm(normalizedUrl);
-        schema.provider = "google";
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name === "FormAuthError") {
-          schema = await scrapeGenericForm(normalizedUrl);
-        } else {
-          throw err;
-        }
-      }
+      schema = await scrapeForm(normalizedUrl);
+      schema.provider = "google";
     }
     const wf = getWorkflow(args.workflow_id);
     wf.form_schema = schema;
