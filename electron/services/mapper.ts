@@ -8,6 +8,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { distance } from "fastest-levenshtein";
 
+import { getAnthropicClient } from "./anthropic-client";
+import { apiSemaphore } from "./concurrency";
 import { settings } from "./config";
 import type {
   DocChunk,
@@ -434,11 +436,7 @@ export async function mapFields(
   knowledgeProfile?: KnowledgeProfile | null,
   clientKnowledge?: string | null,
 ): Promise<MappingResult> {
-  if (!settings.anthropic_api_key) {
-    throw new Error("ANTHROPIC_API_KEY is not configured");
-  }
-
-  const client = new Anthropic({ apiKey: settings.anthropic_api_key });
+  const client = getAnthropicClient();
   const docChunks = doc?.chunks ?? [];
 
   const { aliasToFieldId, fieldIdToAlias } = _buildAliasMaps(form.fields);
@@ -457,10 +455,8 @@ export async function mapFields(
   for (let attempt = 0; attempt < retries; attempt++) {
     const retryContext = attempt > 0 ? lastError : "";
     try {
-      resultData = await _requestMappingPayload(
-        client,
-        userMessage,
-        retryContext,
+      resultData = await apiSemaphore.run(() =>
+        _requestMappingPayload(client, userMessage, retryContext),
       );
       const nonEmptyRaw = _countNonEmptyRawAnswers(resultData);
       if (

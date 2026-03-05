@@ -5,7 +5,8 @@
 // name from the document filename, form title, and field labels.
 // ---------------------------------------------------------------------------
 
-import Anthropic from "@anthropic-ai/sdk";
+import { getAnthropicClient } from "./anthropic-client.js";
+import { apiSemaphore } from "./concurrency.js";
 import { settings } from "./config.js";
 
 const NAMING_MODEL = "claude-haiku-4-5-20251001";
@@ -50,13 +51,15 @@ export async function generateSessionName(opts: {
     contextParts.join("\n");
 
   try {
-    const client = new Anthropic({ apiKey: settings.anthropic_api_key });
-    const response = await client.messages.create({
-      model: NAMING_MODEL,
-      max_tokens: 30,
-      temperature: 0.7,
-      messages: [{ role: "user", content: prompt }],
-    });
+    const client = getAnthropicClient();
+    const response = await apiSemaphore.run(() =>
+      client.messages.create({
+        model: NAMING_MODEL,
+        max_tokens: 30,
+        temperature: 0.7,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    );
 
     const block = response.content[0];
     if (block.type !== "text") return fallback;

@@ -8,6 +8,7 @@
 
 import { chromium, type Locator, type Page } from "playwright";
 
+import { browserSemaphore } from "./concurrency";
 import { settings } from "./config";
 import type { FieldType, FormField, FormSchema } from "./models";
 import {
@@ -39,6 +40,10 @@ const UNLOCK_MAX_ROUNDS = 3;
  * placeholder values when the Next button is locked behind required fields.
  */
 export async function scrapeMsForm(url: string): Promise<FormSchema> {
+  return browserSemaphore.run(() => _scrapeMsFormImpl(url));
+}
+
+async function _scrapeMsFormImpl(url: string): Promise<FormSchema> {
   const browser = await chromium.launch({
     headless: settings.ms_playwright_headless,
   });

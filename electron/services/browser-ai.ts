@@ -7,6 +7,8 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 
+import { getAnthropicClient } from "./anthropic-client";
+import { apiSemaphore } from "./concurrency";
 import { settings } from "./config";
 import type { NavigationElement, PageSnapshot } from "./page-model";
 
@@ -183,27 +185,29 @@ export async function chooseNextWithAI(
     };
   }
 
-  const client = new Anthropic({ apiKey: settings.anthropic_api_key });
+  const client = getAnthropicClient();
   const prompt = _buildUserPrompt(snapshot, candidates, retryContext);
 
   let response: Anthropic.Message;
   try {
-    response = await client.messages.create({
-      model: settings.model_name,
-      max_tokens: 256,
-      temperature: 0,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: prompt }],
-      tools: [
-        {
-          name: TOOL_NAME,
-          description:
-            "Choose a forward navigation action for this page.",
-          input_schema: TOOL_SCHEMA,
-        },
-      ],
-      tool_choice: { type: "tool", name: TOOL_NAME },
-    });
+    response = await apiSemaphore.run(() =>
+      client.messages.create({
+        model: settings.model_name,
+        max_tokens: 256,
+        temperature: 0,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: prompt }],
+        tools: [
+          {
+            name: TOOL_NAME,
+            description:
+              "Choose a forward navigation action for this page.",
+            input_schema: TOOL_SCHEMA,
+          },
+        ],
+        tool_choice: { type: "tool", name: TOOL_NAME },
+      }),
+    );
   } catch (exc) {
     return {
       action: "INVALID",

@@ -8,6 +8,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { chromium, type Frame, type Page } from "playwright";
 
+import { getAnthropicClient } from "./anthropic-client";
+import { apiSemaphore, browserSemaphore } from "./concurrency";
 import { settings } from "./config";
 import type { FieldType, FormField, FormSchema } from "./models";
 import { navigateToNextPage, newNavigationContext } from "./nav-engine";
@@ -695,7 +697,7 @@ async function _classifyFieldsWithAI(
   }
   if (rawElements.length === 0) return [];
 
-  const client = new Anthropic({ apiKey: settings.anthropic_api_key });
+  const client = getAnthropicClient();
   const classified: ClassifiedField[] = [];
 
   for (
@@ -704,7 +706,9 @@ async function _classifyFieldsWithAI(
     start += CLASSIFY_BATCH_SIZE
   ) {
     const batch = rawElements.slice(start, start + CLASSIFY_BATCH_SIZE);
-    const batchResult = await _classifyFieldsBatchWithAI(client, batch);
+    const batchResult = await apiSemaphore.run(() =>
+      _classifyFieldsBatchWithAI(client, batch),
+    );
     classified.push(...batchResult);
   }
 
@@ -716,6 +720,10 @@ async function _classifyFieldsWithAI(
 // ---------------------------------------------------------------------------
 
 export async function scrapeGenericForm(url: string): Promise<FormSchema> {
+  return browserSemaphore.run(() => _scrapeGenericFormImpl(url));
+}
+
+async function _scrapeGenericFormImpl(url: string): Promise<FormSchema> {
   const scrapeWarnings: string[] = [];
 
   const browser = await chromium.launch({
