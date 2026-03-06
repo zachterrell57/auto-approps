@@ -3,7 +3,6 @@ import path from "node:path";
 import { setUserDataPath } from "./services/config.js";
 import { readApiKey } from "./services/settings-store.js";
 import { settings } from "./services/config.js";
-import { registerIpcHandlers } from "./ipc-handlers.js";
 import { initAutoUpdater } from "./services/auto-updater.js";
 
 // When running as a packaged app, point Playwright at the bundled Chromium
@@ -41,7 +40,7 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Initialize userData path before any store module is used
   setUserDataPath(app.getPath("userData"));
 
@@ -52,6 +51,8 @@ app.whenReady().then(() => {
   }
 
   // Register all IPC handlers
+  // Import lazily so Playwright resolves browser path after env is configured.
+  const { registerIpcHandlers } = await import("./ipc-handlers.js");
   registerIpcHandlers();
 
   nativeTheme.themeSource = "light";
