@@ -29,11 +29,13 @@ export function useSessions() {
   const saveSession = useCallback(
     async (data: {
       workflow_id: string;
-      document_filename: string | null;
-      form_url: string;
-      form_title: string;
-      form_provider: string;
-      form_schema: FormSchema;
+      source_document_filename: string | null;
+      target_kind: FormSchema["target_kind"];
+      target_url: string;
+      target_filename: string | null;
+      target_title: string;
+      target_provider: string;
+      target_schema: FormSchema;
       mapping_result: MappingResult;
     }): Promise<string | null> => {
       setLoading(true);

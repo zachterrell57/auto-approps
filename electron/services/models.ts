@@ -45,7 +45,19 @@ export const FieldTypeEnum = z.enum([
 export type FieldType = z.infer<typeof FieldTypeEnum>;
 
 // ---------------------------------------------------------------------------
-// FormField
+// TargetKind
+// ---------------------------------------------------------------------------
+
+export const TargetKindEnum = z.enum([
+  "web_form",
+  "docx_questionnaire",
+  "pdf_questionnaire",
+]);
+
+export type TargetKind = z.infer<typeof TargetKindEnum>;
+
+// ---------------------------------------------------------------------------
+// TargetField
 // ---------------------------------------------------------------------------
 
 export const FormFieldSchema = z.object({
@@ -55,25 +67,41 @@ export const FormFieldSchema = z.object({
   required: z.boolean().default(false),
   options: z.array(z.string()).default([]),
   page_index: z.number().int().default(0),
+  target_locator: z.record(z.unknown()).nullable().optional(),
+  exportable: z.boolean().default(false),
+  export_issue: z.string().default(""),
 });
 
 export type FormField = z.infer<typeof FormFieldSchema>;
 
 // ---------------------------------------------------------------------------
-// FormSchema
+// TargetSchema
 // ---------------------------------------------------------------------------
 
-export const FormSchemaSchema = z.object({
+export const TargetSchemaSchema = z.object({
   title: z.string(),
   description: z.string().default(""),
   fields: z.array(FormFieldSchema),
   page_count: z.number().int().default(1),
+  target_kind: TargetKindEnum.default("web_form"),
+  target_url: z.string().default(""),
+  target_filename: z.string().nullable().default(null),
+  target_title: z.string().default(""),
+  target_provider: z.string().default(""),
+  parse_warnings: z.array(z.string()).default([]),
   url: z.string().default(""),
   provider: z.string().default(""),
   scrape_warnings: z.array(z.string()).default([]),
+  form_state: z.string().default("open"),
+  form_state_message: z.string().default(""),
 });
 
-export type FormSchema = z.infer<typeof FormSchemaSchema>;
+export type TargetSchema = z.infer<typeof TargetSchemaSchema>;
+
+// Backwards-compatible alias while the rest of the app migrates off form-only naming.
+export const FormSchemaSchema = TargetSchemaSchema;
+
+export type FormSchema = TargetSchema;
 
 // ---------------------------------------------------------------------------
 // FieldMapping
@@ -111,10 +139,12 @@ export const SessionMetaSchema = z.object({
   id: z.string(),
   created_at: z.string(),
   last_updated_at: z.string(),
-  document_filename: z.string().nullable().default(null),
-  form_url: z.string().default(""),
-  form_title: z.string().default(""),
-  form_provider: z.string().default(""),
+  source_document_filename: z.string().nullable().default(null),
+  target_kind: TargetKindEnum.default("web_form"),
+  target_url: z.string().default(""),
+  target_filename: z.string().nullable().default(null),
+  target_title: z.string().default(""),
+  target_provider: z.string().default(""),
   display_name: z.string().default(""),
 });
 
@@ -125,7 +155,7 @@ export type SessionMeta = z.infer<typeof SessionMetaSchema>;
 // ---------------------------------------------------------------------------
 
 export const SessionFullSchema = SessionMetaSchema.extend({
-  form_schema: z.record(z.unknown()),
+  target_schema: z.record(z.unknown()),
   mapping_result: z.record(z.unknown()),
   edited_mappings: z.array(z.record(z.unknown())).nullable().default(null),
 });
@@ -133,27 +163,36 @@ export const SessionFullSchema = SessionMetaSchema.extend({
 export type SessionFull = z.infer<typeof SessionFullSchema>;
 
 // ---------------------------------------------------------------------------
-// SavedForm (unique form grouped by URL)
+// SavedTarget (unique targets grouped by url/filename)
 // ---------------------------------------------------------------------------
 
-export const SavedFormSchema = z.object({
-  form_url: z.string(),
-  form_title: z.string().default(""),
+export const SavedTargetSchema = z.object({
+  target_kind: TargetKindEnum.default("web_form"),
+  target_url: z.string().default(""),
+  target_filename: z.string().nullable().default(null),
+  target_title: z.string().default(""),
   display_name: z.string().default(""),
 });
 
-export type SavedForm = z.infer<typeof SavedFormSchema>;
+export type SavedTarget = z.infer<typeof SavedTargetSchema>;
+
+// Backwards-compatible alias while renderer naming catches up.
+export const SavedFormSchema = SavedTargetSchema;
+
+export type SavedForm = SavedTarget;
 
 // ---------------------------------------------------------------------------
 // SessionCreate
 // ---------------------------------------------------------------------------
 
 export const SessionCreateSchema = z.object({
-  document_filename: z.string().nullable().default(null),
-  form_url: z.string().default(""),
-  form_title: z.string().default(""),
-  form_provider: z.string().default(""),
-  form_schema: z.record(z.unknown()),
+  source_document_filename: z.string().nullable().default(null),
+  target_kind: TargetKindEnum.default("web_form"),
+  target_url: z.string().default(""),
+  target_filename: z.string().nullable().default(null),
+  target_title: z.string().default(""),
+  target_provider: z.string().default(""),
+  target_schema: z.record(z.unknown()),
   mapping_result: z.record(z.unknown()),
 });
 

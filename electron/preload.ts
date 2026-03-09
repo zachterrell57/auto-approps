@@ -8,6 +8,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getDocument: (workflowId: string) =>
     ipcRenderer.invoke(ch.GET_DOCUMENT, { workflow_id: workflowId }),
 
+  prepareTarget: (args: { workflow_id: string; url: string } | { workflow_id: string; buffer: ArrayBuffer; filename: string }) =>
+    ipcRenderer.invoke(ch.PREPARE_TARGET, args),
+
+  getTargetDocument: (workflowId: string) =>
+    ipcRenderer.invoke(ch.GET_TARGET_DOCUMENT, { workflow_id: workflowId }),
+
+  downloadFilledTarget: (workflowId: string, mappings: unknown[]) =>
+    ipcRenderer.invoke(ch.DOWNLOAD_FILLED_TARGET, {
+      workflow_id: workflowId,
+      mappings,
+    }),
+
   getKnowledgeProfile: () =>
     ipcRenderer.invoke(ch.GET_KNOWLEDGE_PROFILE),
 
@@ -32,9 +44,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   hydrateState: (args: {
     workflow_id: string;
-    form_schema: unknown;
-    document_bytes?: ArrayBuffer | null;
-    document_filename?: string | null;
+    target_schema: unknown;
+    source_document_bytes?: ArrayBuffer | null;
+    source_document_filename?: string | null;
+    target_document_bytes?: ArrayBuffer | null;
+    target_document_filename?: string | null;
   }) => ipcRenderer.invoke(ch.HYDRATE_STATE, args),
 
   listSavedForms: () => ipcRenderer.invoke(ch.LIST_SAVED_FORMS),
@@ -47,14 +61,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getSessionDocument: (id: string) =>
     ipcRenderer.invoke(ch.GET_SESSION_DOCUMENT, { id }),
 
+  getSessionTargetDocument: (id: string) =>
+    ipcRenderer.invoke(ch.GET_SESSION_TARGET_DOCUMENT, { id }),
+
   createSession: (args: {
     workflow_id: string;
-    document_filename: string | null;
-    form_url: string;
-    form_title: string;
-    form_provider: string;
+    source_document_filename: string | null;
+    target_kind: string;
+    target_url: string;
+    target_filename: string | null;
+    target_title: string;
+    target_provider: string;
     display_name?: string;
-    form_schema: unknown;
+    target_schema: unknown;
     mapping_result: unknown;
   }) => ipcRenderer.invoke(ch.CREATE_SESSION, args),
 

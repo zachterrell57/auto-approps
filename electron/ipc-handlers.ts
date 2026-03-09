@@ -22,10 +22,6 @@ import {
   clearKnowledgeProfile,
 } from "./services/knowledge-store.js";
 import { parseDocx } from "./services/doc-parser.js";
-import { detectProvider } from "./services/provider.js";
-import { scrapeForm } from "./services/form-scraper.js";
-import { scrapeGenericForm } from "./services/generic-form-scraper.js";
-import { scrapeMsForm } from "./services/ms-form-scraper.js";
 import { mapFields } from "./services/mapper.js";
 import { knowledgeProfileHasContent } from "./services/models.js";
 import {
@@ -33,6 +29,7 @@ import {
   listSessions,
   getSession,
   getSessionDocument,
+  getSessionTargetDocument,
   createSession,
   updateSessionMappings,
   renameSession,
@@ -40,6 +37,8 @@ import {
   clearSessions,
 } from "./services/session-store.js";
 import { generateSessionName } from "./services/namer.js";
+import { prepareFileTarget, prepareWebTarget } from "./services/target-preparer.js";
+import { fillDocxQuestionnaire } from "./services/docx-questionnaire.js";
 
 function maskKey(key: string): string {
   if (key.length <= 8) return key ? "*".repeat(key.length) : "";
@@ -71,7 +70,7 @@ function normalizeAndValidateFormUrl(input: string): string {
 }
 
 export function registerIpcHandlers(): void {
-  // ── Upload document ──────────────────────────────────────────────────
+  // ── Upload source document ───────────────────────────────────────────
   ipcMain.handle(
     ch.UPLOAD,
     async (_event, args: { buffer: ArrayBuffer; filename: string; workflow_id: string }) => {
@@ -81,8 +80,9 @@ export function registerIpcHandlers(): void {
       }
       const parsed = await parseDocx(buf, args.filename);
       const wf = getWorkflow(args.workflow_id);
-      wf.parsed_doc = parsed;
-      wf.raw_docx_bytes = buf;
+      wf.source_document = parsed;
+      wf.source_document_bytes = buf;
+      wf.source_document_filename = args.filename;
       return {
         filename: parsed.filename,
         chunk_count: parsed.chunks.length,
@@ -91,18 +91,60 @@ export function registerIpcHandlers(): void {
     },
   );
 
-  // ── Get document bytes ───────────────────────────────────────────────
+  // ── Get source document bytes ────────────────────────────────────────
   ipcMain.handle(ch.GET_DOCUMENT, async (_event, args: { workflow_id: string }) => {
     const wf = getWorkflow(args.workflow_id);
-    if (!wf.raw_docx_bytes) {
+    if (!wf.source_document_bytes) {
       throw new Error("No document uploaded");
     }
     return {
-      buffer: wf.raw_docx_bytes.buffer.slice(
-        wf.raw_docx_bytes.byteOffset,
-        wf.raw_docx_bytes.byteOffset + wf.raw_docx_bytes.byteLength,
+      buffer: wf.source_document_bytes.buffer.slice(
+        wf.source_document_bytes.byteOffset,
+        wf.source_document_bytes.byteOffset + wf.source_document_bytes.byteLength,
       ),
-      filename: wf.parsed_doc?.filename ?? "document.docx",
+      filename: wf.source_document?.filename ?? "document.docx",
+    };
+  });
+
+  // ── Prepare target schema ────────────────────────────────────────────
+  ipcMain.handle(
+    ch.PREPARE_TARGET,
+    async (
+      _event,
+      args:
+        | { workflow_id: string; url: string }
+        | { workflow_id: string; buffer: ArrayBuffer; filename: string },
+    ) => {
+      const wf = getWorkflow(args.workflow_id);
+      let schema;
+      if ("url" in args) {
+        const normalizedUrl = normalizeAndValidateFormUrl(args.url);
+        schema = await prepareWebTarget(normalizedUrl);
+        wf.target_document_bytes = null;
+        wf.target_document_filename = null;
+      } else {
+        const buf = Buffer.from(args.buffer);
+        schema = await prepareFileTarget(buf, args.filename);
+        wf.target_document_bytes = buf;
+        wf.target_document_filename = args.filename;
+      }
+      wf.target_schema = schema;
+      return schema;
+    },
+  );
+
+  // ── Get target document bytes ────────────────────────────────────────
+  ipcMain.handle(ch.GET_TARGET_DOCUMENT, async (_event, args: { workflow_id: string }) => {
+    const wf = getWorkflow(args.workflow_id);
+    if (!wf.target_document_bytes || !wf.target_document_filename) {
+      throw new Error("No target document loaded");
+    }
+    return {
+      buffer: wf.target_document_bytes.buffer.slice(
+        wf.target_document_bytes.byteOffset,
+        wf.target_document_bytes.byteOffset + wf.target_document_bytes.byteLength,
+      ),
+      filename: wf.target_document_filename,
     };
   });
 
@@ -153,21 +195,12 @@ export function registerIpcHandlers(): void {
     return { ok: true };
   });
 
-  // ── Scrape form ──────────────────────────────────────────────────────
+  // ── Legacy web form scrape alias ─────────────────────────────────────
   ipcMain.handle(ch.SCRAPE, async (_event, args: { url: string; workflow_id: string }) => {
     const normalizedUrl = normalizeAndValidateFormUrl(args.url);
-    const provider = detectProvider(normalizedUrl);
-    let schema;
-    if (provider === "microsoft") {
-      schema = await scrapeMsForm(normalizedUrl);
-    } else if (provider === "generic") {
-      schema = await scrapeGenericForm(normalizedUrl);
-    } else {
-      schema = await scrapeForm(normalizedUrl);
-      schema.provider = "google";
-    }
+    const schema = await prepareWebTarget(normalizedUrl);
     const wf = getWorkflow(args.workflow_id);
-    wf.form_schema = schema;
+    wf.target_schema = schema;
     return schema;
   });
 
@@ -177,8 +210,8 @@ export function registerIpcHandlers(): void {
     async (_event, args: { workflow_id: string; client_id?: string; include_document?: boolean }) => {
       const wf = getWorkflow(args.workflow_id);
       const includeDocument = args.include_document ?? true;
-      if (!wf.form_schema) {
-        throw new Error("No form scraped. Scrape a form first.");
+      if (!wf.target_schema) {
+        throw new Error("No target prepared. Prepare a web form or questionnaire first.");
       }
 
       const profile = loadKnowledgeProfile();
@@ -194,7 +227,7 @@ export function registerIpcHandlers(): void {
         }
       }
 
-      const hasDocument = includeDocument && Boolean(wf.parsed_doc);
+      const hasDocument = includeDocument && Boolean(wf.source_document);
       const hasClientKnowledge = Boolean(clientKnowledge?.trim());
       const hasProfileKnowledge = Boolean(
         knowledgeProfile?.user_context.trim() || knowledgeProfile?.firm_context.trim(),
@@ -206,8 +239,8 @@ export function registerIpcHandlers(): void {
       }
 
       const result = await mapFields(
-        hasDocument ? wf.parsed_doc : null,
-        wf.form_schema,
+        hasDocument ? wf.source_document : null,
+        wf.target_schema,
         knowledgeProfile,
         clientKnowledge,
       );
@@ -223,18 +256,37 @@ export function registerIpcHandlers(): void {
       _event,
       args: {
         workflow_id: string;
-        form_schema: Record<string, unknown>;
-        document_bytes?: ArrayBuffer | null;
-        document_filename?: string | null;
+        target_schema: Record<string, unknown>;
+        source_document_bytes?: ArrayBuffer | null;
+        source_document_filename?: string | null;
+        target_document_bytes?: ArrayBuffer | null;
+        target_document_filename?: string | null;
       },
     ) => {
       const wf = getWorkflow(args.workflow_id);
-      const { FormSchemaSchema } = await import("./services/models.js");
-      wf.form_schema = FormSchemaSchema.parse(args.form_schema);
-      if (args.document_bytes) {
-        const buf = Buffer.from(args.document_bytes);
-        wf.raw_docx_bytes = buf;
-        wf.parsed_doc = await parseDocx(buf, args.document_filename ?? "document.docx");
+      const { TargetSchemaSchema } = await import("./services/models.js");
+      wf.target_schema = TargetSchemaSchema.parse(args.target_schema);
+      if (args.source_document_bytes) {
+        const buf = Buffer.from(args.source_document_bytes);
+        wf.source_document_bytes = buf;
+        wf.source_document_filename = args.source_document_filename ?? "document.docx";
+        wf.source_document = await parseDocx(
+          buf,
+          args.source_document_filename ?? "document.docx",
+        );
+      } else {
+        wf.source_document = null;
+        wf.source_document_bytes = null;
+        wf.source_document_filename = null;
+      }
+      if (args.target_document_bytes) {
+        const buf = Buffer.from(args.target_document_bytes);
+        wf.target_document_bytes = buf;
+        wf.target_document_filename =
+          args.target_document_filename ?? wf.target_schema.target_filename ?? null;
+      } else {
+        wf.target_document_bytes = null;
+        wf.target_document_filename = null;
       }
       return { ok: true };
     },
@@ -272,49 +324,107 @@ export function registerIpcHandlers(): void {
   );
 
   ipcMain.handle(
+    ch.GET_SESSION_TARGET_DOCUMENT,
+    async (_event, args: { id: string }) => {
+      const result = getSessionTargetDocument(args.id);
+      if (!result) throw new Error("No target document for this session");
+      return {
+        buffer: result.documentBytes.buffer.slice(
+          result.documentBytes.byteOffset,
+          result.documentBytes.byteOffset + result.documentBytes.byteLength,
+        ),
+        filename: result.documentFilename,
+      };
+    },
+  );
+
+  ipcMain.handle(
+    ch.DOWNLOAD_FILLED_TARGET,
+    async (
+      _event,
+      args: { workflow_id: string; mappings: Record<string, unknown>[] },
+    ) => {
+      const wf = getWorkflow(args.workflow_id);
+      if (!wf.target_schema) {
+        throw new Error("No target loaded.");
+      }
+      if (wf.target_schema.target_kind !== "docx_questionnaire") {
+        throw new Error("Filled target export is only available for DOCX questionnaires.");
+      }
+      if (!wf.target_document_bytes || !wf.target_document_filename) {
+        throw new Error("No DOCX target document is loaded.");
+      }
+
+      const filled = await fillDocxQuestionnaire(
+        wf.target_document_bytes,
+        wf.target_schema,
+        args.mappings as never,
+      );
+      const filename = wf.target_document_filename.replace(/\.docx$/i, ".filled.docx");
+      return {
+        buffer: filled.buffer.slice(
+          filled.byteOffset,
+          filled.byteOffset + filled.byteLength,
+        ),
+        filename,
+      };
+    },
+  );
+
+  ipcMain.handle(
     ch.CREATE_SESSION,
     async (
       _event,
       args: {
         workflow_id: string;
-        document_filename: string | null;
-        form_url: string;
-        form_title: string;
-        form_provider: string;
+        source_document_filename: string | null;
+        target_kind: string;
+        target_url: string;
+        target_filename: string | null;
+        target_title: string;
+        target_provider: string;
         display_name?: string;
-        form_schema: Record<string, unknown>;
+        target_schema: Record<string, unknown>;
         mapping_result: Record<string, unknown>;
       },
     ) => {
       const wf = getWorkflow(args.workflow_id);
-      const includeDocument = Boolean(args.document_filename);
-      if (includeDocument && !wf.raw_docx_bytes) {
-        throw new Error("Document metadata was provided, but no document is loaded.");
+      const includeSourceDocument = Boolean(args.source_document_filename);
+      if (includeSourceDocument && !wf.source_document_bytes) {
+        throw new Error("Source document metadata was provided, but no source document is loaded.");
+      }
+      const includeTargetDocument = Boolean(args.target_filename);
+      if (includeTargetDocument && !wf.target_document_bytes) {
+        throw new Error("Target document metadata was provided, but no target document is loaded.");
       }
 
       // Generate an AI session name via Haiku when no explicit name was given
       let displayName = args.display_name;
       if (!displayName) {
-        const fields = (args.form_schema as { fields?: { label?: string }[] })
+        const fields = (args.target_schema as { fields?: { label?: string }[] })
           .fields;
         const fieldLabels = fields
           ? fields.map((f) => f.label ?? "").filter(Boolean)
           : [];
         displayName = await generateSessionName({
-          documentFilename: args.document_filename,
-          formTitle: args.form_title,
-          formFieldLabels: fieldLabels,
+          sourceDocumentFilename: args.source_document_filename,
+          targetFilename: args.target_filename,
+          targetTitle: args.target_title,
+          targetFieldLabels: fieldLabels,
         });
       }
 
       const session = createSession({
-        documentFilename: args.document_filename,
-        documentBytes: includeDocument ? wf.raw_docx_bytes : null,
-        formUrl: args.form_url,
-        formTitle: args.form_title,
-        formProvider: args.form_provider,
+        sourceDocumentFilename: args.source_document_filename,
+        sourceDocumentBytes: includeSourceDocument ? wf.source_document_bytes : null,
+        targetKind: args.target_kind as never,
+        targetUrl: args.target_url,
+        targetFilename: args.target_filename,
+        targetDocumentBytes: includeTargetDocument ? wf.target_document_bytes : null,
+        targetTitle: args.target_title,
+        targetProvider: args.target_provider,
         displayName,
-        formSchema: args.form_schema,
+        targetSchema: args.target_schema,
         mappingResult: args.mapping_result,
       });
 

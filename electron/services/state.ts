@@ -1,4 +1,4 @@
-import type { ParsedDocument, FormSchema, MappingResult } from "./models.js";
+import type { ParsedDocument, TargetSchema, MappingResult } from "./models.js";
 
 /**
  * Transient in-memory state for upload-scrape-map workflows.
@@ -9,17 +9,23 @@ import type { ParsedDocument, FormSchema, MappingResult } from "./models.js";
  */
 
 export interface AppState {
-  parsed_doc: ParsedDocument | null;
-  raw_docx_bytes: Buffer | null;
-  form_schema: FormSchema | null;
+  source_document: ParsedDocument | null;
+  source_document_bytes: Buffer | null;
+  source_document_filename: string | null;
+  target_schema: TargetSchema | null;
+  target_document_bytes: Buffer | null;
+  target_document_filename: string | null;
   mapping_result: MappingResult | null;
 }
 
 function createEmptyState(): AppState {
   return {
-    parsed_doc: null,
-    raw_docx_bytes: null,
-    form_schema: null,
+    source_document: null,
+    source_document_bytes: null,
+    source_document_filename: null,
+    target_schema: null,
+    target_document_bytes: null,
+    target_document_filename: null,
     mapping_result: null,
   };
 }

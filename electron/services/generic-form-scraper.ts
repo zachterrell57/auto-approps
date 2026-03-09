@@ -879,6 +879,9 @@ export async function scrapeGenericForm(url: string): Promise<FormSchema> {
                 : Boolean(original.required),
             options,
             page_index: pageIndex,
+            target_locator: null,
+            exportable: false,
+            export_issue: "",
           };
 
           const key = _fieldDedupKey(field);
@@ -930,9 +933,17 @@ export async function scrapeGenericForm(url: string): Promise<FormSchema> {
       description: "",
       fields: allFields,
       page_count: pageIndex + 1,
+      target_kind: "web_form",
+      target_url: url,
+      target_filename: null,
+      target_title: pageTitle,
+      target_provider: "generic",
+      parse_warnings: scrapeWarnings,
       url,
       provider: "generic",
       scrape_warnings: scrapeWarnings,
+      form_state: "open",
+      form_state_message: "",
     };
   } finally {
     await browser.close();

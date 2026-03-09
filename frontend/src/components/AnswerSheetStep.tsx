@@ -1,5 +1,12 @@
 import { useMemo, useState } from "react";
-import { Check, ClipboardList, Copy, FileText, RotateCcw } from "lucide-react";
+import {
+  Check,
+  ClipboardList,
+  Copy,
+  Download,
+  FileText,
+  RotateCcw,
+} from "lucide-react";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import type { FieldMapping, FieldType, FormField, FormSchema } from "@/lib/types";
 
@@ -14,6 +21,7 @@ interface AnswerSheetStepProps {
   isHistorical?: boolean;
   onUpdate: (index: number, updates: Partial<FieldMapping>) => void;
   onRemap: () => void;
+  onDownloadFilledTarget?: () => void;
 }
 
 interface AnswerRow {
@@ -32,14 +40,14 @@ function actionHint(type: FieldType, answer: string): string {
   if (type === "radio" || type === "dropdown" || type === "linear_scale") {
     return answer
       ? `Select this option: ${answer}`
-      : "Select the matching option in the form.";
+      : "Select the matching option in the target.";
   }
   if (type === "checkbox") {
     return answer
       ? `Check these option(s): ${answer}`
-      : "Check the matching option(s) in the form.";
+      : "Check the matching option(s) in the target.";
   }
-  return "Paste this response into the form field.";
+  return "Paste this response into the target field.";
 }
 
 function shouldUseTextarea(type: FieldType, value: string): boolean {
@@ -70,6 +78,7 @@ export function AnswerSheetStep({
   isHistorical,
   onUpdate,
   onRemap,
+  onDownloadFilledTarget,
 }: AnswerSheetStepProps) {
   const [copiedFieldId, setCopiedFieldId] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -114,6 +123,14 @@ export function AnswerSheetStep({
     return [...byPage.entries()].sort(([a], [b]) => a - b);
   }, [formSchema.fields, mappings]);
 
+  const targetKindLabel = useMemo(() => {
+    if (formSchema.target_kind === "docx_questionnaire") return "DOCX questionnaire";
+    if (formSchema.target_kind === "pdf_questionnaire") return "PDF questionnaire";
+    return "Web form";
+  }, [formSchema.target_kind]);
+
+  const canDownloadFilledTarget = formSchema.target_kind === "docx_questionnaire";
+
   const handleCopy = async (fieldId: string, value: string) => {
     if (!value.trim()) return;
     const copied = await copyToClipboard(value);
@@ -147,12 +164,15 @@ export function AnswerSheetStep({
                 Review + Answer Sheet
               </h1>
               <p className="mt-3 text-[15px] text-muted-foreground leading-relaxed max-w-lg">
-                Edit mappings, then copy each response into the form manually.
+                Edit mappings, then use the answer sheet to complete the target.
                 {hasDocument
                   ? " Click a field to see its source in the document."
                   : " Source citations are based on selected knowledge context."}
               </p>
               <div className="mt-2 flex items-center gap-3 flex-wrap text-sm text-foreground/35">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-foreground/8 text-[11px] font-medium text-foreground/40">
+                  {targetKindLabel}
+                </span>
                 <span>{activeCount} field{activeCount !== 1 ? "s" : ""} ready to copy</span>
                 <span className="text-foreground/15">|</span>
                 <span className="text-emerald-600">{confidenceCounts.high} high</span>
@@ -198,6 +218,16 @@ export function AnswerSheetStep({
                 <RotateCcw className="h-3.5 w-3.5" />
                 Re-map
               </button>
+              {canDownloadFilledTarget && onDownloadFilledTarget && (
+                <button
+                  onClick={onDownloadFilledTarget}
+                  disabled={loading}
+                  className="h-10 px-4 rounded-xl border border-foreground/10 text-sm font-medium text-foreground/50 hover:text-foreground hover:border-foreground/20 transition-all duration-200 flex items-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download Filled DOCX
+                </button>
+              )}
             </div>
           </div>
 

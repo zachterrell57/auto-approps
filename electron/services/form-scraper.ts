@@ -91,9 +91,17 @@ export async function scrapeForm(url: string): Promise<FormSchema> {
     description: "",
     fields,
     page_count: pageCount,
+    target_kind: "web_form",
+    target_url: url,
+    target_filename: null,
+    target_title: title,
+    target_provider: "google",
+    parse_warnings: [],
     url,
     provider: "",
     scrape_warnings: [],
+    form_state: "open",
+    form_state_message: "",
   };
 }
 
@@ -177,6 +185,9 @@ function parseFbPublicLoadData(html: string): FormField[] {
       required,
       options,
       page_index: pageIndex,
+      target_locator: null,
+      exportable: false,
+      export_issue: "",
     });
   }
 
@@ -215,6 +226,9 @@ function parseEntryIdsFallback(html: string): FormField[] {
       required: false,
       options: [],
       page_index: 0,
+      target_locator: null,
+      exportable: false,
+      export_issue: "",
     });
   }
 

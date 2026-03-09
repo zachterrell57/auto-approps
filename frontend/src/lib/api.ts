@@ -28,6 +28,32 @@ export async function fetchDocumentBlob(workflowId: string): Promise<ArrayBuffer
   return result.buffer;
 }
 
+export async function prepareTargetFromUrl(
+  url: string,
+  workflowId: string,
+): Promise<FormSchema> {
+  return api.prepareTarget({ url, workflow_id: workflowId });
+}
+
+export async function prepareTargetFromFile(
+  file: File,
+  workflowId: string,
+): Promise<FormSchema> {
+  const buffer = await file.arrayBuffer();
+  return api.prepareTarget({
+    buffer,
+    filename: file.name,
+    workflow_id: workflowId,
+  });
+}
+
+export async function downloadFilledTarget(
+  workflowId: string,
+  mappings: FieldMapping[],
+): Promise<{ buffer: ArrayBuffer; filename: string }> {
+  return api.downloadFilledTarget(workflowId, mappings);
+}
+
 export async function getKnowledgeProfile(): Promise<KnowledgeProfile> {
   return api.getKnowledgeProfile();
 }
@@ -70,15 +96,19 @@ export async function mapFields(args: {
 
 export async function hydrateState(args: {
   workflowId: string;
-  formSchema: FormSchema;
-  documentBytes?: ArrayBuffer | null;
-  documentFilename?: string | null;
+  targetSchema: FormSchema;
+  sourceDocumentBytes?: ArrayBuffer | null;
+  sourceDocumentFilename?: string | null;
+  targetDocumentBytes?: ArrayBuffer | null;
+  targetDocumentFilename?: string | null;
 }): Promise<void> {
   await api.hydrateState({
     workflow_id: args.workflowId,
-    form_schema: args.formSchema,
-    document_bytes: args.documentBytes,
-    document_filename: args.documentFilename,
+    target_schema: args.targetSchema,
+    source_document_bytes: args.sourceDocumentBytes,
+    source_document_filename: args.sourceDocumentFilename,
+    target_document_bytes: args.targetDocumentBytes,
+    target_document_filename: args.targetDocumentFilename,
   });
 }
 
@@ -123,12 +153,14 @@ export async function getSession(id: string): Promise<SessionFull> {
 
 export async function createSession(data: {
   workflow_id: string;
-  document_filename: string | null;
-  form_url: string;
-  form_title: string;
-  form_provider: string;
+  source_document_filename: string | null;
+  target_kind: FormSchema["target_kind"];
+  target_url: string;
+  target_filename: string | null;
+  target_title: string;
+  target_provider: string;
   display_name?: string;
-  form_schema: FormSchema;
+  target_schema: FormSchema;
   mapping_result: MappingResult;
 }): Promise<SessionMeta> {
   return api.createSession(data);
@@ -152,6 +184,11 @@ export async function getSessionDocumentBlobUrl(id: string): Promise<string> {
     type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   });
   return URL.createObjectURL(blob);
+}
+
+export async function getSessionTargetDocumentBytes(id: string): Promise<ArrayBuffer> {
+  const result = await api.getSessionTargetDocument(id);
+  return result.buffer;
 }
 
 export async function renameSession(

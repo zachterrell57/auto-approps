@@ -6,12 +6,22 @@
  * avoids collisions with Electron built-in channels.
  */
 
-// ── Document upload & retrieval ────────────────────────────────────────────
+// ── Source document upload & retrieval ─────────────────────────────────────
 /** Takes { buffer: Buffer; filename: string }, returns UploadResponse */
 export const UPLOAD = "app:document:upload" as const;
 
-/** Returns Buffer (the raw docx bytes currently held in memory) */
+/** Returns Buffer (the raw source docx bytes currently held in memory) */
 export const GET_DOCUMENT = "app:document:get" as const;
+
+// ── Target preparation & retrieval ─────────────────────────────────────────
+/** Takes either { url } or { buffer + filename }, returns TargetSchema */
+export const PREPARE_TARGET = "app:target:prepare" as const;
+
+/** Returns Buffer for the raw target questionnaire currently held in memory */
+export const GET_TARGET_DOCUMENT = "app:target:get" as const;
+
+/** Takes workflow + mappings, returns a filled target document when supported */
+export const DOWNLOAD_FILLED_TARGET = "app:target:download-filled" as const;
 
 // ── Knowledge profile ──────────────────────────────────────────────────────
 /** Returns KnowledgeProfile */
@@ -71,6 +81,9 @@ export const DELETE_SESSION = "app:sessions:delete" as const;
 /** Takes { id: string }, returns { bytes: Buffer; filename: string } */
 export const GET_SESSION_DOCUMENT = "app:sessions:get-document" as const;
 
+/** Takes { id: string }, returns { bytes: Buffer; filename: string } for a target document */
+export const GET_SESSION_TARGET_DOCUMENT = "app:sessions:get-target-document" as const;
+
 // ── Clients ──────────────────────────────────────────────────────────────
 /** Returns Client[] */
 export const LIST_CLIENTS = "app:clients:list" as const;
@@ -105,6 +118,9 @@ export const GET_APP_VERSION = "app:update:get-version" as const;
 export const IPC_CHANNELS = {
   UPLOAD,
   GET_DOCUMENT,
+  PREPARE_TARGET,
+  GET_TARGET_DOCUMENT,
+  DOWNLOAD_FILLED_TARGET,
   GET_KNOWLEDGE_PROFILE,
   PUT_KNOWLEDGE_PROFILE,
   GET_SETTINGS,
@@ -122,6 +138,7 @@ export const IPC_CHANNELS = {
   RENAME_SESSION,
   DELETE_SESSION,
   GET_SESSION_DOCUMENT,
+  GET_SESSION_TARGET_DOCUMENT,
   LIST_CLIENTS,
   CREATE_CLIENT,
   GET_CLIENT,

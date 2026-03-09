@@ -19,6 +19,7 @@
     "premake": "node scripts/clean-db.js && node scripts/download-playwright-browser.js"
   },
   "dependencies": {
+    "@xmldom/xmldom": "^0.8.11",
     "@anthropic-ai/sdk": "^0.39.0",
     "better-sqlite3": "^11.7.0",
     "cheerio": "^1.0.0",
@@ -29,6 +30,7 @@
     "fastest-levenshtein": "^1.0.16",
     "lucide-react": "^0.575.0",
     "mammoth": "^1.8.0",
+    "pdfjs-dist": "^4.10.38",
     "playwright": "^1.49.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.0",
@@ -36,6 +38,7 @@
     "tailwind-merge": "^3.5.0",
     "update-electron-app": "^3.1.2",
     "uuid": "^11.1.0",
+    "jszip": "^3.10.1",
     "zod": "^3.24.0"
   },
   "devDependencies": {

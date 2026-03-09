@@ -5,12 +5,13 @@ import type { MappingCompleteData, ProcessingStage, Step } from "@/hooks/useForm
 import { UploadStep } from "@/components/UploadStep";
 import { AnswerSheetStep } from "@/components/AnswerSheetStep";
 import * as api from "@/lib/api";
-import type { Client, SavedForm, SessionFull } from "@/lib/types";
+import type { Client, SavedForm, SessionFull, TargetKind } from "@/lib/types";
 
 export interface WorkflowStatus {
   step: Step;
   processingStage: ProcessingStage;
   formTitle: string | null;
+  targetKind: TargetKind | null;
 }
 
 interface WorkflowPanelProps {
@@ -45,13 +46,14 @@ export function WorkflowPanel({
     loading,
     processingStage,
     error,
-    formSchema,
+    targetSchema,
     mappings,
     debugDocBlobUrl,
     isHistorical,
-    hasDocument,
+    hasSourceDocument,
     process,
     remap,
+    downloadFilledTarget,
     updateMapping,
     hydrateSession,
     loadDebugData,
@@ -75,9 +77,18 @@ export function WorkflowPanel({
     onStatusChange(workflowId, {
       step,
       processingStage,
-      formTitle: formSchema?.title ?? null,
+      formTitle: targetSchema?.title ?? null,
+      targetKind: targetSchema?.target_kind ?? initialSession?.target_kind ?? null,
     });
-  }, [workflowId, step, processingStage, formSchema?.title, onStatusChange]);
+  }, [
+    workflowId,
+    step,
+    processingStage,
+    targetSchema?.title,
+    targetSchema?.target_kind,
+    initialSession?.target_kind,
+    onStatusChange,
+  ]);
 
   // Debounced autosave of mapping edits when a session is persisted.
   // For each session, skip the first non-empty mappings snapshot so opening/hydrating
@@ -130,18 +141,19 @@ export function WorkflowPanel({
         </div>
       )}
 
-      {step === "answers" && formSchema && (
+      {step === "answers" && targetSchema && (
         <AnswerSheetStep
           workflowId={workflowId}
-          formSchema={formSchema}
+          formSchema={targetSchema}
           mappings={mappings}
           loading={loading}
           apiKeyConfigured={apiKeyConfigured}
-          hasDocument={hasDocument}
+          hasDocument={hasSourceDocument}
           debugDocBlobUrl={debugDocBlobUrl}
           isHistorical={isHistorical}
           onUpdate={updateMapping}
           onRemap={remap}
+          onDownloadFilledTarget={downloadFilledTarget}
         />
       )}
 
@@ -152,6 +164,7 @@ export function WorkflowPanel({
             processingStage={processingStage}
             clients={clients}
             savedForms={savedForms}
+            formSchema={targetSchema}
             apiKeyConfigured={apiKeyConfigured}
             onProcess={process}
             onLoadDebug={loadDebugData}

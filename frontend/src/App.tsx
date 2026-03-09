@@ -44,7 +44,7 @@ function createEmptyWorkflow(): WorkflowDescriptor {
   return {
     id: newWorkflowId(),
     label: "New Session",
-    status: { step: "upload", processingStage: null, formTitle: null },
+    status: { step: "upload", processingStage: null, formTitle: null, targetKind: null },
   };
 }
 
@@ -52,7 +52,8 @@ function workflowStatusEquals(a: WorkflowStatus, b: WorkflowStatus): boolean {
   return (
     a.step === b.step &&
     a.processingStage === b.processingStage &&
-    a.formTitle === b.formTitle
+    a.formTitle === b.formTitle &&
+    a.targetKind === b.targetKind
   );
 }
 
@@ -297,8 +298,13 @@ export default function App() {
       // Create a new workflow that hydrates from this session
       const wf: WorkflowDescriptor = {
         id: newWorkflowId(),
-        label: session.display_name || session.form_title || "Session",
-        status: { step: "answers", processingStage: null, formTitle: session.form_title },
+        label: session.display_name || session.target_title || "Session",
+        status: {
+          step: "answers",
+          processingStage: null,
+          formTitle: session.target_title,
+          targetKind: session.target_kind,
+        },
         sessionId: session.id,
         initialSession: session,
       };

@@ -10,12 +10,23 @@ import type {
   SavedForm,
   SessionFull,
   SessionMeta,
+  TargetKind,
   UploadResponse,
 } from "./lib/types";
 
 export interface ElectronAPI {
   upload(buffer: ArrayBuffer, filename: string, workflowId: string): Promise<UploadResponse>;
   getDocument(workflowId: string): Promise<{ buffer: ArrayBuffer; filename: string }>;
+  prepareTarget(
+    args:
+      | { workflow_id: string; url: string }
+      | { workflow_id: string; buffer: ArrayBuffer; filename: string },
+  ): Promise<FormSchema>;
+  getTargetDocument(workflowId: string): Promise<{ buffer: ArrayBuffer; filename: string }>;
+  downloadFilledTarget(
+    workflowId: string,
+    mappings: FieldMapping[],
+  ): Promise<{ buffer: ArrayBuffer; filename: string }>;
   getKnowledgeProfile(): Promise<KnowledgeProfile>;
   putKnowledgeProfile(args: {
     user_context: string;
@@ -32,9 +43,11 @@ export interface ElectronAPI {
   }): Promise<MappingResult>;
   hydrateState(args: {
     workflow_id: string;
-    form_schema: unknown;
-    document_bytes?: ArrayBuffer | null;
-    document_filename?: string | null;
+    target_schema: unknown;
+    source_document_bytes?: ArrayBuffer | null;
+    source_document_filename?: string | null;
+    target_document_bytes?: ArrayBuffer | null;
+    target_document_filename?: string | null;
   }): Promise<{ ok: boolean }>;
   listSavedForms(): Promise<SavedForm[]>;
   listSessions(): Promise<SessionMeta[]>;
@@ -42,14 +55,19 @@ export interface ElectronAPI {
   getSessionDocument(
     id: string,
   ): Promise<{ buffer: ArrayBuffer; filename: string }>;
+  getSessionTargetDocument(
+    id: string,
+  ): Promise<{ buffer: ArrayBuffer; filename: string }>;
   createSession(args: {
     workflow_id: string;
-    document_filename: string | null;
-    form_url: string;
-    form_title: string;
-    form_provider: string;
+    source_document_filename: string | null;
+    target_kind: TargetKind;
+    target_url: string;
+    target_filename: string | null;
+    target_title: string;
+    target_provider: string;
     display_name?: string;
-    form_schema: FormSchema;
+    target_schema: FormSchema;
     mapping_result: MappingResult;
   }): Promise<SessionMeta>;
   updateSessionMappings(

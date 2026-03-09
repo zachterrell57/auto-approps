@@ -24,7 +24,15 @@ import {
 // Token lists for classifying navigation controls
 // ---------------------------------------------------------------------------
 
-const FORWARD_TOKENS = ["next", "continue", "proceed", "review", "ok"];
+const FORWARD_TOKENS = [
+  "next",
+  "continue",
+  "proceed",
+  "review",
+  "ok",
+  "start",
+  "begin",
+];
 const STOP_TOKENS = ["back", "previous", "cancel"];
 const SUBMIT_TOKENS = ["submit", "send", "done", "finish"];
 

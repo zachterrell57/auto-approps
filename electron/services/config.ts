@@ -33,6 +33,13 @@ export function getUserDataPath(): string {
   return _userDataPath;
 }
 
+export const GOOGLE_OAUTH_CLIENT_ID =
+  process.env.GOOGLE_OAUTH_CLIENT_ID ?? "";
+
+export function getGoogleOAuthClientSecret(): string {
+  return process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? "";
+}
+
 // ---------------------------------------------------------------------------
 // Settings object — sensible defaults; the API key is typically loaded from
 // settings.json via the settings-store module.

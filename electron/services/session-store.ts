@@ -4,7 +4,7 @@ import Database from "better-sqlite3";
 import type BetterSqlite3 from "better-sqlite3";
 import { v4 as uuidv4 } from "uuid";
 import { getUserDataPath } from "./config.js";
-import type { SessionMeta, SessionFull, SavedForm } from "./models.js";
+import type { SessionMeta, SessionFull, SavedTarget, TargetKind } from "./models.js";
 
 // ---------------------------------------------------------------------------
 // Singleton DB handle
@@ -71,6 +71,73 @@ function getDb(): BetterSqlite3.Database {
     WHERE last_updated_at IS NULL OR last_updated_at = ''
   `);
 
+  if (!hasColumn(conn, "sessions", "source_document_filename")) {
+    conn.exec(
+      "ALTER TABLE sessions ADD COLUMN source_document_filename TEXT",
+    );
+  }
+
+  if (!hasColumn(conn, "sessions", "source_document_bytes")) {
+    conn.exec(
+      "ALTER TABLE sessions ADD COLUMN source_document_bytes BLOB",
+    );
+  }
+
+  if (!hasColumn(conn, "sessions", "target_kind")) {
+    conn.exec(
+      "ALTER TABLE sessions ADD COLUMN target_kind TEXT NOT NULL DEFAULT 'web_form'",
+    );
+  }
+
+  if (!hasColumn(conn, "sessions", "target_url")) {
+    conn.exec(
+      "ALTER TABLE sessions ADD COLUMN target_url TEXT NOT NULL DEFAULT ''",
+    );
+  }
+
+  if (!hasColumn(conn, "sessions", "target_filename")) {
+    conn.exec(
+      "ALTER TABLE sessions ADD COLUMN target_filename TEXT",
+    );
+  }
+
+  if (!hasColumn(conn, "sessions", "target_document_bytes")) {
+    conn.exec(
+      "ALTER TABLE sessions ADD COLUMN target_document_bytes BLOB",
+    );
+  }
+
+  if (!hasColumn(conn, "sessions", "target_title")) {
+    conn.exec(
+      "ALTER TABLE sessions ADD COLUMN target_title TEXT NOT NULL DEFAULT ''",
+    );
+  }
+
+  if (!hasColumn(conn, "sessions", "target_provider")) {
+    conn.exec(
+      "ALTER TABLE sessions ADD COLUMN target_provider TEXT NOT NULL DEFAULT ''",
+    );
+  }
+
+  conn.exec(`
+    UPDATE sessions
+    SET source_document_filename = document_filename,
+        source_document_bytes = document_bytes
+    WHERE (source_document_filename IS NULL OR source_document_filename = '')
+      AND document_filename IS NOT NULL
+  `);
+
+  conn.exec(`
+    UPDATE sessions
+    SET target_kind = 'web_form',
+        target_url = form_url,
+        target_title = form_title,
+        target_provider = form_provider
+    WHERE target_kind IS NULL
+       OR target_kind = ''
+       OR (target_kind = 'web_form' AND target_title = '' AND form_title != '')
+  `);
+
   db = conn;
   return db;
 }
@@ -80,23 +147,35 @@ function getDb(): BetterSqlite3.Database {
 // ---------------------------------------------------------------------------
 
 /**
- * Return unique forms (grouped by URL) with the most recent session for each.
+ * Return unique targets (grouped by URL or filename) with the most recent
+ * session for each identity.
  */
-export function listSavedForms(): SavedForm[] {
+export function listSavedForms(): SavedTarget[] {
   const conn = getDb();
   const rows = conn
     .prepare(
-      `SELECT s.form_url, s.form_title, s.display_name
+      `SELECT s.target_kind, s.target_url, s.target_filename, s.target_title, s.display_name
        FROM sessions s
        INNER JOIN (
-         SELECT form_url, MAX(created_at) AS max_created
+         SELECT target_kind,
+                CASE
+                  WHEN target_kind = 'web_form' THEN target_url
+                  ELSE COALESCE(target_filename, '')
+                END AS target_key,
+                MAX(created_at) AS max_created
          FROM sessions
-         WHERE form_url != ''
-         GROUP BY form_url
-       ) cnt ON s.form_url = cnt.form_url AND s.created_at = cnt.max_created
+         WHERE (target_kind = 'web_form' AND target_url != '')
+            OR (target_kind != 'web_form' AND COALESCE(target_filename, '') != '')
+         GROUP BY target_kind, target_key
+       ) cnt ON s.target_kind = cnt.target_kind
+             AND CASE
+                   WHEN s.target_kind = 'web_form' THEN s.target_url
+                   ELSE COALESCE(s.target_filename, '')
+                 END = cnt.target_key
+             AND s.created_at = cnt.max_created
        ORDER BY s.created_at DESC`
     )
-    .all() as SavedForm[];
+    .all() as SavedTarget[];
 
   return rows;
 }
@@ -108,7 +187,8 @@ export function listSessions(): SessionMeta[] {
   const conn = getDb();
   const rows = conn
     .prepare(
-      `SELECT id, created_at, last_updated_at, document_filename, form_url, form_title, form_provider, display_name
+      `SELECT id, created_at, last_updated_at, source_document_filename, target_kind, target_url,
+              target_filename, target_title, target_provider, display_name
        FROM sessions
        ORDER BY last_updated_at DESC, created_at DESC`
     )
@@ -125,7 +205,8 @@ export function getSession(sessionId: string): SessionFull | null {
   const conn = getDb();
   const row = conn
     .prepare(
-      `SELECT id, created_at, last_updated_at, document_filename, form_url, form_title, form_provider, display_name,
+      `SELECT id, created_at, last_updated_at, source_document_filename, target_kind, target_url,
+              target_filename, target_title, target_provider, display_name,
               form_schema, mapping_result, edited_mappings
        FROM sessions
        WHERE id = ?`
@@ -135,10 +216,12 @@ export function getSession(sessionId: string): SessionFull | null {
         id: string;
         created_at: string;
         last_updated_at: string;
-        document_filename: string | null;
-        form_url: string;
-        form_title: string;
-        form_provider: string;
+        source_document_filename: string | null;
+        target_kind: TargetKind;
+        target_url: string;
+        target_filename: string | null;
+        target_title: string;
+        target_provider: string;
         display_name: string;
         form_schema: string;
         mapping_result: string;
@@ -154,12 +237,14 @@ export function getSession(sessionId: string): SessionFull | null {
     id: row.id,
     created_at: row.created_at,
     last_updated_at: row.last_updated_at,
-    document_filename: row.document_filename,
-    form_url: row.form_url,
-    form_title: row.form_title,
-    form_provider: row.form_provider,
+    source_document_filename: row.source_document_filename,
+    target_kind: row.target_kind,
+    target_url: row.target_url,
+    target_filename: row.target_filename,
+    target_title: row.target_title,
+    target_provider: row.target_provider,
     display_name: row.display_name,
-    form_schema: JSON.parse(row.form_schema),
+    target_schema: JSON.parse(row.form_schema),
     mapping_result: JSON.parse(row.mapping_result),
     edited_mappings: row.edited_mappings
       ? JSON.parse(row.edited_mappings)
@@ -168,7 +253,7 @@ export function getSession(sessionId: string): SessionFull | null {
 }
 
 /**
- * Retrieve the raw document bytes and filename for a session.
+ * Retrieve the raw source document bytes and filename for a session.
  * Returns `null` when the id is not found.
  */
 export function getSessionDocument(
@@ -177,19 +262,52 @@ export function getSessionDocument(
   const conn = getDb();
   const row = conn
     .prepare(
-      "SELECT document_bytes, document_filename FROM sessions WHERE id = ?"
+      "SELECT source_document_bytes, source_document_filename FROM sessions WHERE id = ?"
     )
     .get(sessionId) as
-    | { document_bytes: Buffer | null; document_filename: string | null }
+    | {
+        source_document_bytes: Buffer | null;
+        source_document_filename: string | null;
+      }
     | undefined;
 
-  if (!row || !row.document_bytes || !row.document_filename) {
+  if (
+    !row ||
+    !row.source_document_bytes ||
+    !row.source_document_filename
+  ) {
     return null;
   }
 
   return {
-    documentBytes: Buffer.from(row.document_bytes),
-    documentFilename: row.document_filename,
+    documentBytes: Buffer.from(row.source_document_bytes),
+    documentFilename: row.source_document_filename,
+  };
+}
+
+/**
+ * Retrieve the raw target document bytes and filename for a session.
+ * Returns `null` when the id is not found or the session has no target file.
+ */
+export function getSessionTargetDocument(
+  sessionId: string,
+): { documentBytes: Buffer; documentFilename: string } | null {
+  const conn = getDb();
+  const row = conn
+    .prepare(
+      "SELECT target_document_bytes, target_filename FROM sessions WHERE id = ?",
+    )
+    .get(sessionId) as
+    | { target_document_bytes: Buffer | null; target_filename: string | null }
+    | undefined;
+
+  if (!row || !row.target_document_bytes || !row.target_filename) {
+    return null;
+  }
+
+  return {
+    documentBytes: Buffer.from(row.target_document_bytes),
+    documentFilename: row.target_filename,
   };
 }
 
@@ -197,39 +315,56 @@ export function getSessionDocument(
  * Create a new session and return its metadata.
  */
 export function createSession(params: {
-  documentFilename?: string | null;
-  documentBytes?: Buffer | null;
-  formUrl?: string;
-  formTitle?: string;
-  formProvider?: string;
+  sourceDocumentFilename?: string | null;
+  sourceDocumentBytes?: Buffer | null;
+  targetKind?: TargetKind;
+  targetUrl?: string;
+  targetFilename?: string | null;
+  targetDocumentBytes?: Buffer | null;
+  targetTitle?: string;
+  targetProvider?: string;
   displayName?: string;
-  formSchema: Record<string, unknown>;
+  targetSchema: Record<string, unknown>;
   mappingResult: Record<string, unknown>;
 }): SessionMeta {
   const conn = getDb();
   const id = uuidv4();
   const createdAt = new Date().toISOString();
   const displayName =
-    params.displayName ?? params.formTitle ?? params.documentFilename ?? "";
+    params.displayName ??
+    params.targetTitle ??
+    params.targetFilename ??
+    params.sourceDocumentFilename ??
+    "";
 
   conn
     .prepare(
       `INSERT INTO sessions
-         (id, created_at, last_updated_at, document_filename, document_bytes, form_url, form_title,
-          form_provider, display_name, form_schema, mapping_result)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         (id, created_at, last_updated_at, document_filename, document_bytes, source_document_filename,
+          source_document_bytes, form_url, form_title, form_provider, target_kind, target_url,
+          target_filename, target_document_bytes, target_title, target_provider, display_name,
+          form_schema, mapping_result)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
       createdAt,
       createdAt,
-      params.documentFilename ?? null,
-      params.documentBytes ?? null,
-      params.formUrl ?? "",
-      params.formTitle ?? "",
-      params.formProvider ?? "",
+      params.sourceDocumentFilename ?? null,
+      params.sourceDocumentBytes ?? null,
+      params.sourceDocumentFilename ?? null,
+      params.sourceDocumentBytes ?? null,
+      params.targetUrl ?? "",
+      params.targetTitle ?? "",
+      params.targetProvider ?? "",
+      params.targetKind ?? "web_form",
+      params.targetUrl ?? "",
+      params.targetFilename ?? null,
+      params.targetDocumentBytes ?? null,
+      params.targetTitle ?? "",
+      params.targetProvider ?? "",
       displayName,
-      JSON.stringify(params.formSchema),
+      JSON.stringify(params.targetSchema),
       JSON.stringify(params.mappingResult)
     );
 
@@ -237,10 +372,12 @@ export function createSession(params: {
     id,
     created_at: createdAt,
     last_updated_at: createdAt,
-    document_filename: params.documentFilename ?? null,
-    form_url: params.formUrl ?? "",
-    form_title: params.formTitle ?? "",
-    form_provider: params.formProvider ?? "",
+    source_document_filename: params.sourceDocumentFilename ?? null,
+    target_kind: params.targetKind ?? "web_form",
+    target_url: params.targetUrl ?? "",
+    target_filename: params.targetFilename ?? null,
+    target_title: params.targetTitle ?? "",
+    target_provider: params.targetProvider ?? "",
     display_name: displayName,
   };
 }

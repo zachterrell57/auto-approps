@@ -11,6 +11,10 @@ import { chromium, type Locator, type Page } from "playwright";
 import { settings } from "./config";
 import type { FieldType, FormField, FormSchema } from "./models";
 import {
+  diagnoseMsFormState,
+  type MsFormStateDiagnosis,
+} from "./ms-form-state";
+import {
   navigateToNextPage,
   newNavigationContext,
 } from "./nav-engine";
@@ -47,25 +51,9 @@ export async function scrapeMsForm(url: string): Promise<FormSchema> {
   await page.goto(url, { waitUntil: "domcontentloaded" });
 
   try {
-    if (_isLoginUrl(page.url())) {
-      throw new Error(
-        "This Microsoft Form requires login. " +
-          "Please ensure the form is set to accept anonymous responses.",
-      );
-    }
-
-    try {
-      await page.waitForSelector(
-        '[data-automation-id="questionItem"], ' +
-          ".office-form-question-element, " +
-          '[class*="QuestionContainer"]',
-        { timeout: 15000 },
-      );
-    } catch {
-      throw new Error(
-        "Could not find form questions. The form may require login, " +
-          "be expired, or the URL may be invalid.",
-      );
+    const initialDiagnosis = await _ensureQuestionDiscoveryReady(page, url);
+    if (initialDiagnosis) {
+      return await _buildStateOnlySchema(page, url, initialDiagnosis);
     }
 
     const title = await _extractTitle(page);
@@ -206,9 +194,17 @@ export async function scrapeMsForm(url: string): Promise<FormSchema> {
       description: "",
       fields: allFields,
       page_count: pageCount,
+      target_kind: "web_form",
+      target_url: url,
+      target_filename: null,
+      target_title: title,
+      target_provider: "microsoft",
+      parse_warnings: scrapeWarnings,
       url,
       provider: "microsoft",
       scrape_warnings: scrapeWarnings,
+      form_state: "open",
+      form_state_message: "",
     };
   } finally {
     await browser.close();
@@ -221,6 +217,108 @@ export async function scrapeMsForm(url: string): Promise<FormSchema> {
 
 function _isLoginUrl(url: string): boolean {
   return (url || "").toLowerCase().includes("login.microsoftonline.com");
+}
+
+async function _waitForQuestionContainers(
+  page: Page,
+  timeout = 15000,
+): Promise<void> {
+  await page.waitForSelector(
+    '[data-automation-id="questionItem"], ' +
+      ".office-form-question-element, " +
+      '[class*="QuestionContainer"]',
+    { timeout },
+  );
+}
+
+async function _ensureQuestionDiscoveryReady(
+  page: Page,
+  url: string,
+): Promise<MsFormStateDiagnosis | null> {
+  try {
+    await _waitForQuestionContainers(page);
+    return null;
+  } catch {
+    const diagnosis = await diagnoseMsFormState(page);
+    if (diagnosis.state === "needs_interaction") {
+      const navOutcome = await navigateToNextPage(
+        page,
+        newNavigationContext(url),
+        diagnosis.snapshot,
+      );
+      if (navOutcome.moved) {
+        try {
+          await _waitForQuestionContainers(page, 10000);
+          return null;
+        } catch {
+          const followUp = await diagnoseMsFormState(page);
+          if (followUp.state !== "unknown") {
+            return followUp;
+          }
+        }
+      }
+    }
+
+    if (diagnosis.state !== "unknown") {
+      return diagnosis;
+    }
+
+    throw new Error(
+      "Could not understand the Microsoft Form page state. " +
+        "The form may require login, be expired, or use an unsupported layout.",
+    );
+  }
+}
+
+function _fallbackTitleForState(diagnosis: MsFormStateDiagnosis): string {
+  switch (diagnosis.state) {
+    case "closed":
+      return "Microsoft Form (Closed)";
+    case "login_required":
+      return "Microsoft Form (Login Required)";
+    case "permission_required":
+      return "Microsoft Form (Permission Required)";
+    case "unavailable":
+      return "Microsoft Form (Unavailable)";
+    case "unsupported":
+      return "Microsoft Form (Unsupported Layout)";
+    case "needs_interaction":
+      return "Microsoft Form (Needs Interaction)";
+    default:
+      return "Microsoft Form";
+  }
+}
+
+async function _buildStateOnlySchema(
+  page: Page,
+  url: string,
+  diagnosis: MsFormStateDiagnosis,
+): Promise<FormSchema> {
+  const extractedTitle = await _extractTitle(page);
+  const title =
+    !extractedTitle ||
+    extractedTitle === "Untitled Form" ||
+    extractedTitle === "Microsoft Forms"
+      ? _fallbackTitleForState(diagnosis)
+      : extractedTitle;
+
+  return {
+    title,
+    description: "",
+    fields: [],
+    page_count: 1,
+    target_kind: "web_form",
+    target_url: url,
+    target_filename: null,
+    target_title: title,
+    target_provider: "microsoft",
+    parse_warnings: diagnosis.message ? [diagnosis.message] : [],
+    url,
+    provider: "microsoft",
+    scrape_warnings: diagnosis.message ? [diagnosis.message] : [],
+    form_state: diagnosis.state,
+    form_state_message: diagnosis.message,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -404,6 +502,9 @@ async function _parseQuestion(
     required,
     options,
     page_index: pageIndex,
+    target_locator: null,
+    exportable: false,
+    export_issue: "",
   };
 }
 

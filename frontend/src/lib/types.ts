@@ -23,6 +23,11 @@ export type FieldType =
   | "date"
   | "time";
 
+export type TargetKind =
+  | "web_form"
+  | "docx_questionnaire"
+  | "pdf_questionnaire";
+
 export interface FormField {
   field_id: string;
   label: string;
@@ -30,6 +35,9 @@ export interface FormField {
   required: boolean;
   options: string[];
   page_index: number;
+  target_locator?: Record<string, unknown> | null;
+  exportable: boolean;
+  export_issue: string;
 }
 
 export interface FormSchema {
@@ -37,10 +45,20 @@ export interface FormSchema {
   description: string;
   fields: FormField[];
   page_count: number;
+  target_kind: TargetKind;
+  target_url: string;
+  target_filename: string | null;
+  target_title: string;
+  target_provider: string;
+  parse_warnings: string[];
   url: string;
   provider: string;
   scrape_warnings: string[];
+  form_state?: string;
+  form_state_message?: string;
 }
+
+export type TargetSchema = FormSchema;
 
 export interface FieldMapping {
   field_id: string;
@@ -79,22 +97,26 @@ export interface SessionMeta {
   id: string;
   created_at: string;
   last_updated_at: string;
-  document_filename: string | null;
-  form_url: string;
-  form_title: string;
-  form_provider: string;
+  source_document_filename: string | null;
+  target_kind: TargetKind;
+  target_url: string;
+  target_filename: string | null;
+  target_title: string;
+  target_provider: string;
   display_name?: string;
 }
 
 export interface SessionFull extends SessionMeta {
-  form_schema: FormSchema;
+  target_schema: TargetSchema;
   mapping_result: MappingResult;
   edited_mappings: FieldMapping[] | null;
 }
 
 export interface SavedForm {
-  form_url: string;
-  form_title: string;
+  target_kind: TargetKind;
+  target_url: string;
+  target_filename: string | null;
+  target_title: string;
   display_name: string;
 }
 

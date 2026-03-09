@@ -18,11 +18,13 @@ export type Step = "upload" | "answers";
 
 export interface MappingCompleteData {
   workflow_id: string;
-  document_filename: string | null;
-  form_url: string;
-  form_title: string;
-  form_provider: string;
-  form_schema: FormSchema;
+  source_document_filename: string | null;
+  target_kind: FormSchema["target_kind"];
+  target_url: string;
+  target_filename: string | null;
+  target_title: string;
+  target_provider: string;
+  target_schema: FormSchema;
   mapping_result: MappingResult;
 }
 
@@ -44,7 +46,26 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export type ProcessingStage = "uploading" | "scraping" | "mapping" | null;
+function isDiagnosedFormState(schema: FormSchema): boolean {
+  const state = (schema.form_state || "open").trim().toLowerCase();
+  return state.length > 0 && state !== "open" && state !== "unknown";
+}
+
+export type ProcessingStage =
+  | "reading_source"
+  | "preparing_target"
+  | "mapping"
+  | "generating_document"
+  | null;
+export type TargetInputMode = "web_form" | "questionnaire";
+
+export interface ProcessRequest {
+  inputMode: TargetInputMode;
+  sourceFile: File | null;
+  targetUrl: string;
+  targetFile: File | null;
+  clientId?: string;
+}
 
 export function useFormFiller(options: {
   workflowId: string;
@@ -58,20 +79,20 @@ export function useFormFiller(options: {
   const [step, setStep] = useState<Step>("upload");
   const [loading, setLoading] = useState(false);
   const [processingStage, setProcessingStage] = useState<ProcessingStage>(null);
-  const [processingFormUrl, setProcessingFormUrl] = useState<string | null>(null);
+  const [processingTargetLabel, setProcessingTargetLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
-  const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
+  const [sourceUploadResult, setSourceUploadResult] = useState<UploadResponse | null>(null);
+  const [targetSchema, setTargetSchema] = useState<FormSchema | null>(null);
   const [mappingResult, setMappingResult] = useState<MappingResult | null>(null);
   const [mappings, setMappings] = useState<FieldMapping[]>([]);
   const [debugDocBlobUrl, setDebugDocBlobUrl] = useState<string | null>(null);
   const documentBlobUrlRef = useRef<string | null>(null);
   const [isHistorical, setIsHistorical] = useState(false);
-  const [hasDocument, setHasDocument] = useState(false);
+  const [hasSourceDocument, setHasSourceDocument] = useState(false);
   const [activeClientId, setActiveClientId] = useState<string | undefined>(
     undefined,
   );
-  const [includeDocument, setIncludeDocument] = useState(false);
+  const [includeSourceDocument, setIncludeSourceDocument] = useState(false);
 
   const replaceDocumentBlobUrl = useCallback((nextUrl: string | null) => {
     if (documentBlobUrlRef.current?.startsWith("blob:")) {
@@ -90,43 +111,69 @@ export function useFormFiller(options: {
   }, []);
 
   const process = useCallback(
-    async (file: File | null, formUrl: string, clientId?: string) => {
+    async ({
+      inputMode,
+      sourceFile,
+      targetUrl,
+      targetFile,
+      clientId,
+    }: ProcessRequest) => {
       if (!apiKeyConfigured) {
         setError(MISSING_API_KEY_MESSAGE);
         return;
       }
 
-      const shouldIncludeDocument = Boolean(file);
+      const shouldIncludeSourceDocument = Boolean(sourceFile);
+      const isQuestionnaireTarget = inputMode === "questionnaire";
+      if (isQuestionnaireTarget && !targetFile) {
+        setError("Choose a document to continue.");
+        return;
+      }
+
       setLoading(true);
-      setProcessingStage(shouldIncludeDocument ? "uploading" : "scraping");
-      setProcessingFormUrl(formUrl);
+      setProcessingStage(
+        shouldIncludeSourceDocument ? "reading_source" : "preparing_target",
+      );
+      setProcessingTargetLabel(
+        isQuestionnaireTarget ? targetFile?.name ?? null : targetUrl,
+      );
       setError(null);
+      setSourceUploadResult(null);
+      setTargetSchema(null);
+      setMappingResult(null);
+      setMappings([]);
       replaceDocumentBlobUrl(null);
       setIsHistorical(false);
-      setHasDocument(shouldIncludeDocument);
-      setIncludeDocument(shouldIncludeDocument);
+      setHasSourceDocument(shouldIncludeSourceDocument);
+      setIncludeSourceDocument(shouldIncludeSourceDocument);
       setActiveClientId(clientId);
 
       try {
-        // Run upload and scrape in parallel when both are needed
         const [uploaded, schema] = await Promise.all([
-          file ? api.uploadDocument(file, workflowId) : Promise.resolve(null),
-          api.scrapeForm(formUrl, workflowId),
+          sourceFile
+            ? api.uploadDocument(sourceFile, workflowId)
+            : Promise.resolve(null),
+          isQuestionnaireTarget && targetFile
+            ? api.prepareTargetFromFile(targetFile, workflowId)
+            : api.prepareTargetFromUrl(targetUrl, workflowId),
         ]);
 
-        setUploadResult(uploaded);
+        setSourceUploadResult(uploaded);
+        setTargetSchema(schema);
+        if (isDiagnosedFormState(schema)) {
+          return;
+        }
         if (schema.fields.length === 0) {
           throw new Error(
-            "No form fields detected. The form may require login, be expired, or have an unsupported structure.",
+            "No target fields detected. The questionnaire may be unsupported or the web form may require login.",
           );
         }
-        setFormSchema(schema);
 
         setProcessingStage("mapping");
         const result = await api.mapFields({
           workflowId,
           clientId,
-          includeDocument: shouldIncludeDocument,
+          includeDocument: shouldIncludeSourceDocument,
         });
         setMappingResult(result);
         setMappings(result.mappings);
@@ -136,11 +183,13 @@ export function useFormFiller(options: {
         try {
           await onMappingCompleteRef.current?.({
             workflow_id: workflowId,
-            document_filename: uploaded?.filename ?? null,
-            form_url: schema.url || formUrl,
-            form_title: schema.title,
-            form_provider: schema.provider,
-            form_schema: schema,
+            source_document_filename: uploaded?.filename ?? null,
+            target_kind: schema.target_kind,
+            target_url: schema.target_url || targetUrl,
+            target_filename: schema.target_filename ?? targetFile?.name ?? null,
+            target_title: schema.target_title || schema.title,
+            target_provider: schema.target_provider || schema.provider,
+            target_schema: schema,
             mapping_result: result,
           });
         } catch {
@@ -151,7 +200,7 @@ export function useFormFiller(options: {
       } finally {
         setLoading(false);
         setProcessingStage(null);
-        setProcessingFormUrl(null);
+        setProcessingTargetLabel(null);
       }
     },
     [apiKeyConfigured, replaceDocumentBlobUrl, workflowId],
@@ -170,7 +219,7 @@ export function useFormFiller(options: {
       const result = await api.mapFields({
         workflowId,
         clientId: activeClientId,
-        includeDocument,
+        includeDocument: includeSourceDocument,
       });
       setMappingResult(result);
       setMappings(result.mappings);
@@ -180,7 +229,7 @@ export function useFormFiller(options: {
       setLoading(false);
       setProcessingStage(null);
     }
-  }, [apiKeyConfigured, activeClientId, includeDocument, workflowId]);
+  }, [apiKeyConfigured, activeClientId, includeSourceDocument, workflowId]);
 
   const updateMapping = useCallback(
     (index: number, updates: Partial<FieldMapping>) => {
@@ -195,55 +244,65 @@ export function useFormFiller(options: {
     setStep("upload");
     setLoading(false);
     setProcessingStage(null);
-    setProcessingFormUrl(null);
+    setProcessingTargetLabel(null);
     setError(null);
-    setUploadResult(null);
-    setFormSchema(null);
+    setSourceUploadResult(null);
+    setTargetSchema(null);
     setMappingResult(null);
     setMappings([]);
     replaceDocumentBlobUrl(null);
     setIsHistorical(false);
-    setHasDocument(false);
+    setHasSourceDocument(false);
     setActiveClientId(undefined);
-    setIncludeDocument(false);
+    setIncludeSourceDocument(false);
   }, [replaceDocumentBlobUrl]);
 
   const hydrateSession = useCallback(
     async (session: SessionFull) => {
-      const sessionHasDocument = Boolean(session.document_filename);
+      const sessionHasSourceDocument = Boolean(session.source_document_filename);
       setError(null);
-      setFormSchema(session.form_schema);
+      setTargetSchema(session.target_schema);
       setMappingResult(session.mapping_result);
       setMappings(session.edited_mappings ?? session.mapping_result.mappings);
 
-      let docBytes: ArrayBuffer | null = null;
-      if (sessionHasDocument) {
+      let sourceDocBytes: ArrayBuffer | null = null;
+      if (sessionHasSourceDocument) {
         try {
           const blobUrl = await api.getSessionDocumentBlobUrl(session.id);
           replaceDocumentBlobUrl(blobUrl);
-          const docResult = await api.getSessionDocumentBytes(session.id);
-          docBytes = docResult;
+          sourceDocBytes = await api.getSessionDocumentBytes(session.id);
         } catch (err: unknown) {
-          setError(errorMessage(err, "Could not load historical session document"));
+          setError(errorMessage(err, "Could not load historical source document"));
           replaceDocumentBlobUrl(null);
         }
       } else {
         replaceDocumentBlobUrl(null);
       }
 
+      let targetDocBytes: ArrayBuffer | null = null;
+      if (session.target_filename) {
+        try {
+          targetDocBytes = await api.getSessionTargetDocumentBytes(session.id);
+        } catch (err: unknown) {
+          setError(errorMessage(err, "Could not load historical target document"));
+        }
+      }
+
       try {
         await api.hydrateState({
           workflowId,
-          formSchema: session.form_schema,
-          documentBytes: docBytes,
-          documentFilename: session.document_filename,
+          targetSchema: session.target_schema,
+          sourceDocumentBytes: sourceDocBytes,
+          sourceDocumentFilename: session.source_document_filename,
+          targetDocumentBytes: targetDocBytes,
+          targetDocumentFilename: session.target_filename,
         });
       } catch {
         // Non-fatal: re-map may still work if only knowledge context is needed
       }
 
-      setHasDocument(sessionHasDocument);
-      setIncludeDocument(sessionHasDocument);
+      setHasSourceDocument(sessionHasSourceDocument);
+      setIncludeSourceDocument(sessionHasSourceDocument);
       setActiveClientId(undefined);
       setIsHistorical(true);
       setStep("answers");
@@ -253,34 +312,62 @@ export function useFormFiller(options: {
 
   const loadDebugData = useCallback(() => {
     setError(null);
-    setUploadResult(DEBUG_UPLOAD_RESPONSE);
-    setFormSchema(DEBUG_FORM_SCHEMA);
+    setSourceUploadResult(DEBUG_UPLOAD_RESPONSE);
+    setTargetSchema(DEBUG_FORM_SCHEMA);
     setMappingResult(DEBUG_MAPPING_RESULT);
     setMappings(DEBUG_MAPPING_RESULT.mappings);
     replaceDocumentBlobUrl(DEBUG_DOC_BLOB_URL);
-    setHasDocument(true);
-    setIncludeDocument(true);
+    setHasSourceDocument(true);
+    setIncludeSourceDocument(true);
     setActiveClientId(undefined);
     setIsHistorical(false);
     setStep("answers");
   }, [replaceDocumentBlobUrl]);
 
+  const downloadFilledTarget = useCallback(async () => {
+    if (!targetSchema || targetSchema.target_kind !== "docx_questionnaire") {
+      return;
+    }
+
+    setLoading(true);
+    setProcessingStage("generating_document");
+    setError(null);
+    try {
+      const result = await api.downloadFilledTarget(workflowId, mappings);
+      const blob = new Blob([result.buffer], {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = result.filename;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Could not generate the filled DOCX."));
+    } finally {
+      setLoading(false);
+      setProcessingStage(null);
+    }
+  }, [mappings, targetSchema, workflowId]);
+
   return {
     step,
     loading,
     processingStage,
-    processingFormUrl,
+    processingTargetLabel,
     error,
     apiKeyConfigured,
-    uploadResult,
-    formSchema,
+    sourceUploadResult,
+    targetSchema,
     mappingResult,
     mappings,
     debugDocBlobUrl,
     isHistorical,
-    hasDocument,
+    hasSourceDocument,
     process,
     remap,
+    downloadFilledTarget,
     updateMapping,
     reset,
     hydrateSession,
