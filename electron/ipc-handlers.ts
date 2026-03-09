@@ -530,7 +530,7 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(ch.CHECK_FOR_UPDATE, () => {
-    if (!app.isPackaged) {
+    if (!app.isPackaged || process.platform !== "darwin") {
       // In dev / unpackaged builds autoUpdater has no feed URL and will throw.
       // Broadcast a not-available status so the UI stays consistent.
       for (const win of BrowserWindow.getAllWindows()) {
