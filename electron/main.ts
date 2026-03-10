@@ -57,10 +57,10 @@ app.whenReady().then(async () => {
 
   nativeTheme.themeSource = "light";
 
-  createWindow();
+  // Configure the update feed before the renderer can trigger a manual check.
+  await initAutoUpdater();
 
-  // Start auto-updater (no-ops in dev mode internally)
-  initAutoUpdater();
+  createWindow();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

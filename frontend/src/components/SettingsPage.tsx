@@ -181,7 +181,7 @@ export function SettingsPage({
                   {updateStatus?.status === "checking"
                     ? "Checking for updates..."
                     : updateStatus?.status === "available"
-                      ? "A new update is available. Downloading..."
+                      ? `A new update${updateStatus.releaseName ? ` (${updateStatus.releaseName})` : ""} is available. Downloading...`
                       : updateStatus?.status === "downloaded"
                         ? `Update${updateStatus.releaseName ? ` ${updateStatus.releaseName}` : ""} ready to install.`
                         : updateStatus?.status === "error"

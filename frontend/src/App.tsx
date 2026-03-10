@@ -21,6 +21,9 @@ import type { MappingCompleteData } from "@/hooks/useFormFiller";
 import type { AppSettings, SavedForm, SessionFull, UpdateStatus } from "@/lib/types";
 
 type Page = "main" | "profile" | "settings" | "clients";
+type UpdateBannerStatus = UpdateStatus & {
+  status: "available" | "downloaded";
+};
 
 // ---------------------------------------------------------------------------
 // Workflow descriptor — tracked by App, displayed in the sidebar
@@ -146,11 +149,15 @@ export default function App() {
   // ── Auto-update listener ───────────────────────────────────────────
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
+  const updateBannerStatus: UpdateBannerStatus | null =
+    updateStatus?.status === "available" || updateStatus?.status === "downloaded"
+      ? (updateStatus as UpdateBannerStatus)
+      : null;
 
   useEffect(() => {
     const unsubscribe = api.onUpdateStatus((status) => {
       setUpdateStatus(status);
-      if (status.status === "downloaded") {
+      if (status.status === "available" || status.status === "downloaded") {
         setUpdateDismissed(false);
       }
     });
@@ -434,9 +441,10 @@ export default function App() {
         <header className="flex items-center gap-2 border-b border-foreground/8 px-5 h-12">
           <SidebarTrigger />
         </header>
-        {updateStatus?.status === "downloaded" && !updateDismissed && (
+        {updateBannerStatus && !updateDismissed && (
           <UpdateBanner
-            releaseName={updateStatus.releaseName}
+            status={updateBannerStatus.status}
+            releaseName={updateBannerStatus.releaseName}
             onInstall={() => void api.installUpdate()}
             onDismiss={() => setUpdateDismissed(true)}
           />
