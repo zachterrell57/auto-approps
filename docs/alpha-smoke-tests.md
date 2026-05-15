@@ -7,8 +7,6 @@ Use this checklist before cutting an alpha build.
 - [ ] `npm run check:frontend-lint` passes
 - [ ] `npm run check:frontend-build` passes
 - [ ] `npm run check:electron-ts` passes
-- [ ] `npm run hearing-eval -- run --dataset golden-hearings --mode full` passes
-- [ ] `npm run hearing-eval -- run --dataset golden-hearings --mode watchlist` passes
 
 ## Core User Journeys
 

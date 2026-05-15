@@ -31,7 +31,6 @@ The existing app is a local-first Electron desktop app. It does not have a serve
 - `electron/services/hearing-intelligence.ts`: Module orchestration.
 - `frontend/src/components/HearingIntelligencePage.tsx`: Analyst workspace for live stream resolution, capture, watchlist, review, comments, and exports.
 - `frontend/src/hooks/useHearingJobs.ts`: Renderer-side job/workspace actions.
-- `scripts/hearing-eval.js`: Golden-dataset evaluation harness.
 
 ## Technical Decisions
 
@@ -72,4 +71,4 @@ The module follows the existing app’s local SQLite pattern and creates tables 
 
 ## Implementation Boundary
 
-The MVP delivers a coherent local module: create a hearing job from URL and client, resolve the committee livestream, capture/transcribe live audio chunks, configure watchlists, detect hits, generate cited outputs after capture stops, review/edit/verify/comment, export memo packages, and run an evaluation harness. Production hardening requires the listed platform capabilities.
+The MVP delivers a coherent local module: create a hearing job from URL and client, resolve the committee livestream, capture/transcribe live audio chunks, configure watchlists, detect hits, generate cited outputs after capture stops, review/edit/verify/comment, and export memo packages. Production hardening requires the listed platform capabilities.
