@@ -186,7 +186,7 @@ Source reliability tier: ${args.job.source_reliability_tier}
 Witnesses: ${args.job.witnesses.map((w) => [w.name, w.title, w.organization].filter(Boolean).join(", ")).join("; ") || "Not detected"}
 
 ## Client Context
-Client: ${args.job.client_name}
+Client: ${args.job.client_name || "None configured"}
 Aliases/products/subsidiaries: ${[
     ...args.job.client_context.aliases,
     ...args.job.client_context.products,
@@ -268,7 +268,7 @@ function fallbackMarkdown(args: {
   const lines: string[] = [];
   lines.push(`# ${titleForType(args.outputType)}`);
   lines.push("");
-  lines.push(`**Client:** ${args.job.client_name}`);
+  lines.push(`**Client:** ${args.job.client_name || "None configured"}`);
   lines.push(`**Hearing:** ${args.job.hearing_title || "Untitled hearing"}`);
   lines.push(`**Committee:** ${args.job.committee || "Unknown committee"}`);
   lines.push(`**Date:** ${args.job.hearing_datetime || "Unknown"}`);

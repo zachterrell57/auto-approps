@@ -11,6 +11,7 @@ import {
   type SpeakerType,
   type TranscriptSource,
 } from "./hearing-models";
+import { requireMediaTool } from "./media-tools";
 
 const execFileAsync = promisify(execFile);
 
@@ -290,35 +291,25 @@ async function findFirstFile(dir: string, predicate: (filename: string) => boole
 }
 
 async function downloadMedia(mediaUrl: string, workDir: string): Promise<string> {
-  if (await commandAvailable("yt-dlp", ["--version"])) {
-    const template = path.join(workDir, "source.%(ext)s");
-    await execFileAsync(
-      "yt-dlp",
-      ["-f", "ba/bestaudio/best", "--no-playlist", "-o", template, mediaUrl],
-      { timeout: 10 * 60 * 1000, maxBuffer: 1024 * 1024 * 10 },
-    );
-    const downloaded = await findFirstFile(workDir, (filename) =>
-      filename.startsWith("source."),
-    );
-    if (downloaded) return downloaded;
-  }
-
-  const response = await fetch(mediaUrl);
-  if (!response.ok) {
-    throw new Error(`Media URL returned HTTP ${response.status}`);
-  }
-  const mediaPath = path.join(workDir, "source.media");
-  await fs.writeFile(mediaPath, Buffer.from(await response.arrayBuffer()));
-  return mediaPath;
+  const ytDlpPath = await requireMediaTool("yt-dlp");
+  const template = path.join(workDir, "source.%(ext)s");
+  await execFileAsync(
+    ytDlpPath,
+    ["-f", "ba/bestaudio/best", "--no-playlist", "-o", template, mediaUrl],
+    { timeout: 10 * 60 * 1000, maxBuffer: 1024 * 1024 * 10 },
+  );
+  const downloaded = await findFirstFile(workDir, (filename) =>
+    filename.startsWith("source."),
+  );
+  if (downloaded) return downloaded;
+  throw new Error("yt-dlp completed without producing a media file.");
 }
 
 async function extractAudio(mediaPath: string, workDir: string): Promise<string> {
-  if (!(await commandAvailable("ffmpeg", ["-version"]))) {
-    throw new Error("ffmpeg is required for media audio extraction.");
-  }
+  const ffmpegPath = await requireMediaTool("ffmpeg");
   const audioPath = path.join(workDir, "audio.wav");
   await execFileAsync(
-    "ffmpeg",
+    ffmpegPath,
     ["-y", "-i", mediaPath, "-vn", "-ac", "1", "-ar", "16000", audioPath],
     { timeout: 10 * 60 * 1000, maxBuffer: 1024 * 1024 * 10 },
   );

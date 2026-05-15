@@ -69,6 +69,8 @@ export function SettingsPage({
     setShowOpenAiKey(false);
   }
 
+  const mediaToolsReady = settings.yt_dlp_available && settings.ffmpeg_available;
+
   return (
     <div className="w-full max-w-xl mx-auto pt-6">
       {/* Header */}
@@ -240,6 +242,46 @@ export function SettingsPage({
               An OpenAI API key is required for live hearing transcription.
             </p>
           )}
+        </section>
+
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <span
+              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold transition-all duration-300 ${
+                mediaToolsReady
+                  ? "bg-emerald-500 text-white"
+                  : "bg-amber-600/10 text-amber-700"
+              }`}
+            >
+              {mediaToolsReady ? (
+                <Check className="w-3 h-3" strokeWidth={3} />
+              ) : (
+                <Download className="w-3 h-3" />
+              )}
+            </span>
+            <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
+              YouTube Capture Tools
+            </span>
+          </div>
+
+          <div className="grid gap-2 text-xs">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-foreground/10 px-3 py-2">
+              <span className="font-medium text-foreground/70">yt-dlp</span>
+              <span className={settings.yt_dlp_available ? "text-emerald-700" : "text-amber-700"}>
+                {settings.yt_dlp_available
+                  ? `${settings.yt_dlp_version || "available"} · ${settings.yt_dlp_source || "detected"}`
+                  : settings.yt_dlp_error || "Unavailable"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-foreground/10 px-3 py-2">
+              <span className="font-medium text-foreground/70">ffmpeg</span>
+              <span className={settings.ffmpeg_available ? "text-emerald-700" : "text-amber-700"}>
+                {settings.ffmpeg_available
+                  ? `${settings.ffmpeg_version || "available"} · ${settings.ffmpeg_source || "detected"}`
+                  : settings.ffmpeg_error || "Unavailable"}
+              </span>
+            </div>
+          </div>
         </section>
 
         {onShowOnboarding && (

@@ -75,14 +75,14 @@ export function useHearingJobs() {
 
   const resolveStream = useCallback(
     async (id: string) =>
-      runAction("Resolving live stream", () => api.resolveHearingStream(id), id),
+      runAction("Resolving YouTube video", () => api.resolveHearingStream(id), id),
     [runAction],
   );
 
   const startCapture = useCallback(
     async (id: string, streamUrl?: string) =>
       runAction(
-        "Starting live capture",
+        "Starting YouTube capture",
         () => api.startHearingCapture(id, streamUrl),
         id,
       ),

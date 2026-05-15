@@ -10,6 +10,7 @@ import {
   writeOpenAiApiKey,
   clearSettings,
 } from "./services/settings-store.js";
+import { getMediaToolStatuses } from "./services/media-tools.js";
 import {
   listClients,
   getClient,
@@ -67,6 +68,18 @@ import { fillDocxQuestionnaire } from "./services/docx-questionnaire.js";
 function maskKey(key: string): string {
   if (key.length <= 8) return key ? "*".repeat(key.length) : "";
   return key.slice(0, 7) + "..." + key.slice(-4);
+}
+
+async function appSettingsPayload() {
+  const key = readApiKey();
+  const openAiKey = readOpenAiApiKey();
+  return {
+    anthropic_api_key_set: Boolean(key),
+    anthropic_api_key_preview: maskKey(key),
+    openai_api_key_set: Boolean(openAiKey),
+    openai_api_key_preview: maskKey(openAiKey),
+    ...(await getMediaToolStatuses()),
+  };
 }
 
 function normalizeAndValidateFormUrl(input: string): string {
@@ -189,14 +202,7 @@ export function registerIpcHandlers(): void {
 
   // ── Settings ─────────────────────────────────────────────────────────
   ipcMain.handle(ch.GET_SETTINGS, async () => {
-    const key = readApiKey();
-    const openAiKey = readOpenAiApiKey();
-    return {
-      anthropic_api_key_set: Boolean(key),
-      anthropic_api_key_preview: maskKey(key),
-      openai_api_key_set: Boolean(openAiKey),
-      openai_api_key_preview: maskKey(openAiKey),
-    };
+    return appSettingsPayload();
   });
 
   ipcMain.handle(
@@ -212,14 +218,7 @@ export function registerIpcHandlers(): void {
         writeOpenAiApiKey(key);
         settings.openai_api_key = key;
       }
-      const anthropicKey = readApiKey();
-      const openAiKey = readOpenAiApiKey();
-      return {
-        anthropic_api_key_set: Boolean(anthropicKey),
-        anthropic_api_key_preview: maskKey(anthropicKey),
-        openai_api_key_set: Boolean(openAiKey),
-        openai_api_key_preview: maskKey(openAiKey),
-      };
+      return appSettingsPayload();
     },
   );
 

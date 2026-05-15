@@ -143,6 +143,16 @@ export interface AppSettings {
   anthropic_api_key_preview: string;
   openai_api_key_set: boolean;
   openai_api_key_preview: string;
+  yt_dlp_available: boolean;
+  yt_dlp_version: string;
+  yt_dlp_path: string;
+  yt_dlp_source: string;
+  yt_dlp_error: string;
+  ffmpeg_available: boolean;
+  ffmpeg_version: string;
+  ffmpeg_path: string;
+  ffmpeg_source: string;
+  ffmpeg_error: string;
 }
 
 export interface SettingsUpdate {
@@ -224,6 +234,19 @@ export interface HearingWitness {
   statement_url: string;
 }
 
+export interface HearingYoutubeSource {
+  video_id: string;
+  url: string;
+  embed_url: string;
+  title: string;
+  channel: string;
+  duration_seconds: number | null;
+  live_status: "live" | "recorded" | "scheduled" | "unavailable" | "unknown";
+  resolved_from: string;
+  validated_at: string | null;
+  probe_error: string;
+}
+
 export interface HearingJob {
   id: string;
   org_id: string;
@@ -242,7 +265,7 @@ export interface HearingJob {
   subcommittee: string;
   hearing_datetime: string | null;
   witnesses: HearingWitness[];
-  metadata: Record<string, unknown>;
+  metadata: Record<string, unknown> & { youtube_source?: HearingYoutubeSource | null };
   stream_url: string;
   stream_provider: string;
   stream_confidence: number;
@@ -386,7 +409,7 @@ export interface HearingWorkspace {
 }
 
 export interface HearingCreateInput {
-  client_id: string;
+  client_id?: string;
   client_name?: string;
   matter_id?: string | null;
   source_url: string;

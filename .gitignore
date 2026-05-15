@@ -13,3 +13,6 @@ dist-electron/
 
 # Playwright bundled browsers (downloaded at build time)
 playwright-browsers/
+
+# Media tools bundled for packaged hearing capture
+media-tools/
