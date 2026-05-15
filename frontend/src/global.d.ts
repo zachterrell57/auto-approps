@@ -5,6 +5,21 @@ import type {
   ClientUpdate,
   FieldMapping,
   FormSchema,
+  HearingClaim,
+  HearingComment,
+  HearingCreateInput,
+  HearingExportFormat,
+  HearingJob,
+  HearingJobSummary,
+  HearingOutput,
+  HearingOutputType,
+  HearingReviewStatus,
+  HearingTranscriptSegment,
+  HearingVerificationStatus,
+  HearingWatchHit,
+  HearingWatchItem,
+  HearingWatchItemDraft,
+  HearingWorkspace,
   KnowledgeProfile,
   MappingResult,
   SavedForm,
@@ -33,7 +48,7 @@ export interface ElectronAPI {
     firm_context: string;
   }): Promise<KnowledgeProfile>;
   getSettings(): Promise<AppSettings>;
-  putSettings(args: { anthropic_api_key: string }): Promise<AppSettings>;
+  putSettings(args: { anthropic_api_key?: string; openai_api_key?: string }): Promise<AppSettings>;
   clearLocalData(): Promise<{ ok: boolean }>;
   scrape(args: { url: string; workflow_id: string }): Promise<FormSchema>;
   map(args: {
@@ -82,6 +97,74 @@ export interface ElectronAPI {
   createClient(data: ClientCreate): Promise<Client>;
   updateClient(id: string, data: ClientUpdate): Promise<Client>;
   deleteClient(id: string): Promise<void>;
+  listHearingJobs(): Promise<HearingJobSummary[]>;
+  getHearingWorkspace(id: string): Promise<HearingWorkspace>;
+  createHearingJob(args: HearingCreateInput): Promise<HearingJob>;
+  resolveHearingJob(id: string): Promise<HearingJob>;
+  resolveHearingStream(id: string): Promise<HearingJob>;
+  startHearingCapture(id: string, streamUrl?: string): Promise<HearingWorkspace>;
+  stopHearingCapture(id: string): Promise<HearingWorkspace>;
+  getHearingCaptureStatus(id: string): Promise<HearingWorkspace>;
+  generateFinalHearingBrief(args: {
+    hearing_job_id: string;
+    output_type?: HearingOutputType;
+    reviewer_instructions?: string;
+    use_ai?: boolean;
+  }): Promise<HearingOutput>;
+  importHearingTranscript(args:
+    | {
+        hearing_job_id: string;
+        text: string;
+        filename?: string;
+        source?: HearingTranscriptSegment["source"];
+      }
+    | { hearing_job_id: string; transcript_url: string }
+    | { hearing_job_id: string; media_url: string }): Promise<HearingTranscriptSegment[]>;
+  updateHearingWatchlist(
+    id: string,
+    watchItems: HearingWatchItemDraft[],
+  ): Promise<HearingWatchItem[]>;
+  runHearingWatchlist(id: string): Promise<HearingWatchHit[]>;
+  generateHearingOutput(args: {
+    hearing_job_id: string;
+    output_type: HearingOutputType;
+    reviewer_instructions?: string;
+    use_ai?: boolean;
+  }): Promise<HearingOutput>;
+  runHearingJob(args: {
+    hearing_job_id: string;
+    output_type?: HearingOutputType;
+    reviewer_instructions?: string;
+    use_ai?: boolean;
+  }): Promise<HearingOutput>;
+  updateHearingReview(args: {
+    segment_id?: string;
+    segment_review_status?: HearingReviewStatus;
+    speaker_label?: string;
+    hit_id?: string;
+    hit_status?: HearingWatchHit["status"];
+    output_id?: string;
+    output_markdown?: string;
+    output_review_status?: HearingReviewStatus;
+    claim_id?: string;
+    claim_verification_status?: HearingVerificationStatus;
+  }): Promise<{
+    segment?: HearingTranscriptSegment;
+    hit?: HearingWatchHit;
+    output?: HearingOutput;
+    claim?: HearingClaim;
+  }>;
+  addHearingComment(args: {
+    hearing_job_id: string;
+    target_type: HearingComment["target_type"];
+    target_id: string;
+    comment: string;
+  }): Promise<HearingComment>;
+  exportHearingResults(args: {
+    hearing_job_id: string;
+    format: HearingExportFormat;
+    output_id?: string;
+  }): Promise<{ buffer: ArrayBuffer; filename: string; mime_type: string }>;
 
   // App updates
   onUpdateStatus(callback: (status: unknown) => void): () => void;

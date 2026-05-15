@@ -100,6 +100,69 @@ export const UPDATE_CLIENT = "app:clients:update" as const;
 /** Takes { id: string }, returns void */
 export const DELETE_CLIENT = "app:clients:delete" as const;
 
+// ── Hearing Intelligence ───────────────────────────────────────────────
+/** Returns HearingJobSummary[] */
+export const LIST_HEARING_JOBS = "app:hearing-jobs:list" as const;
+
+/** Takes { id: string }, returns HearingWorkspace */
+export const GET_HEARING_WORKSPACE = "app:hearing-jobs:get-workspace" as const;
+
+/** Takes HearingCreateInput, returns HearingJob */
+export const CREATE_HEARING_JOB = "app:hearing-jobs:create" as const;
+
+/** Takes { id: string }, resolves official source metadata */
+export const RESOLVE_HEARING_JOB = "app:hearing-jobs:resolve" as const;
+
+/** Takes { id: string }, resolves and ranks live stream candidates */
+export const RESOLVE_HEARING_STREAM =
+  "app:hearing-jobs:resolve-stream" as const;
+
+/** Takes { id: string; stream_url? }, starts live stream capture */
+export const START_HEARING_CAPTURE =
+  "app:hearing-jobs:start-capture" as const;
+
+/** Takes { id: string }, stops live stream capture and finalizes transcription */
+export const STOP_HEARING_CAPTURE =
+  "app:hearing-jobs:stop-capture" as const;
+
+/** Takes { id: string }, returns the current hearing workspace/status */
+export const GET_HEARING_CAPTURE_STATUS =
+  "app:hearing-jobs:capture-status" as const;
+
+/** Takes { id, output_type? }, finalizes transcript/watchlist and generates output */
+export const GENERATE_FINAL_HEARING_BRIEF =
+  "app:hearing-jobs:generate-final-brief" as const;
+
+/** Takes transcript text/URL inputs, stores timestamped transcript segments */
+export const IMPORT_HEARING_TRANSCRIPT =
+  "app:hearing-jobs:import-transcript" as const;
+
+/** Takes { id: string; watch_items }, replaces job watchlist */
+export const UPDATE_HEARING_WATCHLIST =
+  "app:hearing-jobs:update-watchlist" as const;
+
+/** Takes { id: string }, runs watchlist detection over transcript */
+export const RUN_HEARING_WATCHLIST =
+  "app:hearing-jobs:run-watchlist" as const;
+
+/** Takes { id, output_type, reviewer_instructions? }, generates memo/recap/brief */
+export const GENERATE_HEARING_OUTPUT =
+  "app:hearing-jobs:generate-output" as const;
+
+/** Takes { id, output_type? }, runs resolver/transcript/watchlist/output pipeline */
+export const RUN_HEARING_JOB = "app:hearing-jobs:run" as const;
+
+/** Takes review update payload, returns updated pieces */
+export const UPDATE_HEARING_REVIEW =
+  "app:hearing-jobs:update-review" as const;
+
+/** Takes comment payload, returns HearingComment */
+export const ADD_HEARING_COMMENT = "app:hearing-jobs:add-comment" as const;
+
+/** Takes { id, format, output_id? }, returns export bytes */
+export const EXPORT_HEARING_RESULTS =
+  "app:hearing-jobs:export" as const;
+
 // ── App updates ──────────────────────────────────────────────────────────
 /** Main → Renderer push: update status changed */
 export const UPDATE_STATUS = "app:update:status" as const;
@@ -144,6 +207,23 @@ export const IPC_CHANNELS = {
   GET_CLIENT,
   UPDATE_CLIENT,
   DELETE_CLIENT,
+  LIST_HEARING_JOBS,
+  GET_HEARING_WORKSPACE,
+  CREATE_HEARING_JOB,
+  RESOLVE_HEARING_JOB,
+  RESOLVE_HEARING_STREAM,
+  START_HEARING_CAPTURE,
+  STOP_HEARING_CAPTURE,
+  GET_HEARING_CAPTURE_STATUS,
+  GENERATE_FINAL_HEARING_BRIEF,
+  IMPORT_HEARING_TRANSCRIPT,
+  UPDATE_HEARING_WATCHLIST,
+  RUN_HEARING_WATCHLIST,
+  GENERATE_HEARING_OUTPUT,
+  RUN_HEARING_JOB,
+  UPDATE_HEARING_REVIEW,
+  ADD_HEARING_COMMENT,
+  EXPORT_HEARING_RESULTS,
   UPDATE_STATUS,
   INSTALL_UPDATE,
   CHECK_FOR_UPDATE,

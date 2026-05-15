@@ -12,6 +12,7 @@ import { ProfilePage } from "@/components/ProfilePage";
 import { OnboardingPage } from "@/components/OnboardingPage";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { SessionSidebar } from "@/components/SessionSidebar";
+import { HearingIntelligencePage } from "@/components/HearingIntelligencePage";
 import {
   SidebarProvider,
   SidebarInset,
@@ -20,7 +21,7 @@ import {
 import type { MappingCompleteData } from "@/hooks/useFormFiller";
 import type { AppSettings, SavedForm, SessionFull, UpdateStatus } from "@/lib/types";
 
-type Page = "main" | "profile" | "settings" | "clients";
+type Page = "main" | "profile" | "settings" | "clients" | "hearing";
 type UpdateBannerStatus = UpdateStatus & {
   status: "available" | "downloaded";
 };
@@ -71,6 +72,8 @@ export default function App() {
   const [appSettings, setAppSettings] = useState<AppSettings>({
     anthropic_api_key_set: false,
     anthropic_api_key_preview: "",
+    openai_api_key_set: false,
+    openai_api_key_preview: "",
   });
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -97,6 +100,19 @@ export default function App() {
     setSettingsSaving(true);
     try {
       const saved = await api.saveSettings({ anthropic_api_key: apiKey });
+      setAppSettings(saved);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setSettingsSaving(false);
+    }
+  }, []);
+
+  const saveOpenAiSettings = useCallback(async (apiKey: string) => {
+    setSettingsSaving(true);
+    try {
+      const saved = await api.saveSettings({ openai_api_key: apiKey });
       setAppSettings(saved);
       return true;
     } catch {
@@ -370,7 +386,12 @@ export default function App() {
   // ── Settings: clear all local data ──────────────────────────────────
   const handleClearLocalData = useCallback(async () => {
     await api.clearLocalData();
-    setAppSettings({ anthropic_api_key_set: false, anthropic_api_key_preview: "" });
+    setAppSettings({
+      anthropic_api_key_set: false,
+      anthropic_api_key_preview: "",
+      openai_api_key_set: false,
+      openai_api_key_preview: "",
+    });
     // Reset to single empty workflow
     const fresh = createEmptyWorkflow();
     setWorkflows([fresh]);
@@ -495,6 +516,7 @@ export default function App() {
               settings={appSettings}
               saving={settingsSaving}
               onSave={saveAppSettings}
+              onSaveOpenAi={saveOpenAiSettings}
               onShowOnboarding={handleShowOnboarding}
               onClearLocalData={handleClearLocalData}
               appVersion={appVersion}
@@ -520,6 +542,13 @@ export default function App() {
               onCreateClient={addClient}
               onUpdateClient={editClient}
               onDeleteClient={removeClient}
+            />
+          )}
+
+          {page === "hearing" && (
+            <HearingIntelligencePage
+              clients={clients}
+              onOpenClients={() => setPage("clients")}
             />
           )}
 

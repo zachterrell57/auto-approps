@@ -30,7 +30,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   getSettings: () => ipcRenderer.invoke(ch.GET_SETTINGS),
 
-  putSettings: (args: { anthropic_api_key: string }) =>
+  putSettings: (args: { anthropic_api_key?: string; openai_api_key?: string }) =>
     ipcRenderer.invoke(ch.PUT_SETTINGS, args),
 
   clearLocalData: () =>
@@ -105,6 +105,63 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   deleteClient: (id: string) =>
     ipcRenderer.invoke(ch.DELETE_CLIENT, { id }),
+
+  listHearingJobs: () => ipcRenderer.invoke(ch.LIST_HEARING_JOBS),
+
+  getHearingWorkspace: (id: string) =>
+    ipcRenderer.invoke(ch.GET_HEARING_WORKSPACE, { id }),
+
+  createHearingJob: (args: unknown) =>
+    ipcRenderer.invoke(ch.CREATE_HEARING_JOB, args),
+
+  resolveHearingJob: (id: string) =>
+    ipcRenderer.invoke(ch.RESOLVE_HEARING_JOB, { id }),
+
+  resolveHearingStream: (id: string) =>
+    ipcRenderer.invoke(ch.RESOLVE_HEARING_STREAM, { id }),
+
+  startHearingCapture: (id: string, streamUrl?: string) =>
+    ipcRenderer.invoke(ch.START_HEARING_CAPTURE, { id, stream_url: streamUrl }),
+
+  stopHearingCapture: (id: string) =>
+    ipcRenderer.invoke(ch.STOP_HEARING_CAPTURE, { id }),
+
+  getHearingCaptureStatus: (id: string) =>
+    ipcRenderer.invoke(ch.GET_HEARING_CAPTURE_STATUS, { id }),
+
+  generateFinalHearingBrief: (args: {
+    hearing_job_id: string;
+    output_type?: unknown;
+    reviewer_instructions?: string;
+    use_ai?: boolean;
+  }) => ipcRenderer.invoke(ch.GENERATE_FINAL_HEARING_BRIEF, args),
+
+  importHearingTranscript: (args: unknown) =>
+    ipcRenderer.invoke(ch.IMPORT_HEARING_TRANSCRIPT, args),
+
+  updateHearingWatchlist: (id: string, watchItems: unknown[]) =>
+    ipcRenderer.invoke(ch.UPDATE_HEARING_WATCHLIST, {
+      id,
+      watch_items: watchItems,
+    }),
+
+  runHearingWatchlist: (id: string) =>
+    ipcRenderer.invoke(ch.RUN_HEARING_WATCHLIST, { id }),
+
+  generateHearingOutput: (args: unknown) =>
+    ipcRenderer.invoke(ch.GENERATE_HEARING_OUTPUT, args),
+
+  runHearingJob: (args: unknown) =>
+    ipcRenderer.invoke(ch.RUN_HEARING_JOB, args),
+
+  updateHearingReview: (args: unknown) =>
+    ipcRenderer.invoke(ch.UPDATE_HEARING_REVIEW, args),
+
+  addHearingComment: (args: unknown) =>
+    ipcRenderer.invoke(ch.ADD_HEARING_COMMENT, args),
+
+  exportHearingResults: (args: unknown) =>
+    ipcRenderer.invoke(ch.EXPORT_HEARING_RESULTS, args),
 
   // ── App updates ─────────────────────────────────────────────────────
   onUpdateStatus: (callback: (status: unknown) => void) => {

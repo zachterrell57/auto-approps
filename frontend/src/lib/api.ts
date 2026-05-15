@@ -5,6 +5,21 @@ import type {
   ClientUpdate,
   FieldMapping,
   FormSchema,
+  HearingClaim,
+  HearingComment,
+  HearingCreateInput,
+  HearingExportFormat,
+  HearingJob,
+  HearingJobSummary,
+  HearingOutput,
+  HearingOutputType,
+  HearingReviewStatus,
+  HearingTranscriptSegment,
+  HearingVerificationStatus,
+  HearingWatchHit,
+  HearingWatchItem,
+  HearingWatchItemDraft,
+  HearingWorkspace,
   KnowledgeProfile,
   KnowledgeProfileUpdate,
   MappingResult,
@@ -137,6 +152,130 @@ export async function updateClient(
 
 export async function deleteClient(id: string): Promise<void> {
   return api.deleteClient(id);
+}
+
+export async function listHearingJobs(): Promise<HearingJobSummary[]> {
+  return api.listHearingJobs();
+}
+
+export async function getHearingWorkspace(id: string): Promise<HearingWorkspace> {
+  return api.getHearingWorkspace(id);
+}
+
+export async function createHearingJob(
+  data: HearingCreateInput,
+): Promise<HearingJob> {
+  return api.createHearingJob(data);
+}
+
+export async function resolveHearingJob(id: string): Promise<HearingJob> {
+  return api.resolveHearingJob(id);
+}
+
+export async function resolveHearingStream(id: string): Promise<HearingJob> {
+  return api.resolveHearingStream(id);
+}
+
+export async function startHearingCapture(
+  id: string,
+  streamUrl?: string,
+): Promise<HearingWorkspace> {
+  return api.startHearingCapture(id, streamUrl);
+}
+
+export async function stopHearingCapture(id: string): Promise<HearingWorkspace> {
+  return api.stopHearingCapture(id);
+}
+
+export async function getHearingCaptureStatus(id: string): Promise<HearingWorkspace> {
+  return api.getHearingCaptureStatus(id);
+}
+
+export async function generateFinalHearingBrief(args: {
+  hearing_job_id: string;
+  output_type?: HearingOutputType;
+  reviewer_instructions?: string;
+  use_ai?: boolean;
+}): Promise<HearingOutput> {
+  return api.generateFinalHearingBrief(args);
+}
+
+export async function importHearingTranscript(args:
+  | {
+      hearing_job_id: string;
+      text: string;
+      filename?: string;
+      source?: HearingTranscriptSegment["source"];
+    }
+  | { hearing_job_id: string; transcript_url: string }
+  | { hearing_job_id: string; media_url: string }): Promise<HearingTranscriptSegment[]> {
+  return api.importHearingTranscript(args);
+}
+
+export async function updateHearingWatchlist(
+  id: string,
+  watchItems: HearingWatchItemDraft[],
+): Promise<HearingWatchItem[]> {
+  return api.updateHearingWatchlist(id, watchItems);
+}
+
+export async function runHearingWatchlist(id: string): Promise<HearingWatchHit[]> {
+  return api.runHearingWatchlist(id);
+}
+
+export async function generateHearingOutput(args: {
+  hearing_job_id: string;
+  output_type: HearingOutputType;
+  reviewer_instructions?: string;
+  use_ai?: boolean;
+}): Promise<HearingOutput> {
+  return api.generateHearingOutput(args);
+}
+
+export async function runHearingJob(args: {
+  hearing_job_id: string;
+  output_type?: HearingOutputType;
+  reviewer_instructions?: string;
+  use_ai?: boolean;
+}): Promise<HearingOutput> {
+  return api.runHearingJob(args);
+}
+
+export async function updateHearingReview(args: {
+  segment_id?: string;
+  segment_review_status?: HearingReviewStatus;
+  speaker_label?: string;
+  hit_id?: string;
+  hit_status?: HearingWatchHit["status"];
+  output_id?: string;
+  output_markdown?: string;
+  output_review_status?: HearingReviewStatus;
+  claim_id?: string;
+  claim_verification_status?: HearingVerificationStatus;
+}): Promise<{
+  segment?: HearingTranscriptSegment;
+  hit?: HearingWatchHit;
+  output?: HearingOutput;
+  claim?: HearingClaim;
+}> {
+  return api.updateHearingReview(args);
+}
+
+export async function addHearingComment(args: {
+  hearing_job_id: string;
+  target_type: HearingComment["target_type"];
+  target_id: string;
+  comment: string;
+}): Promise<HearingComment> {
+  return api.addHearingComment(args);
+}
+
+export async function exportHearingResults(args: {
+  hearing_job_id: string;
+  format: HearingExportFormat;
+  output_id?: string;
+}): Promise<{ buffer: ArrayBuffer; filename: string; mime_type: string }> {
+  return api.exportHearingResults(args);
 }
 
 export async function listSavedForms(): Promise<SavedForm[]> {

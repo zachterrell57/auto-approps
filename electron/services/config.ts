@@ -47,6 +47,7 @@ export function getGoogleOAuthClientSecret(): string {
 
 export interface Settings {
   anthropic_api_key: string;
+  openai_api_key: string;
   model_name: string;
   browser_slow_mo: number;
   ms_playwright_headless: boolean;
@@ -62,6 +63,7 @@ export interface Settings {
 
 export const settings: Settings = {
   anthropic_api_key: "",
+  openai_api_key: "",
   model_name: "claude-sonnet-4-6",
   browser_slow_mo: 100,
   ms_playwright_headless: true,

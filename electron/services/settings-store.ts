@@ -60,6 +60,12 @@ export function readApiKey(): string {
   return typeof key === "string" ? key : "";
 }
 
+export function readOpenAiApiKey(): string {
+  const data = readSettingsFile();
+  const key = data.openai_api_key;
+  return typeof key === "string" ? key : "";
+}
+
 /**
  * Write (or update) the Anthropic API key in settings.json, preserving any
  * other keys that may be present in the file.
@@ -67,6 +73,12 @@ export function readApiKey(): string {
 export function writeApiKey(apiKey: string): void {
   const data = readSettingsFile();
   data.anthropic_api_key = apiKey;
+  atomicWriteJsonSync(settingsPath(), data);
+}
+
+export function writeOpenAiApiKey(apiKey: string): void {
+  const data = readSettingsFile();
+  data.openai_api_key = apiKey;
   atomicWriteJsonSync(settingsPath(), data);
 }
 
