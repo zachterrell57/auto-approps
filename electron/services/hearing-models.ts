@@ -165,6 +165,22 @@ export const HearingStreamCandidateSchema = z.object({
 });
 export type HearingStreamCandidate = z.infer<typeof HearingStreamCandidateSchema>;
 
+export const HearingYoutubeSourceSchema = z.object({
+  video_id: z.string(),
+  url: z.string(),
+  embed_url: z.string().default(""),
+  title: z.string().default(""),
+  channel: z.string().default(""),
+  duration_seconds: z.number().nullable().default(null),
+  live_status: z
+    .enum(["live", "recorded", "scheduled", "unavailable", "unknown"])
+    .default("unknown"),
+  resolved_from: z.string().default(""),
+  validated_at: z.string().nullable().default(null),
+  probe_error: z.string().default(""),
+});
+export type HearingYoutubeSource = z.infer<typeof HearingYoutubeSourceSchema>;
+
 export const HearingResolvedMetadataSchema = z.object({
   source_url: z.string(),
   source_type: z.string(),
@@ -184,6 +200,7 @@ export const HearingResolvedMetadataSchema = z.object({
   stream_provider: z.string().default(""),
   stream_confidence: z.number().min(0).max(1).default(0),
   stream_candidates: z.array(HearingStreamCandidateSchema).default([]),
+  youtube_source: HearingYoutubeSourceSchema.nullable().default(null),
   warnings: z.array(z.string()).default([]),
   bill_references: z.array(z.string()).default([]),
 });
@@ -350,7 +367,7 @@ export interface HearingJobSummary {
 }
 
 export interface HearingCreateInput {
-  client_id: string;
+  client_id?: string;
   client_name?: string;
   matter_id?: string | null;
   source_url: string;

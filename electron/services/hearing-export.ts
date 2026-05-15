@@ -47,7 +47,7 @@ function selectedOutput(
 
 function markdownPackage(workspace: HearingWorkspace, output: HearingOutput | null): string {
   const header = [
-    `Client: ${workspace.job.client_name}`,
+    `Client: ${workspace.job.client_name || "None configured"}`,
     `Hearing: ${workspace.job.hearing_title || "Untitled hearing"}`,
     `Committee: ${workspace.job.committee || "Unknown committee"}`,
     `Source: ${workspace.job.source_url}`,
@@ -263,7 +263,7 @@ export async function exportHearingWorkspace(args: {
     throw new Error("Verify the memo before exporting a client-ready package.");
   }
   const base = safeFilename(
-    `${args.workspace.job.client_name}-${args.workspace.job.hearing_title || "hearing"}`,
+    `${args.workspace.job.client_name || "hearing"}-${args.workspace.job.hearing_title || "hearing"}`,
   );
   let result: HearingExportResult;
 
