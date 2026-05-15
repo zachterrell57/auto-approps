@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Eye, EyeOff, Key, Check, RefreshCw, Download } from "lucide-react";
-import { validateAnthropicApiKey } from "@/lib/apiKey";
+import { validateAnthropicApiKey, validateOpenAiApiKey } from "@/lib/apiKey";
 import type { AppSettings, UpdateStatus } from "@/lib/types";
 
 interface SettingsPageProps {
   settings: AppSettings;
   saving: boolean;
   onSave: (apiKey: string) => boolean | Promise<boolean>;
+  onSaveOpenAi?: (apiKey: string) => boolean | Promise<boolean>;
   onShowOnboarding?: () => void | Promise<void>;
   onClearLocalData?: () => void | Promise<void>;
   appVersion?: string;
@@ -19,6 +20,7 @@ export function SettingsPage({
   settings,
   saving,
   onSave,
+  onSaveOpenAi,
   onShowOnboarding,
   onClearLocalData,
   appVersion,
@@ -27,9 +29,13 @@ export function SettingsPage({
   onInstallUpdate,
 }: SettingsPageProps) {
   const [apiKey, setApiKey] = useState("");
+  const [openAiApiKey, setOpenAiApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [showOpenAiKey, setShowOpenAiKey] = useState(false);
   const [keyError, setKeyError] = useState<string | null>(null);
+  const [openAiKeyError, setOpenAiKeyError] = useState<string | null>(null);
   const dirty = apiKey.trim().length > 0;
+  const openAiDirty = openAiApiKey.trim().length > 0;
 
   async function handleSave() {
     if (!dirty) return;
@@ -45,6 +51,22 @@ export function SettingsPage({
     }
     setApiKey("");
     setShowKey(false);
+  }
+
+  async function handleSaveOpenAi() {
+    if (!openAiDirty || !onSaveOpenAi) return;
+    const { normalizedKey, error } = validateOpenAiApiKey(openAiApiKey);
+    if (error) {
+      setOpenAiKeyError(error);
+      return;
+    }
+    setOpenAiKeyError(null);
+    const saved = await onSaveOpenAi(normalizedKey);
+    if (!saved) {
+      return;
+    }
+    setOpenAiApiKey("");
+    setShowOpenAiKey(false);
   }
 
   return (
@@ -143,6 +165,83 @@ export function SettingsPage({
           </p>
         </section>
 
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <span
+              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold transition-all duration-300 ${
+                settings.openai_api_key_set
+                  ? "bg-emerald-500 text-white"
+                  : "bg-amber-600/10 text-amber-700"
+              }`}
+            >
+              {settings.openai_api_key_set ? (
+                <Check className="w-3 h-3" strokeWidth={3} />
+              ) : (
+                <Key className="w-3 h-3" />
+              )}
+            </span>
+            <span className="text-xs font-semibold tracking-[0.08em] uppercase text-foreground/50">
+              OpenAI API Key
+            </span>
+          </div>
+
+          {settings.openai_api_key_set && (
+            <p className="text-xs text-foreground/35 mb-3">
+              Current key: {settings.openai_api_key_preview}
+            </p>
+          )}
+
+          <div className="flex gap-3">
+            <div className="relative flex-1 group">
+              <input
+                type={showOpenAiKey ? "text" : "password"}
+                placeholder={
+                  settings.openai_api_key_set
+                    ? "Enter new key to replace..."
+                    : "sk-..."
+                }
+                value={openAiApiKey}
+                onChange={(e) => {
+                  setOpenAiApiKey(e.target.value);
+                  if (openAiKeyError) setOpenAiKeyError(null);
+                }}
+                className="w-full h-12 pl-4 pr-10 rounded-xl border border-foreground/10 bg-transparent text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-amber-400 focus:ring-[3px] focus:ring-amber-400/10 transition-all duration-200"
+              />
+              <button
+                type="button"
+                onClick={() => setShowOpenAiKey((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/20 hover:text-foreground/50 transition-colors"
+                tabIndex={-1}
+              >
+                {showOpenAiKey ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            <button
+              onClick={() => {
+                void handleSaveOpenAi();
+              }}
+              disabled={!openAiDirty || saving || !onSaveOpenAi}
+              className="h-12 px-6 rounded-xl bg-foreground text-background text-sm font-medium tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-foreground/10 active:scale-[0.995] disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none"
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+
+          {openAiKeyError && (
+            <p className="text-xs text-rose-600 mt-3">{openAiKeyError}</p>
+          )}
+
+          {!settings.openai_api_key_set && !openAiKeyError && (
+            <p className="text-xs text-amber-600 mt-3">
+              An OpenAI API key is required for live hearing transcription.
+            </p>
+          )}
+        </section>
+
         {onShowOnboarding && (
           <section>
             <div className="flex items-center justify-between gap-3 rounded-xl border border-foreground/10 bg-foreground/[0.015] p-4">
@@ -227,14 +326,14 @@ export function SettingsPage({
               <div>
                 <p className="text-sm font-medium text-rose-700">Clear Local Data</p>
                 <p className="text-xs text-rose-700/80 mt-1">
-                  Deletes local sessions, clients, profile, and stored API key.
+                  Deletes local sessions, clients, profile, hearings, and stored API keys.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => {
                   const confirmed = window.confirm(
-                    "Clear all local data? This removes sessions, clients, profile, and API key.",
+                    "Clear all local data? This removes sessions, clients, profile, hearings, and API keys.",
                   );
                   if (!confirmed) return;
                   void onClearLocalData();

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, nativeTheme } from "electron";
 import path from "node:path";
 import { setUserDataPath } from "./services/config.js";
-import { readApiKey } from "./services/settings-store.js";
+import { readApiKey, readOpenAiApiKey } from "./services/settings-store.js";
 import { settings } from "./services/config.js";
 import { initAutoUpdater } from "./services/auto-updater.js";
 
@@ -48,6 +48,10 @@ app.whenReady().then(async () => {
   const savedKey = readApiKey();
   if (savedKey) {
     settings.anthropic_api_key = savedKey;
+  }
+  const savedOpenAiKey = readOpenAiApiKey();
+  if (savedOpenAiKey) {
+    settings.openai_api_key = savedOpenAiKey;
   }
 
   // Register all IPC handlers

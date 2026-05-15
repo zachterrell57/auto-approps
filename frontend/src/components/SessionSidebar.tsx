@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Check, Loader2, Pencil, Plus, Settings, Trash2, User, Users, X } from "lucide-react";
+import { Check, Landmark, Loader2, Pencil, Plus, Settings, Trash2, User, Users, X } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -27,7 +27,7 @@ interface SessionSidebarProps {
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
   onRenameSession: (id: string, name: string) => void;
-  onNavigate: (page: "profile" | "settings" | "clients") => void;
+  onNavigate: (page: "profile" | "settings" | "clients" | "hearing") => void;
   activePage: string;
   processingStage?: ProcessingStage;
   processingLabel?: string | null;
@@ -346,6 +346,15 @@ export function SessionSidebar({
 
       <SidebarFooter className="border-t border-foreground/8">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={activePage === "hearing"}
+              onClick={() => onNavigate("hearing")}
+            >
+              <Landmark className="h-4 w-4" />
+              Hearings
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={activePage === "clients"}

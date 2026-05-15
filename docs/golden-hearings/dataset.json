@@ -1,0 +1,231 @@
+{
+  "name": "golden-hearings",
+  "description": "Seed hearing-intelligence regression fixture set for local MVP evaluation.",
+  "cases": [
+    {
+      "id": "gh-001",
+      "chamber": "House",
+      "hearing_type": "appropriations",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-001", "label": "PFAS", "aliases": ["forever chemicals"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-001", "text": "Rep. Smith asked whether PFAS cleanup grants would continue in rural water systems." }],
+      "expected_hits": [{ "watch_item_id": "wi-001", "segment_id": "seg-001" }],
+      "expected_claims": [{ "claim": "PFAS cleanup grants were discussed.", "supporting_segment_ids": ["seg-001"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-002",
+      "chamber": "Senate",
+      "hearing_type": "budget",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-002", "label": "H.R. 123", "aliases": ["Clean Ports Act"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-002", "text": "The witness referenced HR123 and said the Clean Ports Act would affect harbor grants." }],
+      "expected_hits": [{ "watch_item_id": "wi-002", "segment_id": "seg-002" }],
+      "expected_bill_normalizations": [{ "raw": "H.R. 123", "normalized": "HR 123" }],
+      "expected_claims": [{ "claim": "H.R. 123 was mentioned.", "supporting_segment_ids": ["seg-002"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-003",
+      "chamber": "House",
+      "hearing_type": "oversight",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-003", "label": "pharmacy benefit manager reform", "aliases": ["PBM reform"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-003", "text": "Sen. Garcia pressed the Secretary on PBM reform and pharmacy benefit manager spread pricing." }],
+      "expected_hits": [{ "watch_item_id": "wi-003", "segment_id": "seg-003" }],
+      "expected_claims": [{ "claim": "PBM reform was discussed.", "supporting_segment_ids": ["seg-003"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-004",
+      "chamber": "Senate",
+      "hearing_type": "legislative",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-004", "label": "S. 456", "aliases": ["Rural Broadband Act"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-004", "text": "Members discussed Senate Bill 456 and whether rural broadband deployment deadlines should move." }],
+      "expected_hits": [{ "watch_item_id": "wi-004", "segment_id": "seg-004" }],
+      "expected_bill_normalizations": [{ "raw": "S. 456", "normalized": "S 456" }],
+      "expected_claims": [{ "claim": "S. 456 was discussed.", "supporting_segment_ids": ["seg-004"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-005",
+      "chamber": "House",
+      "hearing_type": "nomination",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-005", "label": "E15", "aliases": ["year-round ethanol"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-005", "text": "The nominee committed to review year-round ethanol and E15 fuel waiver policy." }],
+      "expected_hits": [{ "watch_item_id": "wi-005", "segment_id": "seg-005" }],
+      "expected_claims": [{ "claim": "E15 policy was mentioned.", "supporting_segment_ids": ["seg-005"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-006",
+      "chamber": "Senate",
+      "hearing_type": "markup",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-006", "label": "amendment 14", "aliases": ["Amdt. 14"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-006", "text": "The chair called up Amdt. 14 on permitting timelines before the vote." }],
+      "expected_hits": [{ "watch_item_id": "wi-006", "segment_id": "seg-006" }],
+      "expected_claims": [{ "claim": "Amendment 14 was called up.", "supporting_segment_ids": ["seg-006"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-007",
+      "chamber": "House",
+      "hearing_type": "appropriations",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-007", "label": "AI prior authorization", "aliases": ["algorithmic denials"], "match_mode": "semantic", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-007", "text": "The member asked about AI prior authorization and algorithmic denials in Medicare Advantage." }],
+      "expected_hits": [{ "watch_item_id": "wi-007", "segment_id": "seg-007" }],
+      "expected_claims": [{ "claim": "AI prior authorization was raised.", "supporting_segment_ids": ["seg-007"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-008",
+      "chamber": "Senate",
+      "hearing_type": "oversight",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-008", "label": "Acme Energy", "aliases": ["Acme"], "match_mode": "hybrid", "negative_filters": ["acme wrench"] }],
+      "transcript_segments": [{ "id": "seg-008", "text": "A witness said Acme Energy operates battery storage projects in three states." }],
+      "expected_hits": [{ "watch_item_id": "wi-008", "segment_id": "seg-008" }],
+      "expected_claims": [{ "claim": "Acme Energy was mentioned.", "supporting_segment_ids": ["seg-008"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-009",
+      "chamber": "House",
+      "hearing_type": "budget",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-009", "label": "EPA Brownfields", "aliases": ["brownfields grants"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-009", "text": "Members questioned the Administrator about brownfields grants and cleanup backlog." }],
+      "expected_hits": [{ "watch_item_id": "wi-009", "segment_id": "seg-009" }],
+      "expected_claims": [{ "claim": "Brownfields grants were discussed.", "supporting_segment_ids": ["seg-009"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-010",
+      "chamber": "Senate",
+      "hearing_type": "legislative",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-010", "label": "H.J.Res. 88", "aliases": [], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-010", "text": "The ranking member objected to HJRES88 because of its effect on agency rules." }],
+      "expected_hits": [{ "watch_item_id": "wi-010", "segment_id": "seg-010" }],
+      "expected_bill_normalizations": [{ "raw": "H.J.Res. 88", "normalized": "HJRES 88" }],
+      "expected_claims": [{ "claim": "H.J.Res. 88 was mentioned.", "supporting_segment_ids": ["seg-010"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-011",
+      "chamber": "House",
+      "hearing_type": "oversight",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-011", "label": "Department of Energy", "aliases": ["DOE"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-011", "text": "DOE officials defended the loan program office during questioning." }],
+      "expected_hits": [{ "watch_item_id": "wi-011", "segment_id": "seg-011" }],
+      "expected_claims": [{ "claim": "DOE officials were questioned.", "supporting_segment_ids": ["seg-011"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-012",
+      "chamber": "Senate",
+      "hearing_type": "appropriations",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-012", "label": "community health centers", "aliases": ["CHCs"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-012", "text": "The Secretary said CHCs need stable mandatory funding." }],
+      "expected_hits": [{ "watch_item_id": "wi-012", "segment_id": "seg-012" }],
+      "expected_claims": [{ "claim": "Community health center funding was mentioned.", "supporting_segment_ids": ["seg-012"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-013",
+      "chamber": "House",
+      "hearing_type": "markup",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-013", "label": "S.J.Res. 12", "aliases": [], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-013", "text": "No member mentioned client issues during this exchange." }],
+      "expected_hits": [],
+      "expected_bill_normalizations": [{ "raw": "S.J.Res. 12", "normalized": "SJRES 12" }],
+      "expected_claims": [{ "claim": "No watchlist hit was detected.", "supporting_segment_ids": ["seg-013"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-014",
+      "chamber": "Senate",
+      "hearing_type": "nomination",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-014", "label": "cyber incident reporting", "aliases": ["CIRCIA"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-014", "text": "The nominee committed to implement CIRCIA cyber incident reporting rules." }],
+      "expected_hits": [{ "watch_item_id": "wi-014", "segment_id": "seg-014" }],
+      "expected_claims": [{ "claim": "CIRCIA implementation was discussed.", "supporting_segment_ids": ["seg-014"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-015",
+      "chamber": "House",
+      "hearing_type": "budget",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-015", "label": "low income housing tax credit", "aliases": ["LIHTC"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-015", "text": "Several members endorsed LIHTC expansion for affordable housing production." }],
+      "expected_hits": [{ "watch_item_id": "wi-015", "segment_id": "seg-015" }],
+      "expected_claims": [{ "claim": "LIHTC expansion was endorsed.", "supporting_segment_ids": ["seg-015"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-016",
+      "chamber": "Senate",
+      "hearing_type": "appropriations",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-016", "label": "port security grants", "aliases": ["PSGP"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-016", "text": "The Administrator said PSGP awards would prioritize cyber resilience." }],
+      "expected_hits": [{ "watch_item_id": "wi-016", "segment_id": "seg-016" }],
+      "expected_claims": [{ "claim": "Port security grants were discussed.", "supporting_segment_ids": ["seg-016"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-017",
+      "chamber": "House",
+      "hearing_type": "oversight",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-017", "label": "Medicare Advantage", "aliases": ["MA plans"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-017", "text": "Witnesses described MA plans and prior authorization delays." }],
+      "expected_hits": [{ "watch_item_id": "wi-017", "segment_id": "seg-017" }],
+      "expected_claims": [{ "claim": "Medicare Advantage was discussed.", "supporting_segment_ids": ["seg-017"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-018",
+      "chamber": "Senate",
+      "hearing_type": "legislative",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-018", "label": "critical minerals", "aliases": ["rare earths"], "match_mode": "semantic", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-018", "text": "Senators debated critical minerals permitting and rare earth supply chain security." }],
+      "expected_hits": [{ "watch_item_id": "wi-018", "segment_id": "seg-018" }],
+      "expected_claims": [{ "claim": "Critical minerals permitting was discussed.", "supporting_segment_ids": ["seg-018"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-019",
+      "chamber": "House",
+      "hearing_type": "markup",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-019", "label": "H.Res. 77", "aliases": [], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-019", "text": "The committee reported HRES77 favorably by voice vote." }],
+      "expected_hits": [{ "watch_item_id": "wi-019", "segment_id": "seg-019" }],
+      "expected_bill_normalizations": [{ "raw": "H.Res. 77", "normalized": "HRES 77" }],
+      "expected_claims": [{ "claim": "H.Res. 77 was reported.", "supporting_segment_ids": ["seg-019"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    },
+    {
+      "id": "gh-020",
+      "chamber": "Senate",
+      "hearing_type": "budget",
+      "modes": ["full", "watchlist"],
+      "watch_items": [{ "id": "wi-020", "label": "school nutrition", "aliases": ["summer EBT"], "match_mode": "hybrid", "negative_filters": [] }],
+      "transcript_segments": [{ "id": "seg-020", "text": "Members asked USDA about summer EBT and school nutrition reimbursement rates." }],
+      "expected_hits": [{ "watch_item_id": "wi-020", "segment_id": "seg-020" }],
+      "expected_claims": [{ "claim": "School nutrition and summer EBT were discussed.", "supporting_segment_ids": ["seg-020"] }],
+      "expected_exports": ["markdown", "docx", "pdf", "csv", "json"]
+    }
+  ]
+}

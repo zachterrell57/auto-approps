@@ -5,7 +5,9 @@ import { getWorkflow, deleteWorkflow, resetAllWorkflows } from "./services/state
 import { settings } from "./services/config.js";
 import {
   readApiKey,
+  readOpenAiApiKey,
   writeApiKey,
+  writeOpenAiApiKey,
   clearSettings,
 } from "./services/settings-store.js";
 import {
@@ -16,6 +18,28 @@ import {
   deleteClient,
   clearClients,
 } from "./services/client-store.js";
+import {
+  addHearingReviewComment,
+  createHearingIntelligenceJob,
+  exportHearingIntelligence,
+  fetchAndImportHearingTranscript,
+  generateFinalHearingIntelligenceBrief,
+  generateHearingIntelligenceOutput,
+  getHearingIntelligenceCaptureStatus,
+  getHearingIntelligenceWorkspace,
+  importHearingTranscript,
+  listHearingIntelligenceJobs,
+  resolveHearingIntelligenceJob,
+  resolveHearingIntelligenceStream,
+  runHearingIntelligenceJob,
+  runHearingWatchlist,
+  saveHearingWatchItems,
+  startHearingIntelligenceCapture,
+  stopHearingIntelligenceCapture,
+  transcribeAndImportHearingMedia,
+  updateHearingReview,
+} from "./services/hearing-intelligence.js";
+import { clearHearings } from "./services/hearing-store.js";
 import {
   loadKnowledgeProfile,
   saveKnowledgeProfile,
@@ -166,21 +190,35 @@ export function registerIpcHandlers(): void {
   // ── Settings ─────────────────────────────────────────────────────────
   ipcMain.handle(ch.GET_SETTINGS, async () => {
     const key = readApiKey();
+    const openAiKey = readOpenAiApiKey();
     return {
       anthropic_api_key_set: Boolean(key),
       anthropic_api_key_preview: maskKey(key),
+      openai_api_key_set: Boolean(openAiKey),
+      openai_api_key_preview: maskKey(openAiKey),
     };
   });
 
   ipcMain.handle(
     ch.PUT_SETTINGS,
-    async (_event, args: { anthropic_api_key: string }) => {
-      const key = args.anthropic_api_key.trim();
-      writeApiKey(key);
-      settings.anthropic_api_key = key;
+    async (_event, args: { anthropic_api_key?: string; openai_api_key?: string }) => {
+      if (typeof args.anthropic_api_key === "string") {
+        const key = args.anthropic_api_key.trim();
+        writeApiKey(key);
+        settings.anthropic_api_key = key;
+      }
+      if (typeof args.openai_api_key === "string") {
+        const key = args.openai_api_key.trim();
+        writeOpenAiApiKey(key);
+        settings.openai_api_key = key;
+      }
+      const anthropicKey = readApiKey();
+      const openAiKey = readOpenAiApiKey();
       return {
-        anthropic_api_key_set: Boolean(key),
-        anthropic_api_key_preview: maskKey(key),
+        anthropic_api_key_set: Boolean(anthropicKey),
+        anthropic_api_key_preview: maskKey(anthropicKey),
+        openai_api_key_set: Boolean(openAiKey),
+        openai_api_key_preview: maskKey(openAiKey),
       };
     },
   );
@@ -190,8 +228,10 @@ export function registerIpcHandlers(): void {
     clearKnowledgeProfile();
     clearClients();
     clearSessions();
+    clearHearings();
     resetAllWorkflows();
     settings.anthropic_api_key = "";
+    settings.openai_api_key = "";
     return { ok: true };
   });
 
@@ -523,6 +563,173 @@ export function registerIpcHandlers(): void {
       return { ok: true };
     },
   );
+
+  // ── Hearing Intelligence ───────────────────────────────────────────
+  ipcMain.handle(ch.LIST_HEARING_JOBS, async () => {
+    return listHearingIntelligenceJobs();
+  });
+
+  ipcMain.handle(ch.GET_HEARING_WORKSPACE, async (_event, args: { id: string }) => {
+    return getHearingIntelligenceWorkspace(args.id);
+  });
+
+  ipcMain.handle(ch.CREATE_HEARING_JOB, async (_event, args) => {
+    return createHearingIntelligenceJob({
+      client_id: String(args.client_id ?? ""),
+      client_name:
+        typeof args.client_name === "string" ? args.client_name : undefined,
+      matter_id: typeof args.matter_id === "string" ? args.matter_id : null,
+      source_url: String(args.source_url ?? ""),
+      mode: args.mode,
+      client_context:
+        typeof args.client_context === "object" && args.client_context !== null
+          ? args.client_context
+          : {},
+      watch_items: Array.isArray(args.watch_items) ? args.watch_items : [],
+    });
+  });
+
+  ipcMain.handle(ch.RESOLVE_HEARING_JOB, async (_event, args: { id: string }) => {
+    return resolveHearingIntelligenceJob(args.id);
+  });
+
+  ipcMain.handle(ch.RESOLVE_HEARING_STREAM, async (_event, args: { id: string }) => {
+    return resolveHearingIntelligenceStream(args.id);
+  });
+
+  ipcMain.handle(ch.START_HEARING_CAPTURE, async (_event, args) => {
+    return startHearingIntelligenceCapture({
+      hearingJobId: String(args.hearing_job_id ?? args.id ?? ""),
+      streamUrl:
+        typeof args.stream_url === "string" && args.stream_url.trim()
+          ? args.stream_url
+          : undefined,
+    });
+  });
+
+  ipcMain.handle(ch.STOP_HEARING_CAPTURE, async (_event, args) => {
+    return stopHearingIntelligenceCapture(String(args.hearing_job_id ?? args.id ?? ""));
+  });
+
+  ipcMain.handle(ch.GET_HEARING_CAPTURE_STATUS, async (_event, args) => {
+    return getHearingIntelligenceCaptureStatus(String(args.hearing_job_id ?? args.id ?? ""));
+  });
+
+  ipcMain.handle(ch.GENERATE_FINAL_HEARING_BRIEF, async (_event, args) => {
+    return generateFinalHearingIntelligenceBrief({
+      hearingJobId: String(args.hearing_job_id ?? args.id ?? ""),
+      outputType: args.output_type,
+      reviewerInstructions:
+        typeof args.reviewer_instructions === "string"
+          ? args.reviewer_instructions
+          : undefined,
+      useAi: typeof args.use_ai === "boolean" ? args.use_ai : undefined,
+    });
+  });
+
+  ipcMain.handle(ch.IMPORT_HEARING_TRANSCRIPT, async (_event, args) => {
+    if (typeof args.media_url === "string" && args.media_url.trim()) {
+      return transcribeAndImportHearingMedia({
+        hearingJobId: String(args.hearing_job_id ?? args.id ?? ""),
+        mediaUrl: args.media_url,
+      });
+    }
+    if (typeof args.transcript_url === "string" && args.transcript_url.trim()) {
+      return fetchAndImportHearingTranscript({
+        hearingJobId: String(args.hearing_job_id ?? args.id ?? ""),
+        transcriptUrl: args.transcript_url,
+      });
+    }
+    return importHearingTranscript({
+      hearingJobId: String(args.hearing_job_id ?? args.id ?? ""),
+      text: String(args.text ?? ""),
+      filename: typeof args.filename === "string" ? args.filename : undefined,
+      source: args.source,
+    });
+  });
+
+  ipcMain.handle(
+    ch.UPDATE_HEARING_WATCHLIST,
+    async (_event, args: { id: string; watch_items: unknown[] }) => {
+      return saveHearingWatchItems({
+        hearingJobId: args.id,
+        watchItems: args.watch_items as never,
+      });
+    },
+  );
+
+  ipcMain.handle(ch.RUN_HEARING_WATCHLIST, async (_event, args: { id: string }) => {
+    return runHearingWatchlist(args.id);
+  });
+
+  ipcMain.handle(ch.GENERATE_HEARING_OUTPUT, async (_event, args) => {
+    return generateHearingIntelligenceOutput({
+      hearingJobId: String(args.hearing_job_id ?? args.id ?? ""),
+      outputType: args.output_type,
+      reviewerInstructions:
+        typeof args.reviewer_instructions === "string"
+          ? args.reviewer_instructions
+          : undefined,
+      useAi: typeof args.use_ai === "boolean" ? args.use_ai : undefined,
+    });
+  });
+
+  ipcMain.handle(ch.RUN_HEARING_JOB, async (_event, args) => {
+    return runHearingIntelligenceJob({
+      hearingJobId: String(args.hearing_job_id ?? args.id ?? ""),
+      outputType: args.output_type,
+      reviewerInstructions:
+        typeof args.reviewer_instructions === "string"
+          ? args.reviewer_instructions
+          : undefined,
+      useAi: typeof args.use_ai === "boolean" ? args.use_ai : undefined,
+    });
+  });
+
+  ipcMain.handle(ch.UPDATE_HEARING_REVIEW, async (_event, args) => {
+    return updateHearingReview({
+      segmentId: typeof args.segment_id === "string" ? args.segment_id : undefined,
+      segmentReviewStatus: args.segment_review_status,
+      speakerLabel:
+        typeof args.speaker_label === "string" ? args.speaker_label : undefined,
+      hitId: typeof args.hit_id === "string" ? args.hit_id : undefined,
+      hitStatus: args.hit_status,
+      outputId: typeof args.output_id === "string" ? args.output_id : undefined,
+      outputMarkdown:
+        typeof args.output_markdown === "string"
+          ? args.output_markdown
+          : undefined,
+      outputReviewStatus: args.output_review_status,
+      claimId: typeof args.claim_id === "string" ? args.claim_id : undefined,
+      claimVerificationStatus: args.claim_verification_status,
+    });
+  });
+
+  ipcMain.handle(ch.ADD_HEARING_COMMENT, async (_event, args) => {
+    return addHearingReviewComment({
+      hearingJobId: String(args.hearing_job_id ?? args.id ?? ""),
+      targetType: args.target_type,
+      targetId: String(args.target_id ?? ""),
+      comment: String(args.comment ?? ""),
+    });
+  });
+
+  ipcMain.handle(ch.EXPORT_HEARING_RESULTS, async (_event, args) => {
+    const result = await exportHearingIntelligence({
+      hearingJobId: String(args.hearing_job_id ?? args.id ?? ""),
+      format: args.format,
+      outputId: typeof args.output_id === "string" ? args.output_id : undefined,
+    });
+    const bytes = Buffer.from(result.buffer);
+    return {
+      buffer: bytes.buffer.slice(
+        bytes.byteOffset,
+        bytes.byteOffset + bytes.byteLength,
+      ),
+      filename: result.filename,
+      mime_type: result.mime_type,
+    };
+  });
 
   // ── App updates ──────────────────────────────────────────────────────
   ipcMain.handle(ch.GET_APP_VERSION, () => {

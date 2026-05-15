@@ -7,6 +7,8 @@ Use this checklist before cutting an alpha build.
 - [ ] `npm run check:frontend-lint` passes
 - [ ] `npm run check:frontend-build` passes
 - [ ] `npm run check:electron-ts` passes
+- [ ] `npm run hearing-eval -- run --dataset golden-hearings --mode full` passes
+- [ ] `npm run hearing-eval -- run --dataset golden-hearings --mode watchlist` passes
 
 ## Core User Journeys
 
@@ -49,6 +51,21 @@ Use this checklist before cutting an alpha build.
 - [ ] While a workflow is mapping, navigate to Settings, Profile, and Clients, then return.
 - [ ] Confirm the workflow resumes prior in-progress/completed UI state with no reset.
 
+### 6) Hearing Intelligence
+
+- [ ] Create a client with relevant hearing context.
+- [ ] Open Hearings from the sidebar.
+- [ ] Create a hearing job with a House or Senate hearing URL, client, mode, and watch items.
+- [ ] Resolve the live stream and confirm title, committee, date, source tier, detected stream URL, provider, confidence, and warnings are visible.
+- [ ] Start live capture on a committee page that embeds a stream or official YouTube video.
+- [ ] Confirm transcript chunks and watchlist hits update while capture is running.
+- [ ] Stop capture and generate the final briefing package.
+- [ ] Save watchlist items, run detection, and confirm hits appear in the timeline.
+- [ ] Generate a full memo or targeted recap and confirm claims include segment citations.
+- [ ] Click a claim citation and confirm the transcript jumps to the supporting segment.
+- [ ] Mark a segment or claim verified, dismiss a false-positive hit, and add a reviewer comment.
+- [ ] Export Markdown, DOCX or PDF, CSV/JSON mention log, and transcript text.
+
 ## Failure Path Checks
 
 - [ ] Invalid URL shows actionable error.
@@ -61,4 +78,4 @@ Use this checklist before cutting an alpha build.
 ## Data Safety UX
 
 - [ ] Settings page shows plaintext-storage disclosure.
-- [ ] `Clear Local Data` removes sessions, clients, profile, and API key locally.
+- [ ] `Clear Local Data` removes sessions, clients, profile, hearings, and API keys locally.

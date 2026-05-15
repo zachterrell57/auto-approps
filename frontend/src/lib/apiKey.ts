@@ -26,3 +26,19 @@ export function validateAnthropicApiKey(input: string): ApiKeyValidationResult {
     error: null,
   };
 }
+
+export function validateOpenAiApiKey(input: string): ApiKeyValidationResult {
+  const normalizedKey = input.trim();
+  if (!normalizedKey.startsWith("sk-") || normalizedKey.length < MIN_KEY_LENGTH) {
+    return {
+      normalizedKey,
+      error:
+        'Invalid key format. OpenAI API keys start with "sk-" and are at least 20 characters.',
+    };
+  }
+
+  return {
+    normalizedKey,
+    error: null,
+  };
+}
