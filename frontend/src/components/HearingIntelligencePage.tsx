@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  ChevronDown,
   Check,
   Download,
   FileText,
@@ -18,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useHearingJobs } from "@/hooks/useHearingJobs";
 import type {
+  AppSettings,
   Client,
   HearingClientContext,
   HearingExportFormat,
@@ -26,10 +28,12 @@ import type {
   HearingOutputType,
   HearingTranscriptSegment,
   HearingWatchItemDraft,
+  HearingYoutubeSource,
 } from "@/lib/types";
 
 interface HearingIntelligencePageProps {
   clients: Client[];
+  settings: AppSettings;
   onOpenClients: () => void;
 }
 
@@ -66,6 +70,25 @@ function parseList(value: string): string[] {
 
 function listText(values: string[] | undefined): string {
   return (values ?? []).join(", ");
+}
+
+function clientLabel(name: string): string {
+  return name.trim() || "No client";
+}
+
+function youtubeSourceLabel(source: HearingYoutubeSource | null | undefined): string {
+  if (!source) return "No YouTube video detected";
+  const status =
+    source.live_status === "recorded"
+      ? "recorded video"
+      : source.live_status === "scheduled"
+        ? "scheduled"
+        : source.live_status === "live"
+          ? "live"
+          : "YouTube video";
+  return [source.title || source.video_id, source.channel, status]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function formatMs(ms: number): string {
@@ -151,13 +174,12 @@ function NewJobForm({
   }) => Promise<void>;
   onOpenClients: () => void;
 }) {
-  const [clientId, setClientId] = useState(clients[0]?.id ?? "");
+  const [clientId, setClientId] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [mode, setMode] = useState<HearingMode>("full_memo");
   const [context, setContext] = useState<Partial<HearingClientContext>>(emptyContext);
   const [watchText, setWatchText] = useState("");
-  const effectiveClientId = clientId || clients[0]?.id || "";
-  const canCreate = Boolean(effectiveClientId && sourceUrl.trim() && clients.length > 0);
+  const canCreate = Boolean(sourceUrl.trim());
 
   const handleCreate = async () => {
     const watchItems: HearingWatchItemDraft[] = parseList(watchText).map((label) => ({
@@ -171,7 +193,7 @@ function NewJobForm({
       negative_filters: [],
     }));
     await onCreate({
-      clientId: effectiveClientId,
+      clientId,
       sourceUrl,
       mode,
       context,
@@ -183,7 +205,7 @@ function NewJobForm({
 
   return (
     <section className="border-b border-foreground/8 bg-white">
-      <div className="grid gap-5 px-6 py-5 xl:grid-cols-[1.15fr_1fr]">
+      <div className="space-y-4 px-6 py-5">
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -191,11 +213,11 @@ function NewJobForm({
                 Live Hearing Intelligence
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Capture committee livestreams, detect client hits, and generate same-day briefings.
+                Capture committee YouTube audio, detect client hits, and generate same-day briefings.
               </p>
             </div>
             {clients.length === 0 && (
-              <Button variant="outline" onClick={onOpenClients}>
+              <Button variant="outline" onClick={onOpenClients} type="button">
                 <Plus />
                 Client
               </Button>
@@ -204,13 +226,14 @@ function NewJobForm({
           <div className="grid gap-3 lg:grid-cols-[220px_1fr_190px_auto]">
             <label className="block">
               <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/45">
-                Client
+                Client (optional)
               </span>
               <select
-                value={effectiveClientId}
+                value={clientId}
                 onChange={(event) => setClientId(event.target.value)}
                 className="mt-2 h-10 w-full rounded-lg border border-foreground/10 bg-white px-3 text-sm outline-none focus:border-amber-400"
               >
+                <option value="">No client selected</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
@@ -252,64 +275,78 @@ function NewJobForm({
               Create
             </Button>
           </div>
-          <label className="block">
-            <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/45">
-              Watch Items
-            </span>
-            <textarea
-              value={watchText}
-              onChange={(event) => setWatchText(event.target.value)}
-              className="mt-2 min-h-[70px] w-full rounded-lg border border-foreground/10 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400"
-            />
-          </label>
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <ListField
-            label="Aliases / products"
-            value={[...(context.aliases ?? []), ...(context.products ?? [])]}
-            onChange={(values) =>
-              setContext((prev) => ({
-                ...prev,
-                aliases: values,
-                products: [],
-              }))
-            }
-          />
-          <ListField
-            label="Bills / amendments"
-            value={[...(context.priority_bills ?? []), ...(context.amendments ?? [])]}
-            onChange={(values) =>
-              setContext((prev) => ({
-                ...prev,
-                priority_bills: values,
-                amendments: [],
-              }))
-            }
-          />
-          <ListField
-            label="Agencies / committees"
-            value={[...(context.agencies ?? []), ...(context.committees ?? [])]}
-            onChange={(values) =>
-              setContext((prev) => ({
-                ...prev,
-                agencies: values,
-                committees: [],
-              }))
-            }
-          />
-          <label className="block">
-            <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/45">
-              Care About
-            </span>
-            <textarea
-              value={context.care_about ?? ""}
-              onChange={(event) =>
-                setContext((prev) => ({ ...prev, care_about: event.target.value }))
-              }
-              className="mt-2 min-h-[64px] w-full rounded-lg border border-foreground/10 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400"
-            />
-          </label>
-        </div>
+        <details className="group rounded-lg border border-foreground/8 bg-foreground/[0.015]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium outline-none transition hover:bg-foreground/[0.025] focus-visible:ring-[3px] focus-visible:ring-amber-400/20 [&::-webkit-details-marker]:hidden">
+            <span>Additional information</span>
+            <ChevronDown className="h-4 w-4 text-foreground/45 transition group-open:rotate-180" />
+          </summary>
+          <div className="grid gap-4 border-t border-foreground/8 p-4 xl:grid-cols-[1fr_1fr]">
+            <label className="block">
+              <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/45">
+                Watch Items
+              </span>
+              <textarea
+                value={watchText}
+                onChange={(event) => setWatchText(event.target.value)}
+                className="mt-2 min-h-[70px] w-full rounded-lg border border-foreground/10 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400"
+              />
+            </label>
+            <div className="grid gap-3 md:grid-cols-2">
+              <ListField
+                label="Aliases / products"
+                value={[...(context.aliases ?? []), ...(context.products ?? [])]}
+                onChange={(values) =>
+                  setContext((prev) => ({
+                    ...prev,
+                    aliases: values,
+                    products: [],
+                  }))
+                }
+              />
+              <ListField
+                label="Bills / amendments"
+                value={[
+                  ...(context.priority_bills ?? []),
+                  ...(context.amendments ?? []),
+                ]}
+                onChange={(values) =>
+                  setContext((prev) => ({
+                    ...prev,
+                    priority_bills: values,
+                    amendments: [],
+                  }))
+                }
+              />
+              <ListField
+                label="Agencies / committees"
+                value={[...(context.agencies ?? []), ...(context.committees ?? [])]}
+                onChange={(values) =>
+                  setContext((prev) => ({
+                    ...prev,
+                    agencies: values,
+                    committees: [],
+                  }))
+                }
+              />
+              <label className="block">
+                <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/45">
+                  Care About
+                </span>
+                <textarea
+                  value={context.care_about ?? ""}
+                  onChange={(event) =>
+                    setContext((prev) => ({
+                      ...prev,
+                      care_about: event.target.value,
+                    }))
+                  }
+                  className="mt-2 min-h-[64px] w-full rounded-lg border border-foreground/10 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400"
+                />
+              </label>
+            </div>
+          </div>
+        </details>
       </div>
     </section>
   );
@@ -588,6 +625,7 @@ function OutputPane({
 
 export function HearingIntelligencePage({
   clients,
+  settings,
   onOpenClients,
 }: HearingIntelligencePageProps) {
   const {
@@ -676,6 +714,22 @@ export function HearingIntelligencePage({
     captureStatus === "running" ||
     captureStatus === "starting" ||
     captureStatus === "stopping";
+  const youtubeSource = workspace?.job.metadata.youtube_source ?? null;
+  const mediaToolsReady = settings.yt_dlp_available && settings.ffmpeg_available;
+  const mediaToolMessage = !settings.yt_dlp_available
+    ? `YouTube extractor unavailable${settings.yt_dlp_error ? `: ${settings.yt_dlp_error}` : ""}`
+    : !settings.ffmpeg_available
+      ? `ffmpeg unavailable${settings.ffmpeg_error ? `: ${settings.ffmpeg_error}` : ""}`
+      : "";
+  const scheduledDetected =
+    youtubeSource?.live_status === "scheduled" && !streamOverride.trim();
+  const canStartCapture = Boolean(
+    mediaToolsReady &&
+      !loading &&
+      !captureRunning &&
+      !scheduledDetected &&
+      (workspace?.job.stream_url || streamOverride.trim()),
+  );
 
   useEffect(() => {
     if (!currentId) return undefined;
@@ -703,7 +757,7 @@ export function HearingIntelligencePage({
         onOpenClients={onOpenClients}
         onCreate={async ({ clientId, sourceUrl, mode, context, watchItems }) => {
           await createJob({
-            client_id: clientId,
+            client_id: clientId || undefined,
             source_url: sourceUrl,
             mode,
             client_context: context,
@@ -750,7 +804,7 @@ export function HearingIntelligencePage({
                   {job.hearing_title || "Metadata pending"}
                 </p>
                 <p className="mt-1 truncate text-xs text-foreground/40">
-                  {job.client_name} · {job.committee || job.mode} · {job.capture_status.replaceAll("_", " ")}
+                  {clientLabel(job.client_name)} · {job.committee || job.mode} · {job.capture_status.replaceAll("_", " ")}
                 </p>
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <span className={`rounded border px-2 py-0.5 text-[11px] ${statusTone(job.status)}`}>
@@ -790,7 +844,7 @@ export function HearingIntelligencePage({
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-foreground/45">
-                      {workspace.job.client_name} · {workspace.job.committee || "Committee pending"} · {dateLabel(workspace.job.hearing_datetime)}
+                      {clientLabel(workspace.job.client_name)} · {workspace.job.committee || "Committee pending"} · {dateLabel(workspace.job.hearing_datetime)}
                     </p>
                     <p className="mt-1 truncate text-xs text-foreground/35">
                       {workspace.job.source_url}
@@ -799,7 +853,7 @@ export function HearingIntelligencePage({
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => void resolveStream(currentId)} disabled={loading}>
                       <Search />
-                      Resolve Stream
+                      Resolve YouTube
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => void detectHits(currentId)} disabled={loading || workspace.transcript_segments.length === 0}>
                       <Filter />
@@ -820,7 +874,7 @@ export function HearingIntelligencePage({
                       size="sm"
                       variant="outline"
                       onClick={() => void startCapture(currentId, streamOverride.trim() || undefined)}
-                      disabled={loading || captureRunning}
+                      disabled={!canStartCapture}
                     >
                       <Play />
                       Start Capture
@@ -850,11 +904,11 @@ export function HearingIntelligencePage({
                   <div className="rounded-lg border border-foreground/8 bg-foreground/[0.015] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-sm font-semibold">Live Capture</h3>
+                        <h3 className="text-sm font-semibold">YouTube Capture</h3>
                         <p className="mt-1 text-xs text-foreground/45">
                           {workspace.job.stream_url
-                            ? `${workspace.job.stream_provider || "stream"} · ${Math.round(workspace.job.stream_confidence * 100)}% confidence`
-                            : "Resolve the committee page to find the livestream."}
+                            ? youtubeSourceLabel(youtubeSource)
+                            : "Resolve the hearing page to find its YouTube video."}
                         </p>
                       </div>
                       <span className={`rounded border px-2 py-0.5 text-[11px] ${statusTone(workspace.job.status)}`}>
@@ -864,7 +918,7 @@ export function HearingIntelligencePage({
                     <div className="mt-3 grid gap-2">
                       <label className="block">
                         <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/45">
-                          Detected Stream
+                          Detected YouTube Video
                         </span>
                         <input
                           value={workspace.job.stream_url || ""}
@@ -874,7 +928,7 @@ export function HearingIntelligencePage({
                       </label>
                       <label className="block">
                         <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-foreground/45">
-                          Override Stream URL
+                          Override YouTube URL or Video ID
                         </span>
                         <input
                           value={streamOverride}
@@ -882,6 +936,21 @@ export function HearingIntelligencePage({
                           className="mt-2 h-9 w-full rounded-lg border border-foreground/10 bg-white px-3 text-sm outline-none focus:border-amber-400"
                         />
                       </label>
+                      {mediaToolMessage && (
+                        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                          {mediaToolMessage}
+                        </p>
+                      )}
+                      {!workspace.job.stream_url && !streamOverride.trim() && (
+                        <p className="rounded-md border border-foreground/10 bg-foreground/[0.015] px-3 py-2 text-xs text-foreground/45">
+                          No YouTube video is ready for capture. Resolve YouTube or paste a YouTube video URL.
+                        </p>
+                      )}
+                      {scheduledDetected && (
+                        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                          This YouTube video is scheduled but not live yet.
+                        </p>
+                      )}
                     </div>
                     <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                       <div className="rounded-md border border-foreground/8 bg-white p-2">

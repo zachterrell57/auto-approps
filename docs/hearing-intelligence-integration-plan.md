@@ -20,8 +20,10 @@ The existing app is a local-first Electron desktop app. It does not have a serve
 
 - `electron/services/hearing-models.ts`: Zod schemas for hearing jobs, transcript segments, watch items, hits, outputs, claims, comments, workspace payloads, and exports.
 - `electron/services/hearing-store.ts`: SQLite tables for `hearing_jobs`, `hearing_transcript_segments`, `hearing_watch_items`, `hearing_watch_hits`, `hearing_outputs`, `hearing_claims`, `hearing_comments`, audit events, and congressional-context cache.
-- `electron/services/hearing-source-resolver.ts`: URL resolver for official House/Senate pages, Congress.gov, GovInfo, official committee YouTube links, and fallback public archives with reliability tiers.
-- `electron/services/hearing-live-capture.ts`: Local livestream capture coordinator using `yt-dlp`/`ffmpeg` for audio chunking, plus incremental watchlist refresh.
+- `electron/services/hearing-source-resolver.ts`: URL resolver for official House/Senate pages that extracts exact YouTube videos from embeds and body links, normalizes them to canonical watch URLs, and records reliability metadata.
+- `electron/services/media-tools.ts`: Media tool resolver and diagnostics for bundled, user-data, project, package, and development PATH copies of `yt-dlp` and `ffmpeg`.
+- `electron/services/youtube-source.ts`: YouTube URL/video ID normalization and typed YouTube source metadata helpers.
+- `electron/services/hearing-live-capture.ts`: Local YouTube capture coordinator using `yt-dlp`/`ffmpeg` for audio chunking, plus incremental watchlist refresh.
 - `electron/services/hearing-live-transcription.ts`: Managed OpenAI transcription adapter for live audio chunks.
 - `electron/services/congressional-context.ts`: Congress.gov and GovInfo API wrappers with local cache and bill-reference normalization.
 - `electron/services/hearing-transcript.ts`: Transcript normalization utilities for manual recovery imports and generated live ASR segments.
@@ -29,14 +31,14 @@ The existing app is a local-first Electron desktop app. It does not have a serve
 - `electron/services/hearing-ai.ts`: Full memo, targeted recap, transcript/mention output, and pre-hearing brief generation with claim schemas and verification flags.
 - `electron/services/hearing-export.ts`: Markdown, HTML/email, CSV, JSON, transcript text, DOCX, and PDF export.
 - `electron/services/hearing-intelligence.ts`: Module orchestration.
-- `frontend/src/components/HearingIntelligencePage.tsx`: Analyst workspace for live stream resolution, capture, watchlist, review, comments, and exports.
+- `frontend/src/components/HearingIntelligencePage.tsx`: Analyst workspace for YouTube resolution, capture, watchlist, review, comments, and exports.
 - `frontend/src/hooks/useHearingJobs.ts`: Renderer-side job/workspace actions.
 
 ## Technical Decisions
 
-### Live Stream Transcription
+### YouTube Transcription
 
-Hearings now default to live committee video ingestion. Analysts create a job from the committee page URL, resolve the embedded official stream or committee YouTube stream, start capture, and stop capture when the hearing ends. The app chunks audio locally with `yt-dlp`/`ffmpeg`, sends closed chunks to OpenAI speech-to-text, stores `live_asr` transcript segments with time offsets, and refreshes watchlist hits while capture is running. Final memo generation happens after capture stops.
+Hearings now center on a committee webpage that contains a usable YouTube video. Analysts create a job from the committee page URL, resolve the embedded/body YouTube video, validate it with bundled `yt-dlp`, and then capture audio through the `yt-dlp -> ffmpeg -> segmented WAV` pipeline. Live videos continue until the analyst stops capture; recorded videos auto-finalize when extraction reaches EOF. The app sends closed chunks to OpenAI speech-to-text, stores `live_asr` transcript segments with time offsets, deletes successful temporary audio chunks, and refreshes watchlist hits while capture is running.
 
 ### AI Provider
 
@@ -71,4 +73,4 @@ The module follows the existing app’s local SQLite pattern and creates tables 
 
 ## Implementation Boundary
 
-The MVP delivers a coherent local module: create a hearing job from URL and client, resolve the committee livestream, capture/transcribe live audio chunks, configure watchlists, detect hits, generate cited outputs after capture stops, review/edit/verify/comment, and export memo packages. Production hardening requires the listed platform capabilities.
+The MVP delivers a coherent local module: create a hearing job from URL with an optional client, resolve the committee page's YouTube video, capture/transcribe audio chunks, configure watchlists, detect hits, generate cited outputs after capture stops, review/edit/verify/comment, and export memo packages. Production hardening requires the listed platform capabilities.

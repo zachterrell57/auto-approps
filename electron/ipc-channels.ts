@@ -113,15 +113,15 @@ export const CREATE_HEARING_JOB = "app:hearing-jobs:create" as const;
 /** Takes { id: string }, resolves official source metadata */
 export const RESOLVE_HEARING_JOB = "app:hearing-jobs:resolve" as const;
 
-/** Takes { id: string }, resolves and ranks live stream candidates */
+/** Takes { id: string }, resolves and validates the hearing page's YouTube video */
 export const RESOLVE_HEARING_STREAM =
   "app:hearing-jobs:resolve-stream" as const;
 
-/** Takes { id: string; stream_url? }, starts live stream capture */
+/** Takes { id: string; stream_url? }, starts YouTube audio capture */
 export const START_HEARING_CAPTURE =
   "app:hearing-jobs:start-capture" as const;
 
-/** Takes { id: string }, stops live stream capture and finalizes transcription */
+/** Takes { id: string }, stops YouTube capture and finalizes transcription */
 export const STOP_HEARING_CAPTURE =
   "app:hearing-jobs:stop-capture" as const;
 

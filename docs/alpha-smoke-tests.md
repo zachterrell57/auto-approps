@@ -53,9 +53,9 @@ Use this checklist before cutting an alpha build.
 
 - [ ] Create a client with relevant hearing context.
 - [ ] Open Hearings from the sidebar.
-- [ ] Create a hearing job with a House or Senate hearing URL, client, mode, and watch items.
-- [ ] Resolve the live stream and confirm title, committee, date, source tier, detected stream URL, provider, confidence, and warnings are visible.
-- [ ] Start live capture on a committee page that embeds a stream or official YouTube video.
+- [ ] Create a hearing job with a House or Senate hearing URL, optional client, mode, and watch items.
+- [ ] Resolve YouTube and confirm title, committee, date, source tier, detected YouTube URL, provider, confidence, and warnings are visible.
+- [ ] Start capture on a committee page that embeds or links an exact official YouTube video.
 - [ ] Confirm transcript chunks and watchlist hits update while capture is running.
 - [ ] Stop capture and generate the final briefing package.
 - [ ] Save watchlist items, run detection, and confirm hits appear in the timeline.

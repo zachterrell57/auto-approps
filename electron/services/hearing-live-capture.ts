@@ -1,9 +1,10 @@
-import { spawn, execFile, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
 
 import { getUserDataPath, settings } from "./config";
+import { requireMediaTool } from "./media-tools";
+import { normalizeYoutubeVideoInput } from "./youtube-source";
 import {
   appendTranscriptSegments,
   getHearingJob,
@@ -15,7 +16,6 @@ import { transcribeLiveAudioChunk } from "./hearing-live-transcription";
 import { detectWatchlistHits } from "./hearing-watchlist";
 import type { HearingWorkspace } from "./hearing-models";
 
-const execFileAsync = promisify(execFile);
 const DEFAULT_CHUNK_SECONDS = 60;
 
 interface CaptureSession {
@@ -31,18 +31,10 @@ interface CaptureSession {
   processing: Set<string>;
   scanning: boolean;
   stopping: boolean;
+  finalizing: boolean;
 }
 
 const sessions = new Map<string, CaptureSession>();
-
-async function commandAvailable(command: string, args: string[]): Promise<boolean> {
-  try {
-    await execFileAsync(command, args, { timeout: 8000 });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function chunkSeconds(): number {
   const parsed = Number(process.env.HEARING_LIVE_CHUNK_SECONDS ?? "");
@@ -124,6 +116,7 @@ async function processClosedChunks(
           audio_chunk_count: session.processed.size,
           transcription_status: session.stopping ? "complete" : "waiting",
         });
+        await fs.unlink(audioPath).catch(() => {});
       } catch (err) {
         session.processed.add(audioPath);
         updateHearingCaptureState(session.hearingJobId, {
@@ -140,15 +133,64 @@ async function processClosedChunks(
   }
 }
 
+async function cleanupCaptureDir(session: CaptureSession): Promise<void> {
+  await fs.rm(session.captureDir, { recursive: true, force: true }).catch(() => {});
+}
+
+async function finalizeCompletedSession(session: CaptureSession): Promise<void> {
+  if (session.finalizing) return;
+  session.finalizing = true;
+  session.stopping = true;
+  clearInterval(session.timer);
+  const stoppedAt = new Date().toISOString();
+  updateHearingCaptureState(session.hearingJobId, {
+    status: "finalizing",
+    capture_status: "stopping",
+    capture_stopped_at: stoppedAt,
+  });
+  await processClosedChunks(session, true);
+  sessions.delete(session.hearingJobId);
+  await cleanupCaptureDir(session);
+  refreshWatchlist(session.hearingJobId);
+  updateHearingCaptureState(session.hearingJobId, {
+    status: "ready_for_review",
+    capture_status: "finalized",
+    capture_stopped_at: stoppedAt,
+    transcription_status: "complete",
+  });
+}
+
 function wireProcessFailure(session: CaptureSession): void {
   let stderr = "";
+  const exited = {
+    ytdlp: session.ytdlp === null,
+    ffmpeg: false,
+  };
   const capture = (chunk: Buffer) => {
     stderr = `${stderr}${chunk.toString("utf-8")}`.slice(-1000);
   };
   session.ytdlp?.stderr.on("data", capture);
   session.ffmpeg.stderr.on("data", capture);
-  const onExit = (name: string) => (code: number | null) => {
+  const maybeFinalize = () => {
     if (session.stopping) return;
+    if (exited.ytdlp && exited.ffmpeg) {
+      void finalizeCompletedSession(session).catch((err) => {
+        updateHearingCaptureState(session.hearingJobId, {
+          status: "failed",
+          capture_status: "failed",
+          transcription_status: "failed",
+          capture_error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    }
+  };
+  const onExit = (name: "yt-dlp" | "ffmpeg") => (code: number | null) => {
+    if (session.stopping) return;
+    if (code === 0) {
+      exited[name === "yt-dlp" ? "ytdlp" : "ffmpeg"] = true;
+      maybeFinalize();
+      return;
+    }
     updateHearingCaptureState(session.hearingJobId, {
       status: "failed",
       capture_status: "failed",
@@ -157,6 +199,7 @@ function wireProcessFailure(session: CaptureSession): void {
     });
     clearInterval(session.timer);
     sessions.delete(session.hearingJobId);
+    void cleanupCaptureDir(session);
   };
   session.ytdlp?.on("exit", onExit("yt-dlp"));
   session.ffmpeg.on("exit", onExit("ffmpeg"));
@@ -167,9 +210,8 @@ async function spawnCapturePipeline(args: {
   outputPattern: string;
   chunkSeconds: number;
 }): Promise<Pick<CaptureSession, "ytdlp" | "ffmpeg">> {
-  if (!(await commandAvailable("ffmpeg", ["-version"]))) {
-    throw new Error("ffmpeg is required for live hearing capture.");
-  }
+  const ffmpegPath = await requireMediaTool("ffmpeg");
+  const ytDlpPath = await requireMediaTool("yt-dlp");
 
   const segmentArgs = [
     "-hide_banner",
@@ -191,26 +233,17 @@ async function spawnCapturePipeline(args: {
     args.outputPattern,
   ];
 
-  if (await commandAvailable("yt-dlp", ["--version"])) {
-    const ytdlp = spawn("yt-dlp", [
-      "-f",
-      "ba/bestaudio/best",
-      "--no-playlist",
-      "-o",
-      "-",
-      args.streamUrl,
-    ]);
-    const ffmpeg = spawn("ffmpeg", segmentArgs);
-    ytdlp.stdout.pipe(ffmpeg.stdin);
-    return { ytdlp, ffmpeg };
-  }
-
-  const directArgs = [...segmentArgs];
-  directArgs[directArgs.indexOf("pipe:0")] = args.streamUrl;
-  return {
-    ytdlp: null,
-    ffmpeg: spawn("ffmpeg", directArgs),
-  };
+  const ytdlp = spawn(ytDlpPath, [
+    "-f",
+    "ba/bestaudio/best",
+    "--no-playlist",
+    "-o",
+    "-",
+    args.streamUrl,
+  ]);
+  const ffmpeg = spawn(ffmpegPath, segmentArgs);
+  ytdlp.stdout.pipe(ffmpeg.stdin);
+  return { ytdlp, ffmpeg };
 }
 
 export async function startLiveHearingCapture(args: {
@@ -225,10 +258,11 @@ export async function startLiveHearingCapture(args: {
   }
   const job = getHearingJob(args.hearingJobId);
   if (!job) throw new Error("Hearing job not found");
-  const streamUrl = (args.streamUrl ?? job.stream_url).trim();
-  if (!streamUrl) {
-    throw new Error("Resolve the committee live stream before starting capture.");
+  const youtubeSource = normalizeYoutubeVideoInput(args.streamUrl ?? job.stream_url);
+  if (!youtubeSource) {
+    throw new Error("Resolve a YouTube video before starting capture.");
   }
+  const streamUrl = youtubeSource.url;
 
   const startedAt = new Date().toISOString();
   const seconds = chunkSeconds();
@@ -241,6 +275,7 @@ export async function startLiveHearingCapture(args: {
   updateHearingCaptureState(args.hearingJobId, {
     status: "capturing",
     stream_url: streamUrl,
+    stream_provider: "youtube",
     capture_status: "starting",
     capture_started_at: startedAt,
     capture_stopped_at: null,
@@ -269,6 +304,7 @@ export async function startLiveHearingCapture(args: {
     processing: new Set(),
     scanning: false,
     stopping: false,
+    finalizing: false,
   };
   sessions.set(args.hearingJobId, session);
   wireProcessFailure(session);
@@ -303,10 +339,12 @@ export async function stopLiveHearingCapture(hearingJobId: string): Promise<Hear
 
   if (session) {
     session.stopping = true;
+    session.finalizing = true;
     clearInterval(session.timer);
     await Promise.all([stopProcess(session.ytdlp), stopProcess(session.ffmpeg)]);
     await processClosedChunks(session, true);
     sessions.delete(hearingJobId);
+    await cleanupCaptureDir(session);
   }
 
   refreshWatchlist(hearingJobId);

@@ -396,8 +396,8 @@ export function createHearingJob(input: HearingCreateInput): HearingJob {
   const job: HearingJob = {
     id: uuidv4(),
     org_id: LOCAL_ORG_ID,
-    client_id: input.client_id,
-    client_name: input.client_name ?? "Client",
+    client_id: input.client_id?.trim() ?? "",
+    client_name: input.client_name?.trim() ?? "",
     matter_id: input.matter_id ?? null,
     created_by_user_id: LOCAL_USER_ID,
     source_url: input.source_url.trim(),
@@ -640,6 +640,27 @@ export function applyResolvedMetadata(
     source_reliability_tier: metadata.source_reliability_tier,
     bill_references: metadata.bill_references,
   });
+  const job = getHearingJob(hearingJobId);
+  if (!job) throw new Error("Hearing job not found");
+  return job;
+}
+
+export function updateHearingMetadata(
+  hearingJobId: string,
+  metadataPatch: Record<string, unknown>,
+): HearingJob {
+  const current = getHearingJob(hearingJobId);
+  if (!current) throw new Error("Hearing job not found");
+  const metadata = { ...current.metadata, ...metadataPatch };
+  HearingJobSchema.parse({ ...current, metadata });
+  getDb()
+    .prepare(
+      `UPDATE hearing_jobs
+       SET metadata_json = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .run(jsonString(metadata), new Date().toISOString(), hearingJobId);
+  audit(hearingJobId, "hearing_metadata.updated", metadataPatch);
   const job = getHearingJob(hearingJobId);
   if (!job) throw new Error("Hearing job not found");
   return job;

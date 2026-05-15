@@ -52,6 +52,25 @@ function createEmptyWorkflow(): WorkflowDescriptor {
   };
 }
 
+function emptyAppSettings(): AppSettings {
+  return {
+    anthropic_api_key_set: false,
+    anthropic_api_key_preview: "",
+    openai_api_key_set: false,
+    openai_api_key_preview: "",
+    yt_dlp_available: false,
+    yt_dlp_version: "",
+    yt_dlp_path: "",
+    yt_dlp_source: "",
+    yt_dlp_error: "",
+    ffmpeg_available: false,
+    ffmpeg_version: "",
+    ffmpeg_path: "",
+    ffmpeg_source: "",
+    ffmpeg_error: "",
+  };
+}
+
 function workflowStatusEquals(a: WorkflowStatus, b: WorkflowStatus): boolean {
   return (
     a.step === b.step &&
@@ -69,12 +88,7 @@ export default function App() {
   const [page, setPage] = useState<Page>("main");
 
   // ── Settings (global, not per-workflow) ─────────────────────────────
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-    anthropic_api_key_set: false,
-    anthropic_api_key_preview: "",
-    openai_api_key_set: false,
-    openai_api_key_preview: "",
-  });
+  const [appSettings, setAppSettings] = useState<AppSettings>(emptyAppSettings);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
@@ -386,12 +400,7 @@ export default function App() {
   // ── Settings: clear all local data ──────────────────────────────────
   const handleClearLocalData = useCallback(async () => {
     await api.clearLocalData();
-    setAppSettings({
-      anthropic_api_key_set: false,
-      anthropic_api_key_preview: "",
-      openai_api_key_set: false,
-      openai_api_key_preview: "",
-    });
+    setAppSettings(await api.getSettings());
     // Reset to single empty workflow
     const fresh = createEmptyWorkflow();
     setWorkflows([fresh]);
@@ -548,6 +557,7 @@ export default function App() {
           {page === "hearing" && (
             <HearingIntelligencePage
               clients={clients}
+              settings={appSettings}
               onOpenClients={() => setPage("clients")}
             />
           )}

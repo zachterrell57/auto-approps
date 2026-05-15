@@ -12,11 +12,12 @@ module.exports = {
     name: "AutoApprops",
     icon: "assets/icon",
     appBundleId: "com.autoapprops.app",
-    extraResource: ["./playwright-browsers"],
+    extraResource: ["./playwright-browsers", "./media-tools"],
     ignore: [
       /^\/\.git/,
       /^\/scripts/,
       /^\/playwright-browsers/,
+      /^\/media-tools/,
     ],
     osxSign: {
       optionsForFile: (filePath) => {

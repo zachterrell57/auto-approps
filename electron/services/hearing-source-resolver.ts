@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import type { AnyNode } from "domhandler";
 
 import {
   HearingResolvedMetadataSchema,
@@ -7,6 +8,11 @@ import {
   type HearingStreamCandidate,
   type HearingWitness,
 } from "./hearing-models";
+import {
+  isYoutubeHost,
+  normalizeYoutubeVideoInput,
+  type YoutubeSourceMetadata,
+} from "./youtube-source";
 
 const FETCH_TIMEOUT_MS = 12000;
 
@@ -144,23 +150,6 @@ function absoluteUrl(base: URL, maybeUrl: string): string {
   }
 }
 
-function providerForUrl(rawUrl: string): string {
-  try {
-    const host = new URL(rawUrl).hostname.toLowerCase();
-    if (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be") {
-      return "youtube";
-    }
-    if (host.includes("house.gov")) return "house_committee";
-    if (host.includes("senate.gov")) return "senate_committee";
-    if (/vimeo|boxcast|livestream|brightcove|akamaized|cloudfront|m3u8/i.test(rawUrl)) {
-      return "embedded_stream";
-    }
-    return host.replace(/^www\./, "");
-  } catch {
-    return "unknown";
-  }
-}
-
 function isOfficialStream(base: URL, streamUrl: string): boolean {
   try {
     const sourceHost = base.hostname.toLowerCase();
@@ -168,7 +157,7 @@ function isOfficialStream(base: URL, streamUrl: string): boolean {
     if (streamHost === sourceHost || streamHost.endsWith(`.${sourceHost}`)) return true;
     if (streamHost.endsWith(".house.gov") || streamHost.endsWith(".senate.gov")) return true;
     if (
-      (streamHost === "youtube.com" || streamHost.endsWith(".youtube.com") || streamHost === "youtu.be") &&
+      isYoutubeHost(streamHost) &&
       (sourceHost.endsWith(".house.gov") || sourceHost.endsWith(".senate.gov"))
     ) {
       return true;
@@ -179,79 +168,155 @@ function isOfficialStream(base: URL, streamUrl: string): boolean {
   return false;
 }
 
-function candidateConfidence(candidate: HearingStreamCandidate): number {
-  const providerBoost =
-    candidate.provider === "house_committee" || candidate.provider === "senate_committee"
-      ? 0.95
-      : candidate.provider === "youtube"
-        ? 0.86
-        : 0.72;
-  const sourceBoost = candidate.source === "video" ? 0.08 : candidate.source === "iframe" ? 0.04 : 0;
-  const officialBoost = candidate.official ? 0.06 : -0.08;
-  return Math.max(0.2, Math.min(0.99, providerBoost + sourceBoost + officialBoost));
+function candidateConfidence(
+  candidate: HearingStreamCandidate,
+  contextPriority: number,
+): number {
+  const sourceBoost =
+    candidate.source === "iframe" || candidate.source === "video"
+      ? 0.08
+      : candidate.source === "metadata"
+        ? 0.03
+        : 0;
+  const officialBoost = candidate.official ? 0.04 : 0;
+  return Math.max(0.2, Math.min(0.99, 0.82 + sourceBoost + officialBoost + contextPriority));
 }
 
-function pushCandidate(
+function contextPriority($: cheerio.CheerioAPI, el: AnyNode): number {
+  const node = $(el);
+  if (
+    node.closest(
+      "article, main, [role='main'], .page__content, .evo-markup__body, .evo-hearing__body, .evo-business-meetings__body",
+    ).length > 0
+  ) {
+    return 0.1;
+  }
+  if (
+    node.closest(
+      "header, nav, footer, [role='banner'], [role='navigation'], .navbar, .menu, .page__banner, .evo-banner",
+    ).length > 0
+  ) {
+    return -0.18;
+  }
+  return 0;
+}
+
+function pushYoutubeCandidate(
   candidates: HearingStreamCandidate[],
   seen: Set<string>,
   base: URL,
   rawUrl: string,
   label: string,
   source: HearingStreamCandidate["source"],
-): void {
-  if (!rawUrl || /^mailto:|^tel:|^javascript:/i.test(rawUrl)) return;
+  contextPriorityValue: number,
+): YoutubeSourceMetadata | null {
+  if (!rawUrl || /^mailto:|^tel:|^javascript:/i.test(rawUrl)) return null;
   const absolute = absoluteUrl(base, rawUrl);
-  if (!/^https?:\/\//i.test(absolute) || seen.has(absolute)) return;
-  const haystack = `${absolute} ${label}`;
-  if (
-    !/youtube|youtu\.be|live|stream|webcast|video|watch|embed|m3u8|mpd|brightcove|boxcast|vimeo|livestream/i.test(
-      haystack,
-    )
-  ) {
-    return;
-  }
-  const provider = providerForUrl(absolute);
-  const official = isOfficialStream(base, absolute);
+  const youtubeSource = normalizeYoutubeVideoInput(absolute);
+  if (!youtubeSource || seen.has(youtubeSource.url)) return null;
   const candidate: HearingStreamCandidate = {
-    url: absolute,
-    provider,
+    url: youtubeSource.url,
+    provider: "youtube",
     label: label.trim(),
     confidence: 0.5,
     source,
-    official,
+    official: isOfficialStream(base, youtubeSource.url),
   };
-  candidate.confidence = candidateConfidence(candidate);
-  seen.add(absolute);
+  candidate.confidence = candidateConfidence(candidate, contextPriorityValue);
+  seen.add(youtubeSource.url);
+  candidates.push(candidate);
+  return youtubeSource;
+}
+
+function pushYoutubeCandidateFromSource(
+  candidates: HearingStreamCandidate[],
+  seen: Set<string>,
+  base: URL,
+  youtubeSource: YoutubeSourceMetadata,
+  label: string,
+  source: HearingStreamCandidate["source"],
+  contextPriorityValue: number,
+): void {
+  if (seen.has(youtubeSource.url)) return;
+  const candidate: HearingStreamCandidate = {
+    url: youtubeSource.url,
+    provider: "youtube",
+    label: label.trim(),
+    confidence: 0.5,
+    source,
+    official: isOfficialStream(base, youtubeSource.url),
+  };
+  candidate.confidence = candidateConfidence(candidate, contextPriorityValue);
+  seen.add(youtubeSource.url);
   candidates.push(candidate);
 }
 
-function extractStreamCandidates($: cheerio.CheerioAPI, base: URL): HearingStreamCandidate[] {
+function extractYoutubeCandidates(
+  $: cheerio.CheerioAPI,
+  base: URL,
+): { candidates: HearingStreamCandidate[]; sources: Map<string, YoutubeSourceMetadata> } {
   const candidates: HearingStreamCandidate[] = [];
+  const sources = new Map<string, YoutubeSourceMetadata>();
   const seen = new Set<string>();
 
   $("video[src], video source[src], source[src]").each((_idx, el) => {
-    pushCandidate(
+    const source = pushYoutubeCandidate(
       candidates,
       seen,
       base,
       $(el).attr("src") ?? "",
       $(el).attr("title") ?? $(el).text().replace(/\s+/g, " ").trim(),
       "video",
+      contextPriority($, el),
     );
+    if (source) sources.set(source.url, source);
   });
 
   $("iframe[src], embed[src]").each((_idx, el) => {
     const label = `${$(el).attr("title") ?? ""} ${$(el).attr("aria-label") ?? ""}`.trim();
-    pushCandidate(candidates, seen, base, $(el).attr("src") ?? "", label, "iframe");
+    const source = pushYoutubeCandidate(
+      candidates,
+      seen,
+      base,
+      $(el).attr("src") ?? "",
+      label,
+      "iframe",
+      contextPriority($, el),
+    );
+    if (source) sources.set(source.url, source);
   });
 
   $("a[href]").each((_idx, el) => {
     const href = $(el).attr("href") ?? "";
     const label = $(el).text().replace(/\s+/g, " ").trim();
-    pushCandidate(candidates, seen, base, href, label, "link");
+    const source = pushYoutubeCandidate(
+      candidates,
+      seen,
+      base,
+      href,
+      label,
+      "link",
+      contextPriority($, el),
+    );
+    if (source) sources.set(source.url, source);
   });
 
-  return candidates.sort((a, b) => b.confidence - a.confidence).slice(0, 12);
+  const inputSource = normalizeYoutubeVideoInput(base.toString());
+  if (inputSource) {
+    pushYoutubeCandidateFromSource(
+      candidates,
+      seen,
+      base,
+      inputSource,
+      "Source URL",
+      "metadata",
+      0.12,
+    );
+    sources.set(inputSource.url, inputSource);
+  }
+
+  candidates.sort((a, b) => b.confidence - a.confidence);
+  return { candidates: candidates.slice(0, 12), sources };
 }
 
 function extractDocuments($: cheerio.CheerioAPI, base: URL, tier: number): HearingExternalSource[] {
@@ -305,7 +370,7 @@ function sourceInfo(url: URL): {
   if (host === "govinfo.gov" || host.endsWith(".govinfo.gov")) {
     return { source_type: "govinfo", tier: 3, warnings: [] };
   }
-  if (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be") {
+  if (isYoutubeHost(host)) {
     return {
       source_type: "official_committee_youtube",
       tier: 2,
@@ -367,20 +432,13 @@ export async function resolveHearingSource(inputUrl: string): Promise<HearingRes
   const committee = inferCommittee(url.hostname, url.pathname, pageTitle);
   const documents = extractDocuments($, url, info.tier);
   const transcriptDoc = documents.find((doc) => /transcript|caption/i.test(`${doc.title} ${doc.url}`));
-  const videoDoc = documents.find((doc) => /video|youtube|stream/i.test(`${doc.title} ${doc.url}`));
-  const streamCandidates = extractStreamCandidates($, url);
-  if (videoDoc) {
-    pushCandidate(
-      streamCandidates,
-      new Set(streamCandidates.map((candidate) => candidate.url)),
-      url,
-      videoDoc.url,
-      videoDoc.title,
-      "metadata",
-    );
-    streamCandidates.sort((a, b) => b.confidence - a.confidence);
-  }
+  const { candidates: streamCandidates, sources: youtubeSources } =
+    extractYoutubeCandidates($, url);
   const bestStream = streamCandidates[0] ?? null;
+  const youtubeSource = bestStream ? youtubeSources.get(bestStream.url) ?? null : null;
+  if (!youtubeSource) {
+    warnings.push("No exact YouTube video was found on this hearing webpage.");
+  }
 
   const metadata = {
     source_url: url.toString(),
@@ -391,16 +449,21 @@ export async function resolveHearingSource(inputUrl: string): Promise<HearingRes
     committee,
     subcommittee: "",
     hearing_datetime: inferDateTime($, pageTitle),
-    live_status: /live|streaming now/i.test(bodyText) ? "live" : "unknown",
+    live_status: youtubeSource
+      ? /live|streaming now/i.test(bodyText)
+        ? "live"
+        : "unknown"
+      : "unknown",
     witnesses: extractWitnesses($),
     documents,
-    media_url: bestStream?.url ?? videoDoc?.url ?? "",
+    media_url: bestStream?.url ?? "",
     captions_url: "",
     transcript_url: transcriptDoc?.url ?? "",
     stream_url: bestStream?.url ?? "",
-    stream_provider: bestStream?.provider ?? "",
+    stream_provider: bestStream ? "youtube" : "",
     stream_confidence: bestStream?.confidence ?? 0,
     stream_candidates: streamCandidates,
+    youtube_source: youtubeSource,
     warnings,
     bill_references: extractBillReferences(`${pageTitle}\n${bodyText}`),
   };

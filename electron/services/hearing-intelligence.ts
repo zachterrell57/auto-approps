@@ -18,15 +18,19 @@ import {
   type HearingClientContext,
   type HearingCreateInput,
   type HearingExportFormat,
+  type HearingJob,
   type HearingOutputType,
   type HearingTranscriptSegment,
   type HearingWatchItemDraft,
+  type HearingYoutubeSource,
   type ReviewStatus,
   type TranscriptSource,
   type VerificationStatus,
   type WatchHitStatus,
 } from "./hearing-models";
 import { resolveHearingSource } from "./hearing-source-resolver";
+import { probeYoutubeSource } from "./media-tools";
+import { normalizeYoutubeVideoInput } from "./youtube-source";
 import {
   addHearingComment,
   applyResolvedMetadata,
@@ -39,6 +43,7 @@ import {
   replaceWatchItems,
   updateHearingCaptureState,
   updateHearingClaimStatus,
+  updateHearingMetadata,
   updateHearingJobStatus,
   updateHearingOutput,
   updateTranscriptSegmentReview,
@@ -212,13 +217,15 @@ export function getHearingIntelligenceWorkspace(hearingJobId: string) {
 }
 
 export async function createHearingIntelligenceJob(input: HearingCreateInput) {
-  const client = getClient(input.client_id);
-  if (!client) throw new Error("Client not found");
-  const derivedContext = contextFromClientKnowledge(client.knowledge);
+  const clientId = input.client_id?.trim() ?? "";
+  const client = clientId ? getClient(clientId) : null;
+  if (clientId && !client) throw new Error("Client not found");
+  const derivedContext = client ? contextFromClientKnowledge(client.knowledge) : {};
   const clientContext = mergeContext(derivedContext, input.client_context ?? {});
   const job = createHearingJob({
     ...input,
-    client_name: input.client_name ?? client.name,
+    client_id: client?.id ?? clientId,
+    client_name: input.client_name ?? client?.name ?? "",
     client_context: clientContext,
     watch_items:
       input.watch_items && input.watch_items.length > 0
@@ -245,20 +252,69 @@ export async function resolveHearingIntelligenceJob(hearingJobId: string) {
   }
 }
 
+function youtubeSourceFromMetadata(job: HearingJob): HearingYoutubeSource | null {
+  const source = job.metadata.youtube_source;
+  if (!source || typeof source !== "object" || Array.isArray(source)) return null;
+  const record = source as Partial<HearingYoutubeSource>;
+  return typeof record.url === "string" && typeof record.video_id === "string"
+    ? (record as HearingYoutubeSource)
+    : null;
+}
+
+async function probeAndStoreYoutubeSource(
+  hearingJobId: string,
+  rawUrl: string,
+  options: { requireProbe: boolean },
+): Promise<HearingYoutubeSource> {
+  const normalized = normalizeYoutubeVideoInput(rawUrl);
+  try {
+    const probed = await probeYoutubeSource(rawUrl);
+    updateHearingMetadata(hearingJobId, { youtube_source: probed });
+    return probed;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const source = normalized
+      ? {
+          ...normalized,
+          probe_error: message,
+        }
+      : null;
+    if (source) updateHearingMetadata(hearingJobId, { youtube_source: source });
+    if (options.requireProbe) {
+      throw new Error(`Could not validate YouTube video: ${message}`);
+    }
+    if (!source) {
+      throw new Error("Capture requires a YouTube video URL or video ID.");
+    }
+    return source;
+  }
+}
+
 export async function resolveHearingIntelligenceStream(hearingJobId: string) {
   const job = await resolveHearingIntelligenceJob(hearingJobId);
-  const streamUrl = job.stream_url || (typeof job.metadata.media_url === "string" ? job.metadata.media_url : "");
-  if (!streamUrl) return job;
+  const metadataSource = youtubeSourceFromMetadata(job);
+  const streamUrl = job.stream_url || metadataSource?.url || "";
+  if (!streamUrl) {
+    updateHearingCaptureState(hearingJobId, {
+      status: "metadata_resolved",
+      capture_status: "idle",
+      transcription_status: "idle",
+      capture_error:
+        "No usable YouTube video was found. Paste a YouTube video URL or video ID in Override YouTube URL or Video ID.",
+    });
+    throw new Error("No usable YouTube video was found on this hearing webpage.");
+  }
+  const youtubeSource = await probeAndStoreYoutubeSource(hearingJobId, streamUrl, {
+    requireProbe: false,
+  });
   return updateHearingCaptureState(hearingJobId, {
     status: "stream_resolved",
-    stream_url: streamUrl,
-    stream_provider: job.stream_provider || (typeof job.metadata.stream_provider === "string" ? job.metadata.stream_provider : ""),
-    stream_confidence:
-      job.stream_confidence ||
-      (typeof job.metadata.stream_confidence === "number" ? job.metadata.stream_confidence : 0),
+    stream_url: youtubeSource.url,
+    stream_provider: "youtube",
+    stream_confidence: job.stream_confidence || 0.99,
     capture_status: "resolved",
     transcription_status: "idle",
-    capture_error: "",
+    capture_error: youtubeSource.probe_error,
   });
 }
 
@@ -271,7 +327,32 @@ export async function startHearingIntelligenceCapture(args: {
   if (!job.stream_url && !args.streamUrl) {
     job = await resolveHearingIntelligenceStream(args.hearingJobId);
   }
-  return startLiveHearingCapture(args);
+  const rawUrl = args.streamUrl?.trim() || job.stream_url;
+  const youtubeSource = await probeAndStoreYoutubeSource(args.hearingJobId, rawUrl, {
+    requireProbe: true,
+  });
+  if (youtubeSource.live_status === "scheduled") {
+    updateHearingCaptureState(args.hearingJobId, {
+      stream_url: youtubeSource.url,
+      stream_provider: "youtube",
+      capture_status: "resolved",
+      transcription_status: "idle",
+      capture_error: "This YouTube video is scheduled but not live yet.",
+    });
+    throw new Error("This YouTube video is scheduled but not live yet.");
+  }
+  updateHearingCaptureState(args.hearingJobId, {
+    stream_url: youtubeSource.url,
+    stream_provider: "youtube",
+    stream_confidence: 0.99,
+    capture_status: "resolved",
+    transcription_status: "idle",
+    capture_error: "",
+  });
+  return startLiveHearingCapture({
+    hearingJobId: args.hearingJobId,
+    streamUrl: youtubeSource.url,
+  });
 }
 
 export async function stopHearingIntelligenceCapture(hearingJobId: string) {
