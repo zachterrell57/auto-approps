@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHearingJobs } from "@/hooks/useHearingJobs";
+import { hearingOutputCostLabel } from "@/lib/hearingCost";
 import type {
   AppSettings,
   Client,
@@ -501,13 +502,19 @@ function OutputPane({
   const [markdown, setMarkdown] = useState(output?.content_markdown ?? "");
   const [instructions, setInstructions] = useState("");
   const [comment, setComment] = useState("");
+  const costLabel = output ? hearingOutputCostLabel(output.model_metadata) : "";
 
   return (
     <section className="min-h-0 bg-white">
       <div className="flex h-12 items-center justify-between border-b border-foreground/8 px-4">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <FileText className="h-4 w-4 text-foreground/45" />
-          Memo
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <FileText className="h-4 w-4 shrink-0 text-foreground/45" />
+          <span>Memo</span>
+          {costLabel && (
+            <span className="truncate rounded-md border border-foreground/8 bg-foreground/[0.025] px-2 py-0.5 text-xs font-normal text-foreground/50">
+              {costLabel}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" disabled={!output} onClick={() => onSave(markdown, false)}>

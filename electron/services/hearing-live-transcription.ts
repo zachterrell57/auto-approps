@@ -4,6 +4,10 @@ import { v4 as uuidv4 } from "uuid";
 
 import { settings } from "./config";
 import {
+  providerUsageAndCostFields,
+  type ProviderUsageRecord,
+} from "./hearing-cost";
+import {
   HearingTranscriptSegmentSchema,
   type HearingTranscriptSegment,
   type SpeakerType,
@@ -22,7 +26,13 @@ type OpenAiTranscriptSegment = {
 type OpenAiTranscriptResponse = {
   text?: string;
   segments?: OpenAiTranscriptSegment[];
+  [key: string]: unknown;
 };
+
+export interface LiveTranscriptionResult {
+  segments: HearingTranscriptSegment[];
+  providerUsage: ProviderUsageRecord;
+}
 
 function speakerType(speaker: string): SpeakerType {
   if (/chair|chairman|chairwoman|ranking member/i.test(speaker)) return "chair";
@@ -96,7 +106,7 @@ function diarizedSegments(args: {
 async function callOpenAiTranscription(
   audioPath: string,
   model: string,
-): Promise<OpenAiTranscriptResponse> {
+): Promise<{ response: OpenAiTranscriptResponse; providerUsage: ProviderUsageRecord }> {
   const apiKey = settings.openai_api_key || process.env.OPENAI_API_KEY || "";
   if (!apiKey) {
     throw new Error("OpenAI API key is required for live hearing transcription.");
@@ -131,33 +141,54 @@ async function callOpenAiTranscription(
   if (!raw || typeof raw !== "object") {
     throw new Error("OpenAI transcription returned an invalid response.");
   }
-  return raw as OpenAiTranscriptResponse;
+  const rawRecord = raw as Record<string, unknown>;
+  const { usage, costFields, costUsd } = providerUsageAndCostFields(rawRecord);
+  return {
+    response: raw as OpenAiTranscriptResponse,
+    providerUsage: {
+      provider: "openai",
+      service: "transcription",
+      model,
+      cost_usd: costUsd,
+      usage,
+      ...(costUsd === null ? { unavailable_reason: "transcription unavailable" } : {}),
+      ...(Object.keys(costFields).length > 0
+        ? { provider_cost_fields: costFields }
+        : {}),
+    },
+  };
 }
 
 export async function transcribeLiveAudioChunk(args: {
   hearingJobId: string;
   audioPath: string;
   offsetMs: number;
-}): Promise<HearingTranscriptSegment[]> {
+}): Promise<LiveTranscriptionResult> {
   const preferred = process.env.HEARING_TRANSCRIPTION_MODEL || "gpt-4o-transcribe-diarize";
   const fallback = "gpt-4o-transcribe";
-  let response: OpenAiTranscriptResponse;
+  let result: { response: OpenAiTranscriptResponse; providerUsage: ProviderUsageRecord };
   try {
-    response = await callOpenAiTranscription(args.audioPath, preferred);
+    result = await callOpenAiTranscription(args.audioPath, preferred);
   } catch (err) {
     if (preferred === fallback) throw err;
-    response = await callOpenAiTranscription(args.audioPath, fallback);
+    result = await callOpenAiTranscription(args.audioPath, fallback);
   }
 
+  const response = result.response;
   if (Array.isArray(response.segments) && response.segments.length > 0) {
     const segments = diarizedSegments({
       hearingJobId: args.hearingJobId,
       offsetMs: args.offsetMs,
       segments: response.segments,
     });
-    if (segments.length > 0) return segments;
+    if (segments.length > 0) {
+      return { segments, providerUsage: result.providerUsage };
+    }
   }
 
   const text = (response.text ?? "").trim();
-  return text ? offsetParsedSegments(args.hearingJobId, text, args.offsetMs) : [];
+  return {
+    segments: text ? offsetParsedSegments(args.hearingJobId, text, args.offsetMs) : [],
+    providerUsage: result.providerUsage,
+  };
 }

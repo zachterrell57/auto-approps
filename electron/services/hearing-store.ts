@@ -38,6 +38,7 @@ import {
   type VerificationStatus,
   type WatchHitStatus,
 } from "./hearing-models";
+import type { ProviderUsageRecord } from "./hearing-cost";
 
 const LOCAL_ORG_ID = "local-org";
 const LOCAL_USER_ID = "local-user";
@@ -72,6 +73,12 @@ function parseJson<T>(value: string | null | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function getDb(): BetterSqlite3.Database {
@@ -820,6 +827,51 @@ export function updateHearingCaptureState(
       hearingJobId,
     );
   audit(hearingJobId, "hearing_capture.state_updated", next);
+  const job = getHearingJob(hearingJobId);
+  if (!job) throw new Error("Hearing job not found");
+  return job;
+}
+
+export function appendTranscriptionProviderUsage(
+  hearingJobId: string,
+  usageRecord: ProviderUsageRecord,
+): HearingJob {
+  const current = getHearingJob(hearingJobId);
+  if (!current) throw new Error("Hearing job not found");
+  const metadata = recordValue(current.metadata);
+  const providerUsage = recordValue(metadata.provider_usage);
+  const transcription = recordValue(providerUsage.transcription);
+  const records = Array.isArray(transcription.records)
+    ? transcription.records
+    : [];
+  const nextRecord: ProviderUsageRecord = {
+    ...usageRecord,
+    recorded_at: usageRecord.recorded_at ?? new Date().toISOString(),
+  };
+  const nextMetadata = {
+    ...metadata,
+    provider_usage: {
+      ...providerUsage,
+      transcription: {
+        provider: usageRecord.provider,
+        service: usageRecord.service,
+        records: [...records, nextRecord],
+      },
+    },
+  };
+  getDb()
+    .prepare(
+      `UPDATE hearing_jobs
+       SET metadata_json = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .run(jsonString(nextMetadata), new Date().toISOString(), hearingJobId);
+  audit(hearingJobId, "hearing_transcription.provider_usage_recorded", {
+    provider: usageRecord.provider,
+    service: usageRecord.service,
+    model: usageRecord.model,
+    cost_usd: usageRecord.cost_usd,
+  });
   const job = getHearingJob(hearingJobId);
   if (!job) throw new Error("Hearing job not found");
   return job;

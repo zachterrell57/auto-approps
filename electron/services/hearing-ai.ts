@@ -7,6 +7,12 @@ import {
   type CongressionalContext,
 } from "./congressional-context";
 import {
+  buildProviderCostSummary,
+  providerUsageAndCostFields,
+  transcriptionComponentFromMetadata,
+  type ProviderCostComponent,
+} from "./hearing-cost";
+import {
   type HearingClaim,
   type HearingJob,
   type HearingOutputType,
@@ -131,6 +137,11 @@ interface RawHearingOutput {
   reviewFlags?: string[];
 }
 
+interface AiOutputResult {
+  output: RawHearingOutput;
+  providerUsage: ProviderCostComponent;
+}
+
 function titleForType(type: HearingOutputType): string {
   if (type === "targeted_recap") return "Targeted Watchlist Recap";
   if (type === "pre_hearing_brief") return "Pre-Hearing Brief";
@@ -228,7 +239,7 @@ For targeted recap: bottom line, hit summary table, detailed exchanges, bills/ac
 For pre-hearing brief: hearing background, committee jurisdiction, witness bios, relevant pending bills, members likely to care, suggested watchlist terms, known client risks/opportunities.`;
 }
 
-async function requestAiOutput(prompt: string): Promise<RawHearingOutput> {
+async function requestAiOutput(prompt: string): Promise<AiOutputResult> {
   if (!settings.anthropic_api_key) {
     throw new Error("ANTHROPIC_API_KEY is not configured");
   }
@@ -248,10 +259,23 @@ async function requestAiOutput(prompt: string): Promise<RawHearingOutput> {
     ],
     tool_choice: { type: "tool", name: TOOL_NAME },
   });
+  const responseRecord = response as unknown as Record<string, unknown>;
+  const { usage, costUsd } = providerUsageAndCostFields(responseRecord);
+  const providerUsage: ProviderCostComponent = {
+    provider: "anthropic",
+    service: "ai_generation",
+    model: typeof response.model === "string" ? response.model : settings.model_name,
+    cost_usd: costUsd,
+    usage,
+    ...(costUsd === null ? { unavailable_reason: "AI generation unavailable" } : {}),
+  };
 
   for (const block of response.content) {
     if (block.type === "tool_use" && block.name === TOOL_NAME) {
-      return block.input as RawHearingOutput;
+      return {
+        output: block.input as RawHearingOutput,
+        providerUsage,
+      };
     }
   }
   throw new Error("Claude did not return required hearing output.");
@@ -423,15 +447,18 @@ export async function generateHearingOutput(args: {
   let markdown = "";
   let contentJson: Record<string, unknown> = {};
   let claims: Array<Omit<HearingClaim, "id" | "hearing_output_id">> = [];
+  let aiProviderUsage: ProviderCostComponent | null = null;
   const shouldUseAi = args.useAi ?? Boolean(settings.anthropic_api_key);
 
   if (shouldUseAi && settings.anthropic_api_key) {
-    const raw = await requestAiOutput(
+    const aiResult = await requestAiOutput(
       buildPrompt({
         ...args,
         segments: scopedSegments,
       }),
     );
+    const raw = aiResult.output;
+    aiProviderUsage = aiResult.providerUsage;
     markdown =
       raw.markdown?.trim() ||
       fallbackMarkdown({
@@ -468,6 +495,12 @@ export async function generateHearingOutput(args: {
     });
   }
 
+  const transcriptionProviderUsage = transcriptionComponentFromMetadata(args.job.metadata);
+  const costSummary = buildProviderCostSummary([
+    aiProviderUsage,
+    transcriptionProviderUsage,
+  ]);
+
   return createHearingOutput(
     args.job.id,
     args.outputType,
@@ -484,6 +517,13 @@ export async function generateHearingOutput(args: {
       generated_with_ai: shouldUseAi && Boolean(settings.anthropic_api_key),
       latency_ms: Date.now() - startedAt,
       estimated_cost_usd: null,
+      provider_usage: {
+        ...(aiProviderUsage ? { ai_generation: aiProviderUsage } : {}),
+        ...(transcriptionProviderUsage
+          ? { transcription: transcriptionProviderUsage }
+          : {}),
+      },
+      cost_summary: costSummary,
     }),
   );
 }
