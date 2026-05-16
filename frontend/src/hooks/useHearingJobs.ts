@@ -10,6 +10,23 @@ import type {
   HearingWorkspace,
 } from "@/lib/types";
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function isMissingYoutubeSource(message: string): boolean {
+  return /No usable YouTube video was found/i.test(message);
+}
+
+async function detectYoutubeStream(id: string): Promise<string | null> {
+  try {
+    await api.resolveHearingStream(id);
+    return null;
+  } catch (err) {
+    return errorMessage(err);
+  }
+}
+
 export function useHearingJobs() {
   const [jobs, setJobs] = useState<HearingJobSummary[]>([]);
   const [workspace, setWorkspace] = useState<HearingWorkspace | null>(null);
@@ -59,10 +76,27 @@ export function useHearingJobs() {
 
   const createJob = useCallback(
     async (input: HearingCreateInput) =>
-      runAction("Creating hearing job", async () => {
+      runAction("Creating hearing job and detecting YouTube video", async () => {
         const job = await api.createHearingJob(input);
+        const resolutionError = await detectYoutubeStream(job.id);
         await loadWorkspace(job.id);
+        if (resolutionError && !isMissingYoutubeSource(resolutionError)) {
+          setError(resolutionError);
+        }
         return job;
+      }),
+    [loadWorkspace, runAction],
+  );
+
+  const detectYoutubeForJob = useCallback(
+    async (id: string) =>
+      runAction("Detecting YouTube video", async () => {
+        const resolutionError = await detectYoutubeStream(id);
+        const next = await loadWorkspace(id);
+        if (resolutionError && !isMissingYoutubeSource(resolutionError)) {
+          setError(resolutionError);
+        }
+        return next;
       }),
     [loadWorkspace, runAction],
   );
@@ -318,6 +352,7 @@ export function useHearingJobs() {
     refreshJobs,
     loadWorkspace,
     createJob,
+    detectYoutubeForJob,
     resolveJob,
     resolveStream,
     startCapture,

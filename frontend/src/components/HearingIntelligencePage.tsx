@@ -643,7 +643,7 @@ export function HearingIntelligencePage({
     error,
     createJob,
     loadWorkspace,
-    resolveStream,
+    detectYoutubeForJob,
     startCapture,
     stopCapture,
     refreshCaptureStatus,
@@ -692,7 +692,10 @@ export function HearingIntelligencePage({
   );
 
   const selectJob = async (id: string) => {
-    const next = await loadWorkspace(id);
+    let next = await loadWorkspace(id);
+    if (next.job.status === "created") {
+      next = await detectYoutubeForJob(id);
+    }
     setWatchDraft(
       next.watch_items.map((item) => ({
         id: item.id,
@@ -735,7 +738,9 @@ export function HearingIntelligencePage({
       !loading &&
       !captureRunning &&
       !scheduledDetected &&
-      (workspace?.job.stream_url || streamOverride.trim()),
+      (workspace?.job.stream_url ||
+        workspace?.job.source_url ||
+        streamOverride.trim()),
   );
 
   useEffect(() => {
@@ -858,10 +863,6 @@ export function HearingIntelligencePage({
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => void resolveStream(currentId)} disabled={loading}>
-                      <Search />
-                      Resolve YouTube
-                    </Button>
                     <Button variant="outline" size="sm" onClick={() => void detectHits(currentId)} disabled={loading || workspace.transcript_segments.length === 0}>
                       <Filter />
                       Detect
@@ -915,7 +916,7 @@ export function HearingIntelligencePage({
                         <p className="mt-1 text-xs text-foreground/45">
                           {workspace.job.stream_url
                             ? youtubeSourceLabel(youtubeSource)
-                            : "Resolve the hearing page to find its YouTube video."}
+                            : "The source link is checked automatically for a YouTube video."}
                         </p>
                       </div>
                       <span className={`rounded border px-2 py-0.5 text-[11px] ${statusTone(workspace.job.status)}`}>
@@ -950,7 +951,7 @@ export function HearingIntelligencePage({
                       )}
                       {!workspace.job.stream_url && !streamOverride.trim() && (
                         <p className="rounded-md border border-foreground/10 bg-foreground/[0.015] px-3 py-2 text-xs text-foreground/45">
-                          No YouTube video is ready for capture. Resolve YouTube or paste a YouTube video URL.
+                          No YouTube video is ready for capture yet. Use a source link containing a YouTube video or paste a YouTube video URL.
                         </p>
                       )}
                       {scheduledDetected && (
