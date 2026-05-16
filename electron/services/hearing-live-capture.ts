@@ -6,6 +6,7 @@ import { getUserDataPath, settings } from "./config";
 import { requireMediaTool } from "./media-tools";
 import { normalizeYoutubeVideoInput } from "./youtube-source";
 import {
+  appendTranscriptionProviderUsage,
   appendTranscriptSegments,
   getHearingJob,
   getHearingWorkspace,
@@ -101,11 +102,12 @@ async function processClosedChunks(
           capture_error: "",
         });
         const offsetMs = chunkIndex(path.basename(audioPath)) * session.chunkSeconds * 1000;
-        const segments = await transcribeLiveAudioChunk({
+        const { segments, providerUsage } = await transcribeLiveAudioChunk({
           hearingJobId: session.hearingJobId,
           audioPath,
           offsetMs,
         });
+        appendTranscriptionProviderUsage(session.hearingJobId, providerUsage);
         if (segments.length > 0) {
           appendTranscriptSegments(session.hearingJobId, segments);
           refreshWatchlist(session.hearingJobId);
